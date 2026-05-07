@@ -217,6 +217,48 @@
       white-space: nowrap;
     }
 
+    .mobile-tabbar {
+      display: none;
+    }
+
+    .mobile-add-category {
+      display: none;
+    }
+
+    .mobile-tab-button {
+      min-width: 0;
+      height: 54px;
+      color: var(--muted);
+      border-radius: 12px;
+      background: transparent;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      cursor: pointer;
+      transition: background var(--ease), color var(--ease), transform var(--ease);
+    }
+
+    .mobile-tab-button.active {
+      color: #fff;
+      background: var(--green-active);
+    }
+
+    .mobile-tab-icon {
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .mobile-tab-label {
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 10px;
+      line-height: 1.15;
+    }
+
     .category-sidebar {
       padding: 14px 10px;
       display: flex;
@@ -1881,31 +1923,130 @@
 
     @media (max-width: 560px) {
       .app {
-        grid-template-columns: 58px minmax(0, 1fr);
-        gap: 8px;
-        padding: 8px;
+        height: 100dvh;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0;
+        padding: 0;
       }
 
-      .feature-button {
-        width: 42px;
-        min-height: 58px;
+      .feature-sidebar,
+      .category-sidebar {
+        display: none;
       }
 
-      .feature-icon {
-        font-size: 20px;
+      .main-panel {
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
       }
 
-      .feature-label {
-        font-size: 10px;
+      .main-scroll {
+        padding-bottom: calc(78px + env(safe-area-inset-bottom));
+        scroll-padding-bottom: calc(78px + env(safe-area-inset-bottom));
+      }
+
+      .mobile-tabbar {
+        position: fixed;
+        left: 8px;
+        right: 8px;
+        bottom: 0;
+        z-index: 80;
+        min-height: calc(66px + env(safe-area-inset-bottom));
+        padding: 6px 6px calc(8px + env(safe-area-inset-bottom));
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+        gap: 2px;
+        border-radius: 18px 18px 0 0;
+        border-bottom: 0;
+      }
+
+      .mobile-tab-button.active {
+        color: #fff;
+        background: var(--green-active);
+      }
+
+      .mobile-tab-button:focus-visible {
+        outline: 0;
+        box-shadow: 0 0 0 3px rgba(116,97,255,0.22);
       }
 
       .content {
-        padding: 14px 12px 20px;
+        padding: 12px 10px 22px;
+      }
+
+      .search-shell {
+        height: auto;
+        min-height: 108px;
+        padding: 8px 10px;
+        grid-template-columns: minmax(0, 1fr) 40px;
+        gap: 8px;
+      }
+
+      .search-box {
+        grid-column: 1;
+      }
+
+      .engine-tabs {
+        grid-column: 1 / -1;
+        justify-self: stretch;
+        overflow-x: auto;
+      }
+
+      .mobile-add-category {
+        width: 40px;
+        height: 40px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        border: 1px solid rgba(255,255,255,0.18);
+        border-radius: 50%;
+        background: rgba(255,255,255,0.1);
+        font-size: 22px;
+        line-height: 1;
+        cursor: pointer;
+      }
+
+      .engine-tab {
+        flex: 1 0 auto;
+      }
+
+      .site-grid {
+        grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+        gap: 10px;
+      }
+
+      .site-card {
+        min-height: 104px;
+      }
+
+      .section {
+        margin-bottom: 22px;
+      }
+
+      .section-head {
+        margin-bottom: 10px;
+      }
+
+      .section-title {
+        font-size: 16px;
+      }
+
+      .settings-card {
+        padding: 20px;
+      }
+
+      .settings-actions {
+        grid-template-columns: 1fr;
+      }
+
+      .unlock-panel {
+        flex-direction: column;
       }
 
       .schulte-grid {
-        width: min(100%, calc(100vw - 94px));
-        max-width: calc(100vw - 32px);
+        width: min(100%, calc(100vw - 28px));
+        max-width: calc(100vw - 28px);
       }
 
       .schulte-stats {
@@ -1959,12 +2100,14 @@
             <span class="search-icon" aria-hidden="true">⌕</span>
             <input class="search-input" id="searchInput" type="search" placeholder="输入关键词，按 Enter 搜索" />
           </form>
+          <button class="mobile-add-category" id="mobileAddCategoryBtn" type="button" aria-label="添加分类">＋</button>
           <div class="engine-tabs" id="engineTabs" aria-label="搜索引擎切换"></div>
         </header>
         <div class="content" id="content"></div>
       </div>
     </main>
   </div>
+  <nav class="mobile-tabbar glass" id="mobileTabbar" aria-label="移动端功能导航"></nav>
   <div class="modal-root" id="modalRoot"></div>
   <div class="toast-root" id="toastRoot"></div>
   <input type="file" id="configFileInput" accept="application/json,.json" style="display:none" />
@@ -2184,6 +2327,8 @@
     const modalRoot = document.getElementById("modalRoot");
     const toastRoot = document.getElementById("toastRoot");
     const configFileInput = document.getElementById("configFileInput");
+    const mobileTabbar = document.getElementById("mobileTabbar");
+    const mobileAddCategoryBtn = document.getElementById("mobileAddCategoryBtn");
 
     let activeFeature = "navigation";
     let activeGame = "schulte";
@@ -2462,12 +2607,15 @@
       }
     }
 
-    function renderFeatureList() {
-      const filteredFeatures = features.filter(item => {
+    function getVisibleFeatures() {
+      return features.filter(item => {
         if (!isUnlocked && (item.id === "game" || item.id === "stocks")) return false;
         return true;
       });
-      featureList.innerHTML = filteredFeatures.map((item, index) => `
+    }
+
+    function renderFeatureList() {
+      featureList.innerHTML = getVisibleFeatures().map((item, index) => `
         <li>
           <button class="feature-button ${item.id === activeFeature ? "active" : ""}" type="button" draggable="true" data-drag-type="feature" data-feature="${item.id}" data-feature-index="${index}" aria-label="${escapeHTML(item.label)}" aria-pressed="${item.id === activeFeature}">
             <span class="feature-drag-hint" aria-hidden="true">⋮</span>
@@ -2477,6 +2625,15 @@
         </li>
       `).join("");
       bindFeatureDragSort();
+    }
+
+    function renderMobileTabbar() {
+      mobileTabbar.innerHTML = getVisibleFeatures().map(item => `
+        <button class="mobile-tab-button ${item.id === activeFeature ? "active" : ""}" type="button" data-mobile-feature="${item.id}" aria-label="切换到${escapeHTML(item.label)}" aria-current="${item.id === activeFeature ? "page" : "false"}">
+          <span class="mobile-tab-icon" aria-hidden="true">${item.icon}</span>
+          <span class="mobile-tab-label">${escapeHTML(item.label)}</span>
+        </button>
+      `).join("");
     }
 
     function renderCategoryList() {
@@ -2913,6 +3070,7 @@
       features.splice(safeIndex, 0, moved);
       saveUserConfig();
       renderFeatureList();
+      renderMobileTabbar();
       return true;
     }
 
@@ -2920,6 +3078,7 @@
       const feature = features.find(item => item.id === activeFeature) || features.find(item => item.id === "navigation");
       activeFeature = feature.id;
       renderFeatureList();
+      renderMobileTabbar();
       mainScroll.scrollTop = 0;
 
       if (activeFeature === "navigation") {
@@ -3680,6 +3839,13 @@
       openModal({ type: "add-category", selectedEmoji: "⭐" });
     });
 
+    mobileAddCategoryBtn.addEventListener("click", event => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (activeFeature !== "navigation") return;
+      openModal({ type: "add-category", selectedEmoji: "⭐" });
+    });
+
     configFileInput.addEventListener("change", () => {
       const file = configFileInput.files?.[0];
       if (!file) return;
@@ -3740,6 +3906,13 @@
       renderAppShell();
     });
 
+    mobileTabbar.addEventListener("click", event => {
+      const button = event.target.closest("[data-mobile-feature]");
+      if (!button || button.dataset.mobileFeature === activeFeature) return;
+      activeFeature = button.dataset.mobileFeature;
+      renderAppShell();
+    });
+
     content.addEventListener("click", event => {
       if (activeFeature === "settings") {
         const unlockBtn = event.target.closest("#unlockBtn");
@@ -3754,6 +3927,7 @@
             localStorage.setItem(UNLOCKED_KEY, "true");
             showToast("隐藏功能已解锁", "success");
             renderFeatureList();
+            renderMobileTabbar();
             renderSettingsPage();
           } else {
             showToast("密码错误", "error");
