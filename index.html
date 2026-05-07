@@ -74,7 +74,7 @@
       height: 100vh;
       padding: 14px;
       display: grid;
-      grid-template-columns: 72px 160px minmax(0, 1fr);
+      grid-template-columns: 72px 220px minmax(0, 1fr);
       gap: 12px;
       overflow: hidden;
       animation: pageFade var(--ease) both;
@@ -595,22 +595,32 @@
       font-size: 12px;
     }
 
-    .add-site-btn {
-      height: 32px;
-      padding: 0 12px;
-      flex: 0 0 auto;
-      color: #fff;
-      border-radius: 10px;
-      border: 1px solid rgba(255,255,255,0.18);
-      background: rgba(255,255,255,0.1);
-      cursor: pointer;
-      transition: background var(--ease), border-color var(--ease), transform var(--ease);
+    .add-site-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: rgba(255,255,255,0.45);
+      border: 1px dashed rgba(255,255,255,0.16);
+      background: rgba(255,255,255,0.02);
     }
 
-    .add-site-btn:hover {
-      transform: translateY(-1px);
+    .add-site-card:hover,
+    .add-site-card:focus-visible {
+      color: rgba(255,255,255,0.85);
+      border-style: solid;
       border-color: var(--border-bright);
-      background: rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.06);
+    }
+
+    .add-site-icon {
+      font-size: 26px;
+      line-height: 1;
+    }
+
+    .add-site-text {
+      font-size: 13px;
     }
 
     .site-grid {
@@ -845,7 +855,7 @@
 
     .coming-page,
     .game-page {
-      width: min(100%, 1080px);
+      width: min(100%, 1400px);
       margin: 0 auto;
       animation: pageFade var(--ease) both;
     }
@@ -1209,6 +1219,259 @@
       font-size: 14px;
       border-radius: 10px;
       box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
+    }
+
+    /* Memory Game Styles */
+    .memory-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: center;
+      width: 100%;
+      padding-bottom: 40px;
+    }
+
+    .memory-grid {
+      --memory-gap: 8px;
+      --memory-grid-padding: 12px;
+      --memory-card-area-target-height: 80vh;
+      --memory-card-aspect: 1055 / 1491;
+      display: grid;
+      gap: var(--memory-gap);
+      position: relative;
+      perspective: 1000px;
+      width: min(100%, calc(113.22vh + 46px));
+      max-width: 100%;
+      margin: 0 auto;
+      grid-template-columns: repeat(var(--memory-cols, 8), minmax(0, 1fr));
+      padding: var(--memory-grid-padding);
+      justify-content: center;
+      overflow: visible;
+    }
+
+    .memory-grid.cols-4 {
+      width: min(100%, calc(56.61vh + 31px));
+    }
+
+    .memory-grid.cols-6 {
+      width: min(100%, calc(84.91vh + 39px));
+    }
+
+    .memory-grid.cols-8 {
+      width: min(100%, calc(113.22vh + 46px));
+    }
+
+    .memory-grid.cols-10 {
+      width: min(100%, calc(141.52vh + 54px));
+    }
+
+    .memory-card {
+      --memory-card-radius: 12px;
+      width: 100%;
+      aspect-ratio: var(--memory-card-aspect);
+      min-width: 0;
+      position: relative;
+      cursor: pointer;
+      transform-style: preserve-3d;
+      transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .memory-card.is-flipped {
+      transform: rotateY(180deg);
+    }
+
+    .memory-card.is-matched {
+      transform: rotateY(180deg) scale(0.95);
+      opacity: 0.6;
+      cursor: default;
+      pointer-events: none;
+    }
+
+    .card-face {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+      border-radius: var(--memory-card-radius);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: clamp(14px, 3.4vw, 44px);
+      box-shadow: 0 4px 18px rgba(0,0,0,0.3), inset 0 0 0 1px rgba(255,255,255,0.12);
+      border: 0;
+      overflow: hidden;
+    }
+
+    /* Card Back - Enhanced Tarot Style */
+    .card-back {
+      background: radial-gradient(circle at 50% 50%, #1d1944 0%, #0f0c29 100%);
+      color: #fff;
+      overflow: hidden;
+    }
+
+    .card-back::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: 
+        radial-gradient(1px 1px at 20px 30px, #fff, rgba(0,0,0,0)),
+        radial-gradient(1px 1px at 40px 70px, #fff, rgba(0,0,0,0)),
+        radial-gradient(1px 1px at 50px 10px, #fff, rgba(0,0,0,0)),
+        radial-gradient(2px 2px at 15px 85px, rgba(255,255,255,0.8), rgba(0,0,0,0)),
+        radial-gradient(2px 2px at 60px 45px, rgba(255,255,255,0.8), rgba(0,0,0,0));
+      background-size: 80px 100px;
+      opacity: 0.5;
+      z-index: 0;
+    }
+
+    .magic-circle {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.15;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .magic-circle svg {
+      width: 90%;
+      height: 90%;
+      stroke: #fff;
+      stroke-width: 0.5;
+      fill: none;
+      animation: magicRotate 20s linear infinite;
+    }
+
+    @keyframes magicRotate {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .angel-icon {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 3;
+      border-radius: var(--memory-card-radius);
+      overflow: hidden;
+    }
+
+    .angel-icon img {
+      width: 100%;
+      height: 100%;
+      max-width: none;
+      max-height: none;
+      display: block;
+      object-fit: cover;
+      filter: drop-shadow(0 0 10px rgba(255,255,255,0.6));
+      opacity: 0.9;
+      border-radius: inherit;
+    }
+
+    .card-front {
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(12px);
+      transform: rotateY(180deg);
+      color: #fff;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.15);
+    }
+
+    .memory-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 12px;
+      width: min(100%, 800px);
+      margin-bottom: 0;
+    }
+
+    .memory-stat-card {
+      padding: clamp(10px, 1.5vw, 16px);
+      text-align: center;
+      background: rgba(255,255,255,0.06);
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .memory-stat-label {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .memory-stat-value {
+      font-size: 19px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: #fff;
+    }
+
+    .memory-difficulty {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 0;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .memory-complete {
+      position: absolute;
+      inset: auto 50% 50% auto;
+      width: min(360px, calc(100% - 32px));
+      padding: 28px;
+      text-align: center;
+      transform: translate(50%, 50%);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 20px;
+      background: rgba(18, 14, 48, 0.96);
+      backdrop-filter: blur(24px);
+      z-index: 100;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.5), 0 0 40px rgba(118, 104, 255, 0.2);
+      animation: modalIn 0.4s var(--ease) both;
+    }
+
+    .memory-complete.is-hidden {
+      display: none;
+    }
+
+    .memory-complete h2 {
+      font-size: 32px;
+      margin-bottom: 12px;
+      background: linear-gradient(to bottom, #fff, rgba(255,255,255,0.7));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .memory-complete-stats {
+      margin: 20px 0 28px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .memory-complete-stat {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .memory-complete-label {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .memory-complete-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
     }
 
     .schulte-complete {
@@ -1600,6 +1863,20 @@
         width: min(760px, 100%);
         max-width: calc(100vw - 32px);
       }
+
+      .memory-panel {
+        gap: 8px;
+      }
+
+      .memory-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        margin-bottom: 0;
+      }
+
+      .memory-stat-value {
+        font-size: 16px;
+      }
     }
 
     @media (max-width: 560px) {
@@ -1633,6 +1910,30 @@
 
       .schulte-stats {
         gap: 8px;
+      }
+
+      .memory-grid {
+        --memory-gap: 3px;
+        --memory-grid-padding: 4px;
+      }
+
+      .memory-difficulty {
+        gap: 6px;
+        margin-bottom: 0;
+      }
+
+      .memory-difficulty .schulte-btn {
+        height: 32px;
+        padding: 0 8px;
+        font-size: 12px;
+      }
+
+      .card-face {
+        font-size: clamp(12px, 3.2vw, 28px);
+      }
+
+      .memory-card {
+        --memory-card-radius: 7px;
       }
     }
   </style>
@@ -1702,11 +2003,11 @@
         render: renderSchulteGame
       },
       {
-        id: "coming-soon-1",
+        id: "memory",
         name: "记忆翻牌",
         icon: "🧠",
-        desc: "即将接入",
-        disabled: true
+        desc: "考验短期记忆与空间认知能力",
+        render: renderMemoryGame
       }
     ];
 
@@ -1721,7 +2022,23 @@
       10: "glass_nav_schulte_best_10"
     };
 
+    const memoryBestKeys = {
+      "4x4": "glass_nav_memory_best_4x4",
+      "4x6": "glass_nav_memory_best_4x6",
+      "4x8": "glass_nav_memory_best_4x8",
+      "4x10": "glass_nav_memory_best_4x10"
+    };
+
+    const memoryModes = [
+      { label: "4×4 入门", rows: 4, cols: 4 },
+      { label: "4×6 标准", rows: 4, cols: 6 },
+      { label: "4×8 挑战", rows: 4, cols: 8 },
+      { label: "4×10 专家", rows: 4, cols: 10 }
+    ];
+
     const USER_CONFIG_KEY = "glass_nav_user_config";
+    const UNLOCKED_KEY = "glass_nav_unlocked";
+    let isUnlocked = localStorage.getItem(UNLOCKED_KEY) === "true";
 
     const defaultCategories = [
       {
@@ -1888,6 +2205,21 @@
       elapsed: 0,
       timerId: null,
       done: new Set(),
+    };
+
+    const memoryState = {
+      rows: 4,
+      cols: 4,
+      cards: [],
+      flipped: [],
+      matched: new Set(),
+      steps: 0,
+      started: false,
+      finished: false,
+      startTime: 0,
+      elapsed: 0,
+      timerId: null,
+      locked: false
     };
 
     function hydrateIds() {
@@ -2131,7 +2463,11 @@
     }
 
     function renderFeatureList() {
-      featureList.innerHTML = features.map((item, index) => `
+      const filteredFeatures = features.filter(item => {
+        if (!isUnlocked && (item.id === "game" || item.id === "stocks")) return false;
+        return true;
+      });
+      featureList.innerHTML = filteredFeatures.map((item, index) => `
         <li>
           <button class="feature-button ${item.id === activeFeature ? "active" : ""}" type="button" draggable="true" data-drag-type="feature" data-feature="${item.id}" data-feature-index="${index}" aria-label="${escapeHTML(item.label)}" aria-pressed="${item.id === activeFeature}">
             <span class="feature-drag-hint" aria-hidden="true">⋮</span>
@@ -2236,7 +2572,7 @@
     }
 
     function renderCategorySection(category) {
-      const siteCards = category.sites.length ? `
+      const siteCards = `
         <div class="site-grid">
           ${category.sites.map(site => `
             <div class="site-card glass" role="link" tabindex="0" data-category-id="${category.id}" data-site-id="${site.id}" title="打开 ${escapeHTML(site.name)}">
@@ -2253,8 +2589,12 @@
               </div>
             </div>
           `).join("")}
+          <div class="site-card glass add-site-card" role="button" tabindex="0" data-add-site="${category.id}" title="添加网站">
+            <div class="add-site-icon">＋</div>
+            <div class="add-site-text">添加网站</div>
+          </div>
         </div>
-      ` : `<div class="empty-state">这个分类还没有网站，点击右上角添加。</div>`;
+      `;
 
       return `
         <section class="section" id="${category.id}" data-category="${category.id}">
@@ -2263,7 +2603,6 @@
               <h2 class="section-title">${escapeHTML(category.emoji)} ${escapeHTML(category.name)}</h2>
               <span class="count-badge">${category.sites.length}</span>
             </div>
-            <button class="add-site-btn" type="button" data-add-site="${category.id}">＋ 添加网站</button>
           </div>
           ${siteCards}
         </section>
@@ -2313,6 +2652,18 @@
               </button>
             </div>
           </div>
+
+          <div class="settings-card glass" style="margin-top: 24px;">
+            <h1>高级功能</h1>
+            <p>输入通行密码以解锁隐藏的功能模块。</p>
+            <div class="unlock-panel" style="display: flex; gap: 12px; margin-top: 16px;">
+              <input type="password" id="unlockPassword" placeholder="输入密码" style="flex: 1; padding: 10px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); color: #fff; outline: none;" />
+              <button class="settings-action" type="button" id="unlockBtn" style="margin: 0; padding: 0 24px; min-width: 100px; height: 42px; min-height: auto; display: flex; align-items: center; justify-content: center; text-align: center;">
+                <strong style="font-size: 15px;">${isUnlocked ? "已解锁" : "解锁"}</strong>
+              </button>
+            </div>
+            ${isUnlocked ? '<p style="margin-top: 12px; color: #4caf50; font-size: 14px;">已成功开启隐藏模块：游戏、股市</p>' : ""}
+          </div>
         </section>
       `;
     }
@@ -2336,6 +2687,9 @@
       if (game.id === "schulte") {
         bindSchulteEvents();
         startSchulteTimer();
+      }
+      if (game.id === "memory") {
+        updateMemoryStats();
       }
     }
 
@@ -2608,6 +2962,249 @@
       renderFeatureSidePlaceholder(feature);
       renderComingSoonPage(feature);
       observeSections();
+    }
+
+    /* Memory Game Logic */
+    function getMemoryBest(key) {
+      try {
+        const storageKey = memoryBestKeys[key];
+        if (!storageKey) return null;
+        const raw = localStorage.getItem(storageKey);
+        return raw ? JSON.parse(raw) : null;
+      } catch (e) { return null; }
+    }
+
+    function saveMemoryBest(key, elapsed, steps) {
+      const storageKey = memoryBestKeys[key];
+      if (!storageKey) return;
+      const current = getMemoryBest(key);
+      if (!current || elapsed < current.elapsed) {
+        localStorage.setItem(storageKey, JSON.stringify({ elapsed, steps }));
+      }
+    }
+
+    function formatMemoryTime(ms) {
+      const s = Math.floor(ms / 1000);
+      const m = Math.floor(s / 60);
+      const ss = (s % 60).toString().padStart(2, "0");
+      const msPart = Math.floor((ms % 1000) / 10).toString().padStart(2, "0");
+      return `${m}:${ss}.${msPart}`;
+    }
+
+    function startMemoryTimer() {
+      if (memoryState.timerId) return;
+      memoryState.timerId = setInterval(() => {
+        memoryState.elapsed = performance.now() - memoryState.startTime;
+        const timeNode = document.getElementById("memoryTime");
+        if (timeNode) timeNode.textContent = formatMemoryTime(memoryState.elapsed);
+      }, 50);
+    }
+
+    function stopMemoryTimer() {
+      if (memoryState.timerId) {
+        clearInterval(memoryState.timerId);
+        memoryState.timerId = null;
+      }
+    }
+
+    function initMemoryGame(rows = 4, cols = 4) {
+      memoryState.rows = rows;
+      memoryState.cols = cols;
+      const pairCount = (rows * cols) / 2;
+      const icons = [
+        "⭐", "🌙", "☀️", "👼", "⚔️", "🔮", "👑", "🪶", "✝️", "🔥", "🌈", "✨", "🍀", "💎", "🗝️", "📜", "🕯️", "🌌",
+        "🪐", "🔭", "☄️", "🏹", "⚖️", "🏺", "🧜", "🦄", "🐉", "🔱", "🧿", "🐚"
+      ].slice(0, pairCount);
+      const deck = [...icons, ...icons];
+      
+      for (let i = deck.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [deck[i], deck[j]] = [deck[j], deck[i]];
+      }
+
+      memoryState.cards = deck.map((icon, index) => ({ id: index, icon, flipped: false, matched: false }));
+      memoryState.flipped = [];
+      memoryState.matched = new Set();
+      memoryState.steps = 0;
+      memoryState.started = false;
+      memoryState.finished = false;
+      memoryState.startTime = 0;
+      memoryState.elapsed = 0;
+      memoryState.locked = false;
+      stopMemoryTimer();
+    }
+
+    function resetMemoryGame(rows = memoryState.rows, cols = memoryState.cols) {
+      initMemoryGame(rows, cols);
+      renderAppShell();
+    }
+
+    function handleMemoryCardClick(event) {
+      const cardEl = event.target.closest(".memory-card");
+      if (!cardEl || memoryState.locked || memoryState.finished) return;
+
+      const index = parseInt(cardEl.dataset.index);
+      const card = memoryState.cards[index];
+      if (card.flipped || card.matched) return;
+
+      if (!memoryState.started) {
+        memoryState.started = true;
+        memoryState.startTime = performance.now();
+        startMemoryTimer();
+      }
+
+      card.flipped = true;
+      memoryState.flipped.push(index);
+      cardEl.classList.add("is-flipped");
+
+      if (memoryState.flipped.length === 2) {
+        memoryState.steps += 1;
+        memoryState.locked = true;
+        const [idx1, idx2] = memoryState.flipped;
+        const card1 = memoryState.cards[idx1];
+        const card2 = memoryState.cards[idx2];
+
+        if (card1.icon === card2.icon) {
+          card1.matched = true;
+          card2.matched = true;
+          memoryState.matched.add(card1.icon);
+          
+          const el1 = document.querySelector(`.memory-card[data-index="${idx1}"]`);
+          const el2 = document.querySelector(`.memory-card[data-index="${idx2}"]`);
+          setTimeout(() => {
+            el1.classList.add("is-matched");
+            el2.classList.add("is-matched");
+            memoryState.flipped = [];
+            memoryState.locked = false;
+            if (memoryState.matched.size === (memoryState.rows * memoryState.cols) / 2) {
+              finishMemoryGame();
+            }
+          }, 400);
+        } else {
+          setTimeout(() => {
+            card1.flipped = false;
+            card2.flipped = false;
+            const el1 = document.querySelector(`.memory-card[data-index="${idx1}"]`);
+            const el2 = document.querySelector(`.memory-card[data-index="${idx2}"]`);
+            el1.classList.remove("is-flipped");
+            el2.classList.remove("is-flipped");
+            memoryState.flipped = [];
+            memoryState.locked = false;
+          }, 800);
+        }
+        updateMemoryStats();
+      }
+    }
+
+    function finishMemoryGame() {
+      memoryState.finished = true;
+      memoryState.elapsed = performance.now() - memoryState.startTime;
+      stopMemoryTimer();
+      const diffKey = `${memoryState.rows}x${memoryState.cols}`;
+      saveMemoryBest(diffKey, memoryState.elapsed, memoryState.steps);
+      updateMemoryStats();
+
+      const panel = document.getElementById("memoryComplete");
+      const timeNode = document.getElementById("memoryCompleteTime");
+      const stepsNode = document.getElementById("memoryCompleteSteps");
+      const bestNode = document.getElementById("memoryCompleteBest");
+      
+      if (timeNode) timeNode.textContent = formatMemoryTime(memoryState.elapsed);
+      if (stepsNode) stepsNode.textContent = memoryState.steps;
+      if (bestNode) {
+        const best = getMemoryBest(diffKey);
+        bestNode.textContent = best ? `${formatMemoryTime(best.elapsed)} (${best.steps}步)` : "--";
+      }
+      if (panel) panel.classList.remove("is-hidden");
+    }
+
+    function updateMemoryStats() {
+      const stepsNode = document.getElementById("memorySteps");
+      const progressNode = document.getElementById("memoryProgress");
+      if (stepsNode) stepsNode.textContent = memoryState.steps;
+      if (progressNode) progressNode.textContent = `${memoryState.matched.size}/${(memoryState.rows * memoryState.cols) / 2}`;
+    }
+
+    function renderMemoryGame() {
+      if (!memoryState.cards.length) initMemoryGame();
+      const diffKey = `${memoryState.rows}x${memoryState.cols}`;
+      const best = getMemoryBest(diffKey);
+      const diffButtons = memoryModes.map(d => `
+        <button class="schulte-btn ${memoryState.rows === d.rows && memoryState.cols === d.cols ? "active" : ""}" type="button" data-memory-rows="${d.rows}" data-memory-cols="${d.cols}">
+          ${d.label}
+        </button>
+      `).join("");
+
+      return `
+        <div class="memory-panel">
+          <div class="memory-difficulty">${diffButtons}</div>
+          <div class="memory-stats">
+            <div class="memory-stat-card">
+              <div class="memory-stat-label">当前用时</div>
+              <div class="memory-stat-value" id="memoryTime">${formatMemoryTime(memoryState.elapsed)}</div>
+            </div>
+            <div class="memory-stat-card">
+              <div class="memory-stat-label">翻牌步数</div>
+              <div class="memory-stat-value" id="memorySteps">${memoryState.steps}</div>
+            </div>
+            <div class="memory-stat-card">
+              <div class="memory-stat-label">已匹配</div>
+              <div class="memory-stat-value" id="memoryProgress">${memoryState.matched.size}/${(memoryState.rows * memoryState.cols) / 2}</div>
+            </div>
+            <div class="memory-stat-card">
+              <div class="memory-stat-label">最佳记录</div>
+              <div class="memory-stat-value" id="memoryBest">${best ? formatMemoryTime(best.elapsed) : "--"}</div>
+            </div>
+          </div>
+          <div class="memory-grid cols-${memoryState.cols}" style="--memory-cols: ${memoryState.cols}; --memory-rows: ${memoryState.rows}">
+            ${memoryState.cards.map((card, index) => `
+              <div class="memory-card ${card.flipped ? "is-flipped" : ""} ${card.matched ? "is-matched" : ""}" data-index="${index}">
+                <div class="card-face card-back">
+                  <div class="magic-circle">
+                    <svg viewBox="0 0 100 100">
+                      <circle cx="50" cy="50" r="48" stroke-dasharray="2 2" />
+                      <circle cx="50" cy="50" r="40" />
+                      <path d="M50 2 L50 98 M2 50 L98 50 M15 15 L85 85 M85 15 L15 85" opacity="0.5" />
+                      <polygon points="50,5 95,50 50,95 5,50" />
+                    </svg>
+                  </div>
+                  <div class="angel-icon">
+                    <img src="angle.png" alt="Angel" loading="lazy" />
+                  </div>
+                </div>
+                <div class="card-face card-front">${card.icon}</div>
+              </div>
+            `).join("")}
+            <div id="memoryComplete" class="memory-complete is-hidden">
+              <div class="memory-complete-card">
+                <h2>神谕已现</h2>
+                <p>星辰见证了你的智慧，所有的因果已然明了。</p>
+                <div class="memory-complete-stats">
+                  <div class="memory-complete-stat">
+                    <span class="memory-complete-label">本局用时</span>
+                    <span class="memory-complete-value" id="memoryCompleteTime">0:00.00</span>
+                  </div>
+                  <div class="memory-complete-stat">
+                    <span class="memory-complete-label">尝试步数</span>
+                    <span class="memory-complete-value" id="memoryCompleteSteps">0</span>
+                  </div>
+                  <div class="memory-complete-stat" style="grid-column: span 2; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1);">
+                    <span class="memory-complete-label">当前难度最佳记录</span>
+                    <span class="memory-complete-value" id="memoryCompleteBest">--</span>
+                  </div>
+                </div>
+                <button class="modal-btn primary" type="button" data-memory-restart style="width: 100%; height: 52px; border-radius: 14px; font-size: 16px; margin-top: 10px;">
+                  重启星盘
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="game-controls">
+            <button class="schulte-btn" type="button" data-memory-restart>重新开始</button>
+            <button class="schulte-btn" type="button" data-memory-shuffle>换一局</button>
+          </div>
+        </div>
+      `;
     }
 
     function shuffleNumbers(size) {
@@ -3145,6 +3742,24 @@
 
     content.addEventListener("click", event => {
       if (activeFeature === "settings") {
+        const unlockBtn = event.target.closest("#unlockBtn");
+        if (unlockBtn) {
+          if (isUnlocked) {
+            showToast("功能已解锁，无需重复输入");
+            return;
+          }
+          const pwd = document.getElementById("unlockPassword")?.value;
+          if (pwd === "1412") {
+            isUnlocked = true;
+            localStorage.setItem(UNLOCKED_KEY, "true");
+            showToast("隐藏功能已解锁", "success");
+            renderFeatureList();
+            renderSettingsPage();
+          } else {
+            showToast("密码错误", "error");
+          }
+          return;
+        }
         handleConfigAction(event);
         return;
       }
@@ -3155,6 +3770,26 @@
           activeGame = gameButton.dataset.game;
           renderAppShell();
           return;
+        }
+
+        // Memory Game Handlers
+        if (activeGame === "memory") {
+          const card = event.target.closest(".memory-card");
+          if (card) {
+            handleMemoryCardClick(event);
+            return;
+          }
+
+          const diffBtn = event.target.closest("[data-memory-rows]");
+          if (diffBtn) {
+            resetMemoryGame(Number(diffBtn.dataset.memoryRows), Number(diffBtn.dataset.memoryCols));
+            return;
+          }
+
+          if (event.target.closest("[data-memory-restart]") || event.target.closest("[data-memory-shuffle]")) {
+            resetMemoryGame();
+            return;
+          }
         }
 
         const sizeButton = event.target.closest("[data-schulte-size]");
@@ -3217,6 +3852,14 @@
     });
 
     content.addEventListener("keydown", event => {
+      if (activeFeature === "settings" && event.key === "Enter") {
+        const input = event.target.closest("#unlockPassword");
+        if (input) {
+          event.preventDefault();
+          document.getElementById("unlockBtn")?.click();
+          return;
+        }
+      }
       if (activeFeature !== "navigation") return;
       const card = event.target.closest(".site-card");
       if (!card || !["Enter", " "].includes(event.key)) return;
