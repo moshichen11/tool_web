@@ -1,0 +1,1181 @@
+openapi: 3.1.0
+info:
+  title: Glass Nav Stocks API
+  version: 0.1.0
+  description: >
+    OpenAPI 3.1 contract for the Glass Nav stocks feature. The API replaces
+    mock-first data with authenticated and licensed market data while preserving
+    the prototype interactions: Ctrl+wheel zoom, pinch zoom, virtual scrolling,
+    and local DOM patch updates.
+servers:
+  - url: https://api.example.com
+    description: Production placeholder
+  - url: http://localhost:8787
+    description: Local development placeholder
+security:
+  - bearerAuth: []
+x-ui-contract:
+  preservedTokens:
+    - --glass
+    - --glass-hover
+    - --glass-strong
+    - --stock-up
+    - --stock-down
+    - --stock-flat
+  colorConvention:
+    id: CN_A_SHARE_RED_UP_GREEN_DOWN
+    upDirection: up
+    upToken: --stock-up
+    downDirection: down
+    downToken: --stock-down
+  preservedInteractions:
+    ctrlWheelZoom: true
+    pinchZoom: true
+    virtualScroll: true
+    localDomPatch: true
+x-data-source-policy:
+  productionRequiresLicensedProvider: true
+  webScrapingForbidden: true
+  mockServerAllowedFor:
+    - local-dev
+    - test
+    - demo
+tags:
+  - name: Health
+  - name: Auth
+  - name: MarketData
+  - name: Watchlist
+  - name: Screener
+  - name: Strategies
+paths:
+  /v1/health:
+    get:
+      tags: [Health]
+      summary: Health check
+      security: []
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /v1/auth/session:
+    get:
+      tags: [Auth]
+      summary: Get current session and entitlements
+      responses:
+        "200":
+          description: Current session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/markets:
+    get:
+      tags: [MarketData]
+      summary: List supported A-share markets
+      responses:
+        "200":
+          description: Supported markets and licensing state
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Market"
+
+  /v1/entitlements:
+    get:
+      tags: [MarketData]
+      summary: List market data source entitlements
+      responses:
+        "200":
+          description: Data source entitlements for the current user
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DataSourceEntitlement"
+
+  /v1/stocks/search:
+    get:
+      tags: [MarketData]
+      summary: Search stocks by code or name
+      parameters:
+        - $ref: "#/components/parameters/Query"
+        - $ref: "#/components/parameters/MarketQuery"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/StockSummary"
+
+  /v1/quotes:
+    post:
+      tags: [MarketData]
+      summary: Batch quote request for local patch updates
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [symbols]
+              properties:
+                symbols:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  items:
+                    $ref: "#/components/schemas/StockIdentity"
+      responses:
+        "200":
+          description: Latest quotes
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, source, delayed, updatedAt]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Quote"
+                  source:
+                    type: string
+                  delayed:
+                    type: boolean
+                  updatedAt:
+                    type: string
+                    format: date-time
+
+  /v1/stocks/{market}/{code}/quote:
+    get:
+      tags: [MarketData]
+      summary: Get latest quote for one stock
+      parameters:
+        - $ref: "#/components/parameters/MarketPath"
+        - $ref: "#/components/parameters/CodePath"
+      responses:
+        "200":
+          description: Latest quote
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Quote"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/stocks/{market}/{code}/history:
+    get:
+      tags: [MarketData]
+      summary: Get minute or K-line history
+      parameters:
+        - $ref: "#/components/parameters/MarketPath"
+        - $ref: "#/components/parameters/CodePath"
+        - name: period
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [minute, day, week, month]
+        - name: range
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [1d, 3d, 5d, 15d, 30d, 60d, 120d, 250d, 500d]
+      responses:
+        "200":
+          description: Historical bars
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [stock, period, range, items, source, delayed]
+                properties:
+                  stock:
+                    $ref: "#/components/schemas/StockIdentityWithId"
+                  period:
+                    type: string
+                    enum: [minute, day, week, month]
+                  range:
+                    type: string
+                  items:
+                    type: array
+                    items:
+                      oneOf:
+                        - $ref: "#/components/schemas/KLinePoint"
+                        - $ref: "#/components/schemas/MinutePoint"
+                  source:
+                    type: string
+                  delayed:
+                    type: boolean
+
+  /v1/stocks/{market}/{code}/depth:
+    get:
+      tags: [MarketData]
+      summary: Get order book and price distribution
+      parameters:
+        - $ref: "#/components/parameters/MarketPath"
+        - $ref: "#/components/parameters/CodePath"
+      responses:
+        "200":
+          description: Depth snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockDepthSnapshot"
+
+  /v1/watchlist:
+    get:
+      tags: [Watchlist]
+      summary: Get current user's watchlist
+      responses:
+        "200":
+          description: Watchlist items
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/WatchlistItem"
+    post:
+      tags: [Watchlist]
+      summary: Add a stock to watchlist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StockIdentity"
+      responses:
+        "201":
+          description: Added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WatchlistItem"
+
+  /v1/watchlist/reorder:
+    put:
+      tags: [Watchlist]
+      summary: Reorder watchlist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/StockIdentity"
+      responses:
+        "204":
+          description: Reordered
+
+  /v1/watchlist/{market}/{code}:
+    delete:
+      tags: [Watchlist]
+      summary: Remove a stock from watchlist
+      parameters:
+        - $ref: "#/components/parameters/MarketPath"
+        - $ref: "#/components/parameters/CodePath"
+      responses:
+        "204":
+          description: Removed
+
+  /v1/screener:
+    get:
+      tags: [Screener]
+      summary: Screen stocks by metrics, tags, and strategy conditions
+      parameters:
+        - $ref: "#/components/parameters/MarketQuery"
+        - name: minChange
+          in: query
+          schema: { type: number }
+        - name: maxChange
+          in: query
+          schema: { type: number }
+        - name: minVolume
+          in: query
+          schema: { type: integer, minimum: 0 }
+        - name: maxVolume
+          in: query
+          schema: { type: integer, minimum: 0 }
+        - name: minPe
+          in: query
+          schema: { type: number }
+        - name: maxPe
+          in: query
+          schema: { type: number }
+        - name: minPb
+          in: query
+          schema: { type: number }
+        - name: maxPb
+          in: query
+          schema: { type: number }
+        - name: minRoe
+          in: query
+          schema: { type: number }
+        - name: maxRoe
+          in: query
+          schema: { type: number }
+        - name: industry
+          in: query
+          schema: { type: string }
+        - name: trend
+          in: query
+          schema:
+            type: string
+            enum: [up, down, flat]
+        - name: trendDays
+          in: query
+          schema:
+            type: integer
+            enum: [5, 15, 30]
+        - name: logic
+          in: query
+          schema:
+            type: string
+            enum: [and, or]
+            default: and
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Screener results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockSummaryPage"
+
+  /v1/strategies:
+    get:
+      tags: [Strategies]
+      summary: List built-in and custom strategies
+      responses:
+        "200":
+          description: Strategies
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Strategy"
+    post:
+      tags: [Strategies]
+      summary: Create a custom strategy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StrategyInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Strategy"
+
+  /v1/strategies/{strategyId}:
+    put:
+      tags: [Strategies]
+      summary: Update a custom strategy
+      parameters:
+        - name: strategyId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StrategyInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Strategy"
+    delete:
+      tags: [Strategies]
+      summary: Delete a custom strategy
+      parameters:
+        - name: strategyId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "204":
+          description: Deleted
+
+  /v1/sync/pull:
+    get:
+      tags: [Watchlist]
+      summary: Pull cloud state for localStorage synchronization
+      responses:
+        "200":
+          description: Cloud snapshot and unresolved conflicts
+          headers:
+            X-RateLimit-Limit:
+              $ref: "#/components/headers/RateLimitLimit"
+            X-RateLimit-Remaining:
+              $ref: "#/components/headers/RateLimitRemaining"
+            X-RateLimit-Reset:
+              $ref: "#/components/headers/RateLimitReset"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [cloud, conflicts]
+                properties:
+                  cloud:
+                    $ref: "#/components/schemas/CloudSyncSnapshot"
+                  conflicts:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SyncConflict"
+                  rateLimit:
+                    $ref: "#/components/schemas/RateLimitState"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /v1/sync/push:
+    post:
+      tags: [Watchlist]
+      summary: Push localStorage state to cloud and resolve conflicts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SyncPushRequest"
+      responses:
+        "200":
+          description: Synchronization result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncResult"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /v1/audit/events:
+    get:
+      tags: [Auth]
+      summary: List audit events for stock feature operations
+      parameters:
+        - name: type
+          in: query
+          schema:
+            $ref: "#/components/schemas/AuditEventType"
+        - name: actorId
+          in: query
+          schema: { type: string }
+        - name: traceId
+          in: query
+          schema: { type: string }
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Audit events
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditEventPage"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /v1/streams/quotes:
+    get:
+      tags: [MarketData]
+      summary: Server-sent quote stream for local DOM patching
+      parameters:
+        - name: symbols
+          in: query
+          required: true
+          description: Comma-separated symbols in MARKET:CODE form, for example SH:600519,SZ:300750.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Quote event stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: Each event data payload is a QuotePatchEvent JSON object.
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Query:
+      name: q
+      in: query
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    MarketPath:
+      name: market
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/MarketCode"
+    MarketQuery:
+      name: market
+      in: query
+      required: false
+      schema:
+        $ref: "#/components/schemas/MarketCode"
+    CodePath:
+      name: code
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[0-9]{6}$"
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    Offset:
+      name: offset
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+  headers:
+    RateLimitLimit:
+      description: Maximum requests allowed in the active rate limit window.
+      schema:
+        type: integer
+    RateLimitRemaining:
+      description: Requests remaining in the active rate limit window.
+      schema:
+        type: integer
+    RateLimitReset:
+      description: Date-time when the active rate limit window resets.
+      schema:
+        type: string
+        format: date-time
+  responses:
+    Unauthorized:
+      description: Authentication required or expired
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Forbidden:
+      description: Authenticated user is not allowed to access the resource
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Conflict:
+      description: Version conflict that requires localStorage to cloud sync resolution
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/SyncResult"
+    TooManyRequests:
+      description: Rate limit exceeded
+      headers:
+        Retry-After:
+          description: Seconds to wait before retrying.
+          schema:
+            type: integer
+        X-RateLimit-Limit:
+          $ref: "#/components/headers/RateLimitLimit"
+        X-RateLimit-Remaining:
+          $ref: "#/components/headers/RateLimitRemaining"
+        X-RateLimit-Reset:
+          $ref: "#/components/headers/RateLimitReset"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+  schemas:
+    MarketCode:
+      type: string
+      enum: [SH, SZ, BJ]
+    HealthStatus:
+      type: object
+      required: [status, timestamp]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        timestamp:
+          type: string
+          format: date-time
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          $ref: "#/components/schemas/ErrorCode"
+        message: { type: string }
+        traceId: { type: string }
+        retryAfterMs: { type: integer, minimum: 0 }
+        details:
+          type: object
+          additionalProperties: true
+    ErrorCode:
+      type: string
+      enum:
+        - AUTH_REQUIRED
+        - FORBIDDEN
+        - NOT_FOUND
+        - VALIDATION_FAILED
+        - SYNC_CONFLICT
+        - RATE_LIMITED
+        - MARKET_DATA_UNAVAILABLE
+        - MARKET_DATA_UNLICENSED
+        - UPSTREAM_TIMEOUT
+        - INTERNAL_ERROR
+    CachePolicy:
+      type: object
+      required: [scope, ttlMs, staleWhileRevalidateMs, storage, variesBy]
+      properties:
+        scope:
+          type: string
+          enum: [search, quote, history, depth, screener, strategies, watchlist]
+        ttlMs: { type: integer, minimum: 0 }
+        staleWhileRevalidateMs: { type: integer, minimum: 0 }
+        storage:
+          type: string
+          enum: [memory, edge, server]
+        variesBy:
+          type: array
+          items: { type: string }
+    RateLimitPolicy:
+      type: object
+      required: [scope, windowMs, maxRequests]
+      properties:
+        scope:
+          type: string
+          enum: [anonymous, user, token, ip]
+        windowMs: { type: integer, minimum: 1 }
+        maxRequests: { type: integer, minimum: 1 }
+        burst: { type: integer, minimum: 1 }
+    RateLimitState:
+      type: object
+      required: [limit, remaining, resetAt]
+      properties:
+        limit: { type: integer, minimum: 0 }
+        remaining: { type: integer, minimum: 0 }
+        resetAt:
+          type: string
+          format: date-time
+        retryAfterMs: { type: integer, minimum: 0 }
+    Session:
+      type: object
+      required: [userId, authenticated, entitlements]
+      properties:
+        userId: { type: string }
+        authenticated: { type: boolean }
+        entitlements:
+          type: array
+          items:
+            $ref: "#/components/schemas/DataSourceEntitlement"
+    Market:
+      type: object
+      required: [id, name, exchangeName, licensed, delaySeconds, tradingCalendar]
+      properties:
+        id:
+          $ref: "#/components/schemas/MarketCode"
+        name: { type: string }
+        exchangeName: { type: string }
+        licensed: { type: boolean }
+        delaySeconds: { type: integer, minimum: 0 }
+        tradingCalendar: { type: string }
+    DataSourceEntitlement:
+      type: object
+      required: [sourceId, sourceName, markets, realtime, delaySeconds, redistributionAllowed]
+      properties:
+        sourceId: { type: string }
+        sourceName: { type: string }
+        markets:
+          type: array
+          items:
+            $ref: "#/components/schemas/MarketCode"
+        realtime: { type: boolean }
+        delaySeconds: { type: integer, minimum: 0 }
+        redistributionAllowed: { type: boolean }
+        expiresAt:
+          type: string
+          format: date-time
+    StockIdentity:
+      type: object
+      required: [market, code]
+      properties:
+        market:
+          $ref: "#/components/schemas/MarketCode"
+        code:
+          type: string
+          pattern: "^[0-9]{6}$"
+    StockIdentityWithId:
+      allOf:
+        - $ref: "#/components/schemas/StockIdentity"
+        - type: object
+          required: [id]
+          properties:
+            id: { type: string }
+    QuoteDirection:
+      type: string
+      enum: [up, down, flat]
+      description: up maps to --stock-up red, down maps to --stock-down green for A-shares.
+    StockColorRole:
+      type: string
+      enum: [stock-up, stock-down, stock-flat]
+    StockSummary:
+      allOf:
+        - $ref: "#/components/schemas/StockIdentityWithId"
+        - type: object
+          required: [name, industry, boardType, status, price, changePercent, changeAmount, volume, delayed, source, updatedAt]
+          properties:
+            name: { type: string }
+            industry: { type: string }
+            boardType:
+              type: string
+              enum: [main, star, gem, bse, unknown]
+            status:
+              type: string
+              enum: [normal, st, delist-risk, suspended]
+            price: { type: number }
+            changePercent: { type: number }
+            changeAmount: { type: number }
+            volume: { type: integer, minimum: 0 }
+            amount: { type: number }
+            pe: { type: number }
+            pb: { type: number }
+            roe: { type: number }
+            marketCap:
+              type: number
+              description: Unit is CNY 100M.
+            detailUrl:
+              type: string
+              format: uri
+            delayed: { type: boolean }
+            source: { type: string }
+            updatedAt:
+              type: string
+              format: date-time
+    Quote:
+      allOf:
+        - $ref: "#/components/schemas/StockSummary"
+        - type: object
+          required: [open, high, low, previousClose, direction, colorRole]
+          properties:
+            open: { type: number }
+            high: { type: number }
+            low: { type: number }
+            previousClose: { type: number }
+            direction:
+              $ref: "#/components/schemas/QuoteDirection"
+            colorRole:
+              $ref: "#/components/schemas/StockColorRole"
+    KLinePoint:
+      type: object
+      required: [time, open, high, low, close, volume]
+      properties:
+        time: { type: string }
+        open: { type: number }
+        high: { type: number }
+        low: { type: number }
+        close: { type: number }
+        volume: { type: integer, minimum: 0 }
+        amount: { type: number }
+        ma5: { type: number }
+        ma10: { type: number }
+        ma20: { type: number }
+        dif: { type: number }
+        dea: { type: number }
+        macd: { type: number }
+    MinutePoint:
+      type: object
+      required: [time, price, volume]
+      properties:
+        time:
+          type: string
+          format: date-time
+        price: { type: number }
+        average: { type: number }
+        volume: { type: integer, minimum: 0 }
+        amount: { type: number }
+    OrderBookLevel:
+      type: object
+      required: [price, volume]
+      properties:
+        price: { type: number }
+        volume: { type: integer, minimum: 0 }
+        amount: { type: number }
+        ratio: { type: number }
+    OrderBook:
+      type: object
+      required: [stock, bids, asks, updatedAt]
+      properties:
+        stock:
+          $ref: "#/components/schemas/StockIdentityWithId"
+        bids:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderBookLevel"
+        asks:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderBookLevel"
+        updatedAt:
+          type: string
+          format: date-time
+    PriceDistributionLevel:
+      type: object
+      required: [price, volume, side, ratio]
+      properties:
+        price: { type: number }
+        volume: { type: integer, minimum: 0 }
+        side:
+          $ref: "#/components/schemas/QuoteDirection"
+        ratio: { type: number }
+    StockDepthSnapshot:
+      type: object
+      required: [stock, orderBook, priceDistribution]
+      properties:
+        stock:
+          $ref: "#/components/schemas/StockIdentityWithId"
+        orderBook:
+          $ref: "#/components/schemas/OrderBook"
+        priceDistribution:
+          type: array
+          items:
+            $ref: "#/components/schemas/PriceDistributionLevel"
+    WatchlistItem:
+      allOf:
+        - $ref: "#/components/schemas/StockSummary"
+        - type: object
+          required: [position, addedAt]
+          properties:
+            position: { type: integer, minimum: 0 }
+            addedAt:
+              type: string
+              format: date-time
+            note: { type: string }
+    WatchlistStorage:
+      type: object
+      required: [version, app, items, updatedAt]
+      properties:
+        version:
+          type: integer
+          enum: [2]
+        app:
+          type: string
+          enum: [glass-nav]
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/StockIdentity"
+        updatedAt:
+          type: string
+          format: date-time
+    ScreenerFilters:
+      type: object
+      additionalProperties: false
+      properties:
+        minChange: { type: number }
+        maxChange: { type: number }
+        minVolume: { type: integer, minimum: 0 }
+        maxVolume: { type: integer, minimum: 0 }
+        minPe: { type: number }
+        maxPe: { type: number }
+        minPb: { type: number }
+        maxPb: { type: number }
+        minRoe: { type: number }
+        maxRoe: { type: number }
+        industry: { type: string }
+        metric:
+          type: string
+          enum: [all, high-roe, low-pe, high-pe]
+        exchange:
+          $ref: "#/components/schemas/MarketCode"
+        boardType:
+          type: string
+          enum: [main, star, gem, bse, unknown]
+        status:
+          type: string
+          enum: [normal, st, delist-risk, suspended]
+        trend:
+          type: string
+          enum: [up, down, flat]
+        trendDays:
+          type: integer
+          enum: [5, 15, 30]
+        logic:
+          type: string
+          enum: [and, or]
+    StockSummaryPage:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/StockSummary"
+        total: { type: integer, minimum: 0 }
+        limit: { type: integer, minimum: 1 }
+        offset: { type: integer, minimum: 0 }
+    StrategyInput:
+      type: object
+      required: [name, conditions]
+      properties:
+        name:
+          type: string
+          maxLength: 16
+        desc: { type: string }
+        conditions:
+          $ref: "#/components/schemas/ScreenerFilters"
+    Strategy:
+      allOf:
+        - $ref: "#/components/schemas/StrategyInput"
+        - type: object
+          required: [id, builtin]
+          properties:
+            id: { type: string }
+            builtin: { type: boolean }
+            updatedAt:
+              type: string
+              format: date-time
+    FilterStateStorage:
+      type: object
+      required: [activeStockTags, activeStockStrategy, stockFilterSearchTerm]
+      properties:
+        activeStockTags:
+          type: array
+          items: { type: string }
+        activeStockStrategy: { type: string }
+        stockFilterSearchTerm: { type: string }
+    LocalSyncSnapshot:
+      type: object
+      required: [app, schemaVersion, deviceId, baseVersion, updatedAt, watchlist, strategies, filterState]
+      properties:
+        app:
+          type: string
+          enum: [glass-nav]
+        schemaVersion:
+          type: integer
+          enum: [1]
+        deviceId: { type: string }
+        userId: { type: string }
+        baseVersion: { type: string }
+        updatedAt:
+          type: string
+          format: date-time
+        watchlist:
+          $ref: "#/components/schemas/WatchlistStorage"
+        strategies:
+          type: array
+          items:
+            $ref: "#/components/schemas/Strategy"
+        filterState:
+          $ref: "#/components/schemas/FilterStateStorage"
+    CloudSyncSnapshot:
+      type: object
+      required: [app, schemaVersion, userId, serverVersion, updatedAt, watchlist, strategies, filterState]
+      properties:
+        app:
+          type: string
+          enum: [glass-nav]
+        schemaVersion:
+          type: integer
+          enum: [1]
+        userId: { type: string }
+        serverVersion: { type: string }
+        updatedAt:
+          type: string
+          format: date-time
+        watchlist:
+          $ref: "#/components/schemas/WatchlistStorage"
+        strategies:
+          type: array
+          items:
+            $ref: "#/components/schemas/Strategy"
+        filterState:
+          $ref: "#/components/schemas/FilterStateStorage"
+    SyncConflictResolution:
+      type: string
+      enum: [local-wins, cloud-wins, merge, manual]
+    SyncConflict:
+      type: object
+      required: [id, kind, local, cloud, baseVersion, localUpdatedAt, cloudUpdatedAt, suggestedResolution]
+      properties:
+        id: { type: string }
+        kind:
+          type: string
+          enum: [watchlist, strategies, filterState]
+        local: true
+        cloud: true
+        baseVersion: { type: string }
+        localUpdatedAt:
+          type: string
+          format: date-time
+        cloudUpdatedAt:
+          type: string
+          format: date-time
+        suggestedResolution:
+          $ref: "#/components/schemas/SyncConflictResolution"
+    SyncPushRequest:
+      type: object
+      required: [local]
+      properties:
+        local:
+          $ref: "#/components/schemas/LocalSyncSnapshot"
+        resolution:
+          $ref: "#/components/schemas/SyncConflictResolution"
+        resolvedConflicts:
+          type: array
+          items:
+            $ref: "#/components/schemas/SyncConflict"
+    SyncResult:
+      type: object
+      required: [status, conflicts]
+      properties:
+        status:
+          type: string
+          enum: [synced, conflict, accepted, rejected]
+        cloud:
+          $ref: "#/components/schemas/CloudSyncSnapshot"
+        conflicts:
+          type: array
+          items:
+            $ref: "#/components/schemas/SyncConflict"
+        version: { type: string }
+    AuditEventType:
+      type: string
+      enum:
+        - quote.search
+        - quote.batch
+        - history.read
+        - watchlist.create
+        - watchlist.update
+        - watchlist.delete
+        - strategy.create
+        - strategy.update
+        - strategy.delete
+        - sync.pull
+        - sync.push
+        - stream.connect
+        - stream.disconnect
+        - rate_limit.hit
+    AuditEvent:
+      type: object
+      required: [id, type, traceId, outcome, createdAt]
+      properties:
+        id: { type: string }
+        type:
+          $ref: "#/components/schemas/AuditEventType"
+        actorId: { type: string }
+        deviceId: { type: string }
+        traceId: { type: string }
+        target: { type: string }
+        outcome:
+          type: string
+          enum: [success, failure]
+        createdAt:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          additionalProperties: true
+    AuditEventPage:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditEvent"
+        total: { type: integer, minimum: 0 }
+        limit: { type: integer, minimum: 1 }
+        offset: { type: integer, minimum: 0 }
+    QuotePatchEvent:
+      type: object
+      required: [type, quotes]
+      properties:
+        type:
+          type: string
+          enum: [quotes]
+        quotes:
+          type: array
+          items:
+            $ref: "#/components/schemas/Quote"
