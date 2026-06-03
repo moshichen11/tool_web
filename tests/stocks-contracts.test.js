@@ -14,6 +14,7 @@ function assertIncludes(source, value, label = value) {
 test("contracts expose REST, SSE, polling fallback, sync, audit, cache, and rate limit boundaries", () => {
   [
     "export interface StockApiContract",
+    "getStockUniverse(",
     "searchStocks(",
     "getQuotes(",
     "getHistory(",
@@ -48,6 +49,7 @@ test("contracts define localStorage to cloud sync conflict resolution", () => {
 test("OpenAPI covers required stocks contracts and operational controls", () => {
   [
     "openapi: 3.1.0",
+    "/v1/stocks/universe:",
     "/v1/stocks/search:",
     "/v1/quotes:",
     "/v1/stocks/{market}/{code}/history:",

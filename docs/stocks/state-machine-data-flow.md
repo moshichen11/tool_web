@@ -13,19 +13,14 @@ stocks feature
     -> bootstrapping on STOCKS_ENTERED
   bootstrapping
     -> ready after storage restored and initial data loaded
-    -> degraded when API fails but mock/local data exists
-    -> error when neither API nor local fallback is usable
+    -> error when API, provider, or credentials are unavailable
   ready
     -> refreshing on QUOTE_REFRESH_TICK
     -> ready on VIEW_CHANGED / FILTERS_CHANGED / DAILY_* interaction
     -> idle on STOCKS_LEFT
   refreshing
     -> ready after QUOTES_RECEIVED and PATCHES_APPLIED
-    -> degraded on API_FAILED with stale data
-  degraded
-    -> refreshing on retry tick
-    -> ready when API recovers
-    -> idle on STOCKS_LEFT
+    -> error on API_FAILED without applying fake quotes
 ```
 
 ## 子视图状态
@@ -49,8 +44,8 @@ stocks feature
 | `VIEW_CHANGED` | `[data-stock-view]` | 更新 `activeStockView` | 渲染 stock active view |
 | `SEARCH_CHANGED` | `#stockSearchInput input` | 更新 `stockSearchTerm` | 只更新 `#stockSearchResults` |
 | `SEARCH_SUBMITTED` | `#stockSearchForm submit` | 搜索第一条匹配 | 打开详情页，不自动加入自选 |
-| `QUOTE_REFRESH_TICK` | 5-15 秒 timer | 请求/生成新报价 | 不允许整页重渲染 |
-| `QUOTES_RECEIVED` | API 或 mock fallback | 合并 quote 到 store | 生成 DOM patches |
+| `QUOTE_REFRESH_TICK` | 5-15 秒 timer | 请求后端真实行情 | 不允许整页重渲染 |
+| `QUOTES_RECEIVED` | 后端 StockDataProvider | 合并 quote 到 store | 生成 DOM patches |
 | `WATCHLIST_ADD_REQUESTED` | `[data-stock-add]` | 追加去重、保存 watchlist | 可重渲染 stock page |
 | `WATCHLIST_REMOVE_REQUESTED` | `[data-stock-remove]` | 删除、保存 watchlist | 可重渲染 stock page |
 | `WATCHLIST_REORDERED` | drag/drop | 重排、保存 watchlist | 可重渲染 watchlist body |
@@ -68,7 +63,7 @@ localStorage
   -> storage adapter
   -> StockFeatureState
 
-OpenAPI / licensed provider / mock fallback
+OpenAPI / StockDataProvider / licensed provider
   -> api-client
   -> mappers
   -> StockFeatureState
@@ -84,7 +79,7 @@ StockFeatureState
 
 1. `renderAppShell()` 发现 `activeFeature === "stocks"`。
 2. 添加 `.stock-mode`，隐藏搜索 shell 和添加分类按钮。
-3. 从 `glass_nav_stock_watchlist` 读取自选股。读取失败时删除坏数据并回退默认自选。
+3. 从 `glass_nav_stock_watchlist` 读取自选股标识。读取失败时删除坏数据并使用默认标识，不携带旧报价。
 4. 从 `glass_nav_stock_strategies` 读取自定义策略。
 5. 从 `glass_nav_stock_filter_state` 读取筛选标签、策略和搜索词。
 6. 渲染 stock 侧栏和默认 `daily` 页面。
@@ -195,8 +190,8 @@ scrollTop
 
 | 场景 | 状态 | UI 处理 |
 | --- | --- | --- |
-| API 超时但有本地数据 | `degraded` | 保留旧报价，显示非阻断刷新提示 |
-| 行情源未授权 | `degraded` | 显示延迟数据或授权提示，不暴露供应商密钥 |
+| API 超时 | `error` | 停止刷新并显示后端错误，不生成本地假报价 |
+| 行情源未授权 | `error` | 显示授权提示，不暴露供应商密钥 |
 | localStorage 损坏 | `bootstrapping -> ready` | 删除坏 key，回退默认 watchlist |
-| canvas 绘制失败 | `ready` | 不影响 watchlist/filter，可显示 chart fallback |
-| token 过期 | `error` 或 `degraded` | 停止真实行情请求，允许 mock fallback |
+| canvas 绘制失败 | `ready` | 不影响 watchlist/filter，可显示空图状态 |
+| token 过期 | `error` | 停止真实行情请求，不回退 mock/fake 数据 |

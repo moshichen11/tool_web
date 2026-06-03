@@ -1,11 +1,14 @@
-import { mutateQuote } from "./mock-data.js";
-
 function writeEvent(res, event, data) {
   res.write(`event: ${event}\n`);
   res.write(`data: ${JSON.stringify(data)}\n\n`);
 }
 
-export function handleQuoteStream(req, res, { state, url, audit, sseIntervalMs = 1_000, traceId }) {
+function parseSymbolIdentity(symbol) {
+  const [market, code] = String(symbol || "").split(":");
+  return market && code ? { market, code } : null;
+}
+
+export function handleQuoteStream(req, res, { provider, url, audit, sseIntervalMs = 1_000, traceId }) {
   const symbols = (url.searchParams.get("symbols") || "")
     .split(",")
     .map(item => item.trim())
@@ -30,19 +33,19 @@ export function handleQuoteStream(req, res, { state, url, audit, sseIntervalMs =
   writeEvent(res, "connected", { type: "connected", connectionId, serverTime: new Date().toISOString() });
 
   let tick = 0;
-  const sendQuotes = () => {
+  const sendQuotes = async () => {
     tick += 1;
-    const quotes = symbols
-      .map(symbol => state.stocks.get(symbol))
-      .filter(Boolean)
-      .map(quote => {
-        const next = mutateQuote(quote, tick);
-        state.stocks.set(next.id, next);
-        return next;
-      });
-    writeEvent(res, "quotes", { type: "quotes", quotes, patchOnly: true });
+    const identities = symbols.map(parseSymbolIdentity).filter(Boolean);
+    try {
+      const result = await provider.getQuotes(identities);
+      writeEvent(res, "quotes", { type: "quotes", quotes: result.items, source: result.source, delayed: result.delayed, patchOnly: true });
+    } catch (error) {
+      writeEvent(res, "error", { type: "error", code: error.code || "MARKET_DATA_UNAVAILABLE", message: error.message || "Market data provider failed", traceId });
+    }
   };
-  const timer = setInterval(sendQuotes, sseIntervalMs);
+  const timer = setInterval(() => {
+    sendQuotes();
+  }, sseIntervalMs);
   sendQuotes();
 
   req.on("close", () => {

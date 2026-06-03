@@ -1,7 +1,5 @@
-import { entitlements as mockEntitlements, makeDepth, makeHistory, markets } from "./mock-data.js";
+import { markets } from "./mock-data.js";
 import { handleQuoteStream } from "./sse.js";
-
-const cacheScopes = new Set(["search", "quote", "history", "depth", "screener", "strategies", "watchlist"]);
 
 function json(res, status, body, headers = {}) {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8", ...headers });
@@ -27,10 +25,6 @@ function page(items, searchParams) {
 
 function error(status, code, message, traceId, details) {
   return { status, body: { code, message, traceId, ...(details ? { details } : {}) } };
-}
-
-function findStock(state, market, code) {
-  return state.stocks.get(`${market}:${code}`);
 }
 
 function stockIdentity(stock) {
@@ -83,7 +77,7 @@ export async function route(req, res, context) {
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
   const method = req.method || "GET";
   const parts = url.pathname.split("/").filter(Boolean);
-  const entitlements = provider?.entitlements || mockEntitlements;
+  const entitlements = provider?.entitlements || [];
 
   if (method === "GET" && url.pathname === "/v1/streams/quotes") {
     return handleQuoteStream(req, res, { ...context, url });
@@ -101,6 +95,26 @@ export async function route(req, res, context) {
     if (method === "GET" && url.pathname === "/v1/markets") return json(res, 200, { items: markets });
     if (method === "GET" && url.pathname === "/v1/entitlements") return json(res, 200, { items: entitlements });
 
+    if (method === "GET" && url.pathname === "/v1/stocks/universe") {
+      if (!provider.getStockUniverse) {
+        const result = error(501, "MARKET_DATA_UNAVAILABLE", "Stock universe is not available for the configured provider", traceId);
+        return json(res, result.status, result.body, { "x-data-source": provider.id });
+      }
+      const limit = Math.max(1, Math.min(Number(url.searchParams.get("limit")) || 6000, 10000));
+      const offset = Math.max(Number(url.searchParams.get("offset")) || 0, 0);
+      const market = url.searchParams.get("market");
+      const key = `universe:${market || ""}:${limit}:${offset}`;
+      const cached = await withCache(state, key, async () => provider.getStockUniverse({ market, limit, offset }));
+      audit.record("stock.universe", { traceId, target: `${cached.value.items.length}/${cached.value.total}` });
+      const dataSource = cached.value.source || provider.id;
+      const headers = {
+        "x-cache": cached.hit ? "HIT" : "MISS",
+        "x-data-source": dataSource,
+      };
+      if (provider.id === "mock-a-share") headers["x-mock-cache"] = headers["x-cache"];
+      return json(res, 200, cached.value, headers);
+    }
+
     if (method === "GET" && url.pathname === "/v1/stocks/search") {
       const q = (url.searchParams.get("q") || "").trim().toLowerCase();
       if (!q) {
@@ -111,19 +125,15 @@ export async function route(req, res, context) {
       const cached = await withCache(state, key, async () => {
         const limit = Math.min(Number(url.searchParams.get("limit")) || 20, 100);
         const market = url.searchParams.get("market");
-        if (provider) {
-          const result = await provider.searchStocks({ q, market, limit });
-          return result.items;
-        }
-        return [...state.stocks.values()]
-          .filter(item => (!market || item.market === market) && (item.code.includes(q) || item.name.toLowerCase().includes(q) || item.industry.toLowerCase().includes(q)))
-          .slice(0, limit);
+        return provider.searchStocks({ q, market, limit });
       });
       audit.record("quote.search", { traceId, target: q });
-      return json(res, 200, { items: cached.value }, {
-        "x-mock-cache": cached.hit ? "HIT" : "MISS",
-        "x-data-source": provider?.id || "mock-a-share",
-      });
+      const headers = {
+        "x-cache": cached.hit ? "HIT" : "MISS",
+        "x-data-source": provider.id,
+      };
+      if (provider.id === "mock-a-share") headers["x-mock-cache"] = headers["x-cache"];
+      return json(res, 200, cached.value, headers);
     }
 
     if (method === "POST" && url.pathname === "/v1/quotes") {
@@ -132,19 +142,14 @@ export async function route(req, res, context) {
         const result = error(400, "VALIDATION_FAILED", "symbols must contain 1-100 stocks", traceId);
         return json(res, result.status, result.body);
       }
-      if (provider) {
-        const result = await provider.getQuotes(body.symbols);
-        audit.record("quote.batch", { traceId, target: `${result.items.length}` });
-        return json(res, 200, result, { "x-data-source": provider.id });
-      }
-      const items = body.symbols.map(item => findStock(state, item.market, item.code)).filter(Boolean);
-      audit.record("quote.batch", { traceId, target: `${items.length}` });
-      return json(res, 200, { items, source: "mock-a-share", delayed: false, updatedAt: new Date().toISOString() });
+      const result = await provider.getQuotes(body.symbols);
+      audit.record("quote.batch", { traceId, target: `${result.items.length}` });
+      return json(res, 200, result, { "x-data-source": provider.id });
     }
 
     if (parts[0] === "v1" && parts[1] === "stocks" && parts.length >= 5) {
       const [, , market, code, action] = parts;
-      if (provider && method === "GET" && action === "quote") {
+      if (method === "GET" && action === "quote") {
         const stock = await provider.getQuote({ market, code });
         if (!stock) {
           const result = error(404, "NOT_FOUND", `Stock ${market}:${code} not found`, traceId);
@@ -152,29 +157,32 @@ export async function route(req, res, context) {
         }
         return json(res, 200, stock, { "x-data-source": provider.id });
       }
-      if (provider && method === "GET" && action === "history") {
-        const period = url.searchParams.get("period");
-        const range = url.searchParams.get("range");
-        const history = await provider.getHistory({ market, code, period, range });
-        audit.record("history.read", { traceId, target: `${market}:${code}` });
-        return json(res, 200, history, { "x-data-source": provider.id });
-      }
-      const stock = findStock(state, market, code);
-      if (!stock) {
-        const result = error(404, "NOT_FOUND", `Stock ${market}:${code} not found`, traceId);
-        return json(res, result.status, result.body);
-      }
-      if (method === "GET" && action === "quote") return json(res, 200, stock, { "x-mock-cache": cacheScopes.has("quote") ? "MISS" : "BYPASS" });
       if (method === "GET" && action === "history") {
         const period = url.searchParams.get("period");
         const range = url.searchParams.get("range");
-        audit.record("history.read", { traceId, target: stock.id });
-        return json(res, 200, { stock: { id: stock.id, market, code }, period, range, items: makeHistory(stock, period, range), source: "mock-a-share", delayed: false });
+        const history = await provider.getHistory({ market, code, period, range });
+        if (!history) {
+          const result = error(404, "NOT_FOUND", `Stock ${market}:${code} not found`, traceId);
+          return json(res, result.status, result.body);
+        }
+        audit.record("history.read", { traceId, target: `${market}:${code}` });
+        return json(res, 200, history, { "x-data-source": provider.id });
       }
-      if (method === "GET" && action === "depth") return json(res, 200, makeDepth(stock));
+      if (method === "GET" && action === "depth" && provider.getDepth) {
+        const depth = await provider.getDepth({ market, code });
+        if (!depth) {
+          const result = error(404, "NOT_FOUND", `Stock ${market}:${code} not found`, traceId);
+          return json(res, result.status, result.body);
+        }
+        return json(res, 200, depth, { "x-data-source": provider.id });
+      }
     }
 
     if (method === "GET" && url.pathname === "/v1/screener") {
+      if (provider.id !== "mock-a-share") {
+        const result = error(501, "MARKET_DATA_UNAVAILABLE", "Screener is not available for the configured real-time provider", traceId);
+        return json(res, result.status, result.body, { "x-data-source": provider.id });
+      }
       const items = screenItems([...state.stocks.values()], url.searchParams);
       return json(res, 200, page(items, url.searchParams));
     }
@@ -209,11 +217,17 @@ export async function route(req, res, context) {
     }
 
     if (method === "GET" && url.pathname === "/v1/watchlist") {
-      return json(res, 200, { items: state.watchlist.map((item, position) => ({ ...findStock(state, item.market, item.code), position, addedAt: state.watchlistAddedAt.get(`${item.market}:${item.code}`) })) });
+      const quotes = await provider.getQuotes(state.watchlist);
+      return json(res, 200, {
+        source: quotes.source,
+        delayed: quotes.delayed,
+        updatedAt: quotes.updatedAt,
+        items: quotes.items.map((item, position) => ({ ...item, position, addedAt: state.watchlistAddedAt.get(`${item.market}:${item.code}`) })),
+      }, { "x-data-source": provider.id });
     }
     if (method === "POST" && url.pathname === "/v1/watchlist") {
       const body = await readJson(req);
-      const stock = findStock(state, body.market, body.code);
+      const stock = await provider.getQuote({ market: body.market, code: body.code });
       if (!stock) {
         const result = error(404, "NOT_FOUND", `Stock ${body.market}:${body.code} not found`, traceId);
         return json(res, result.status, result.body);
@@ -225,7 +239,7 @@ export async function route(req, res, context) {
     }
     if (method === "PUT" && url.pathname === "/v1/watchlist/reorder") {
       const body = await readJson(req);
-      state.watchlist = (body.items || []).filter(item => findStock(state, item.market, item.code));
+      state.watchlist = (body.items || []).filter(item => item?.market && item?.code);
       audit.record("watchlist.update", { traceId });
       return noContent(res);
     }

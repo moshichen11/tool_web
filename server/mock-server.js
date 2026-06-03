@@ -1,11 +1,12 @@
 import http from "node:http";
 import { fileURLToPath } from "node:url";
 import { createAuditStore } from "./audit.js";
+import { loadServerEnv } from "./env.js";
 import { createInitialStocks } from "./mock-data.js";
 import { createRateLimiter } from "./rate-limit.js";
 import { route, sendRateLimited } from "./routes.js";
 import { createSyncStore } from "./sync.js";
-import { createTushareProvider } from "./tushare-provider.js";
+import { createStockDataProvider, DEFAULT_STOCK_DATA_SOURCE } from "./stock-data-provider.js";
 
 function createState() {
   const stocks = new Map(createInitialStocks().map(stock => [stock.id, stock]));
@@ -33,15 +34,29 @@ export function createMockServer(options = {}) {
   const port = Number(options.port ?? process.env.MOCK_SERVER_PORT ?? 8787);
   const host = options.host ?? process.env.MOCK_SERVER_HOST ?? "127.0.0.1";
   const sseIntervalMs = Number(options.sseIntervalMs ?? process.env.MOCK_SSE_INTERVAL_MS ?? 1_000);
-  const dataSource = options.dataSource ?? process.env.STOCK_DATA_SOURCE ?? "mock-a-share";
-  const provider = dataSource === "tushare"
-    ? createTushareProvider({
-      token: options.tushareToken,
-      endpoint: options.tushareApiUrl,
-      fetchImpl: options.fetchImpl,
-      now: options.now,
-    })
-    : null;
+  const dataSource = options.dataSource ?? process.env.STOCK_DATA_SOURCE ?? DEFAULT_STOCK_DATA_SOURCE;
+  const provider = createStockDataProvider({
+    dataSource,
+    state,
+    allowMockStockData: options.allowMockStockData,
+    xueqiuCookie: options.xueqiuCookie,
+    xueqiuToken: options.xueqiuToken,
+    xueqiuQuoteUrl: options.xueqiuQuoteUrl,
+    xueqiuSearchUrl: options.xueqiuSearchUrl,
+    xueqiuKlineUrl: options.xueqiuKlineUrl,
+    providerTimeoutMs: options.providerTimeoutMs,
+    providerRetryAttempts: options.providerRetryAttempts,
+    providerRetryDelayMs: options.providerRetryDelayMs,
+    providerCacheTtlMs: options.providerCacheTtlMs,
+    providerOutboundLimit: options.providerOutboundLimit,
+    tushareToken: options.tushareToken,
+    tushareApiUrl: options.tushareApiUrl,
+    eastmoneyQuoteUrl: options.eastmoneyQuoteUrl,
+    eastmoneyKlineUrl: options.eastmoneyKlineUrl,
+    eastmoneyListUrl: options.eastmoneyListUrl,
+    fetchImpl: options.fetchImpl,
+    now: options.now,
+  });
   const rateLimit = {
     windowMs: Number(options.rateLimit?.windowMs ?? process.env.MOCK_RATE_LIMIT_WINDOW_MS ?? 60_000),
     maxRequests: Number(options.rateLimit?.maxRequests ?? process.env.MOCK_RATE_LIMIT_MAX_REQUESTS ?? 120),
@@ -99,8 +114,9 @@ export function createMockServer(options = {}) {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  loadServerEnv();
   const app = createMockServer();
   app.start().then(() => {
-    console.log(`stocks mock server listening on ${app.url}`);
+    console.log(`stocks API server listening on ${app.url}`);
   });
 }

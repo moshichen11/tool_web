@@ -247,6 +247,23 @@ export function createTushareProvider(options = {}) {
     return { items, source: "tushare", delayed: true, updatedAt: new Date().toISOString() };
   }
 
+  async function getStockUniverse({ market, limit = 6000, offset = 0 } = {}) {
+    const requestedLimit = Math.max(1, Math.min(Number(limit) || 6000, 10000));
+    const requestedOffset = Math.max(Number(offset) || 0, 0);
+    const exchange = market ? marketToExchange[String(market).toUpperCase()] : null;
+    const basics = await getStockBasics();
+    const filtered = basics.filter(item => !exchange || item.exchange === exchange);
+    return {
+      items: filtered.slice(requestedOffset, requestedOffset + requestedLimit).map(stockBasicSummary),
+      total: filtered.length,
+      limit: requestedLimit,
+      offset: requestedOffset,
+      source: "tushare",
+      delayed: true,
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
   async function getQuotes(symbols) {
     const tsCodes = symbols.map(toTsCode);
     const rows = await query("daily", {
@@ -310,6 +327,7 @@ export function createTushareProvider(options = {}) {
       },
     ],
     query,
+    getStockUniverse,
     searchStocks,
     getQuote,
     getQuotes,

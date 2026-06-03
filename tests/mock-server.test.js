@@ -5,6 +5,7 @@ async function startTestServer(options = {}) {
   const mod = await import("../server/mock-server.js");
   const server = mod.createMockServer({
     port: 0,
+    dataSource: "mock-a-share",
     rateLimit: { windowMs: 1_000, maxRequests: 50 },
     ...options,
   });
@@ -41,6 +42,13 @@ test("mock server exposes health, auth, market data, cacheable quote routes, and
 
     const entitlements = await requestJson(server.url, "/v1/entitlements");
     assert.equal(entitlements.body.items[0].sourceId, "mock-a-share");
+
+    const universe = await requestJson(server.url, "/v1/stocks/universe?limit=6000");
+    assert.equal(universe.response.status, 200);
+    assert.equal(universe.response.headers.get("x-data-source"), "mock-a-share");
+    assert.equal(universe.body.total, 8);
+    assert.equal(universe.body.items.length, 8);
+    assert.equal(universe.body.items[0].source, "mock-a-share");
 
     const search = await requestJson(server.url, "/v1/stocks/search?q=600519&market=SH&limit=1");
     assert.equal(search.response.headers.get("x-mock-cache"), "MISS");

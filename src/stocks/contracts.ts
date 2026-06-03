@@ -284,6 +284,12 @@ export interface PagedResult<T> {
   offset: number;
 }
 
+export interface StockUniverseQuery {
+  market?: MarketCode;
+  limit?: number;
+  offset?: number;
+}
+
 export const STOCK_API_ERROR_CODES = [
   "AUTH_REQUIRED",
   "FORBIDDEN",
@@ -550,6 +556,7 @@ export interface StockApiContract {
   listEntitlements(): Promise<ApiResult<DataSourceEntitlement[]>>;
   getCachePolicies(): Promise<ApiResult<CachePolicy[]>>;
   getRateLimitPolicy(): Promise<ApiResult<RateLimitPolicy[]>>;
+  getStockUniverse(query?: StockUniverseQuery): Promise<ApiResult<PagedResult<StockSummary>>>;
   searchStocks(query: StockSearchQuery): Promise<ApiResult<StockSummary[]>>;
   getQuote(stock: StockIdentity): Promise<ApiResult<StockQuote>>;
   getQuotes(request: QuoteBatchRequest): Promise<ApiResult<QuoteBatchResponse>>;

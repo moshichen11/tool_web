@@ -1888,6 +1888,34 @@
       gap: 8px;
     }
 
+    .stock-daily-filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .stock-daily-filter {
+      min-height: 30px;
+      padding: 0 9px;
+      color: rgba(255,255,255,0.68);
+      border: 1px solid rgba(255,255,255,0.13);
+      border-radius: 10px;
+      background: rgba(255,255,255,0.07);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 720;
+      transition: color var(--ease), background var(--ease), border-color var(--ease), transform var(--ease);
+    }
+
+    .stock-daily-filter:hover,
+    .stock-daily-filter:focus-visible,
+    .stock-daily-filter.active {
+      color: #fff;
+      border-color: rgba(131,195,65,0.44);
+      background: var(--green-active);
+      outline: 0;
+    }
+
     .stock-daily-list {
       min-height: 0;
       overflow-y: auto;
@@ -3523,9 +3551,10 @@
     const STOCK_WATCHLIST_KEY = "glass_nav_stock_watchlist";
     const STOCK_STRATEGY_KEY = "glass_nav_stock_strategies";
     const STOCK_FILTER_STATE_KEY = "glass_nav_stock_filter_state";
+    const STOCK_API_BASE_URL_KEY = "glass_nav_stock_api_base_url";
+    const STOCK_DEFAULT_API_BASE_URL = "http://127.0.0.1:8787";
     const defaultStockWatchCodes = ["600519", "300750", "000001", "601318"];
     const STOCK_FILTER_PAGE_SIZE = 8;
-    const STOCK_MOCK_TOTAL = 200;
     const STOCK_DAILY_ROW_HEIGHT = 56;
     const STOCK_DAILY_VIRTUAL_BUFFER = 6;
     const STOCK_DAILY_VIRTUAL_COUNT = 18;
@@ -3555,6 +3584,7 @@
       { id: "exchange-sh", name: "上交所", desc: "上海证券交易所", conditions: { exchange: "上交所" } },
       { id: "exchange-sz", name: "深交所", desc: "深圳证券交易所", conditions: { exchange: "深交所" } },
       { id: "exchange-bj", name: "北交所", desc: "北京证券交易所", conditions: { exchange: "北交所" } },
+      { id: "non-bj", name: "非北交所", desc: "排除北京证券交易所", conditions: { excludeExchange: "北交所" } },
       { id: "star-board", name: "科创板", desc: "688 开头股票", conditions: { boardType: "科创板" } },
       { id: "non-star-board", name: "非科创板", desc: "非 688 开头股票", conditions: { boardType: "非科创板" } },
       { id: "non-st", name: "非ST", desc: "排除 ST 与退市风险", conditions: { status: "非ST" } },
@@ -3571,6 +3601,13 @@
       { id: "volume-active", name: "成交活跃", desc: "成交量高于 12 万", conditions: { minVolume: "120000" } },
       { id: "value-roe", name: "ROE优选", desc: "ROE 不低于 15%", conditions: { minRoe: "15" } }
     ];
+    const stockDailyFilterTags = [
+      { id: "non-st", name: "非ST", desc: "排除 ST 与退市风险", conditions: { status: "非ST" } },
+      { id: "non-star-board", name: "非科创板", desc: "排除 688 科创板", conditions: { boardType: "非科创板" } },
+      { id: "non-bj", name: "非北交所", desc: "排除北交所股票", conditions: { excludeExchange: "北交所" } },
+      { id: "exchange-sh", name: "上交所", desc: "仅上交所", conditions: { exchange: "上交所" } },
+      { id: "exchange-sz", name: "深交所", desc: "仅深交所", conditions: { exchange: "深交所" } }
+    ];
     const defaultStockStrategies = [
       { id: "dropout-trader", name: "退学炒股", desc: "短期趋势上行，成交量放大", conditions: { trend: "up", minVolume: "120000", minChange: "0" }, builtin: true },
       { id: "hot-money", name: "XX游资精选", desc: "趋势走强、量能活跃、涨幅靠前", conditions: { trend: "up", minVolume: "150000", minChange: "1" }, builtin: true },
@@ -3578,39 +3615,8 @@
       { id: "lynch", name: "彼得林奇", desc: "短期趋势上升，成交量放大", conditions: { trend: "up", minVolume: "90000" }, builtin: true }
     ];
 
-    const marketIndices = [
-      { id: "sh000001", name: "上证指数", code: "000001", market: "SH", price: 3134.22, changePercent: 0.42, volume: 351020, industry: "指数", pe: 0, pb: 0, roe: 0, detailUrl: "https://quote.eastmoney.com/zs000001.html", history: makeStockHistory(3134.22, 0.42, 11) },
-      { id: "sz399001", name: "深证成指", code: "399001", market: "SZ", price: 9786.14, changePercent: -0.28, volume: 492860, industry: "指数", pe: 0, pb: 0, roe: 0, detailUrl: "https://quote.eastmoney.com/zs399001.html", history: makeStockHistory(9786.14, -0.28, 23) },
-      { id: "sh000300", name: "沪深300", code: "000300", market: "SH", price: 3721.58, changePercent: 0.16, volume: 218470, industry: "指数", pe: 0, pb: 0, roe: 0, detailUrl: "https://quote.eastmoney.com/zs000300.html", history: makeStockHistory(3721.58, 0.16, 37) }
-    ];
-
-    const stockUniverse = [
-      { id: "sh600519", name: "贵州茅台", code: "600519", market: "SH", industry: "消费", price: 1688.56, changePercent: 1.12, volume: 34820, pe: 28.6, pb: 9.1, roe: 31.4, marketCap: 21208, history: makeStockHistory(1688.56, 1.12, 3) },
-      { id: "sz300750", name: "宁德时代", code: "300750", market: "SZ", industry: "新能源", price: 204.38, changePercent: -0.84, volume: 92760, pe: 21.3, pb: 4.6, roe: 22.8, marketCap: 8991, history: makeStockHistory(204.38, -0.84, 7) },
-      { id: "sz000001", name: "平安银行", code: "000001", market: "SZ", industry: "金融", price: 10.92, changePercent: 0.37, volume: 188450, pe: 5.2, pb: 0.55, roe: 10.8, marketCap: 2119, history: makeStockHistory(10.92, 0.37, 13) },
-      { id: "sz000858", name: "五粮液", code: "000858", market: "SZ", industry: "消费", price: 145.24, changePercent: 0.74, volume: 74120, pe: 18.7, pb: 3.9, roe: 24.5, marketCap: 5638, history: makeStockHistory(145.24, 0.74, 17) },
-      { id: "sh601318", name: "中国平安", code: "601318", market: "SH", industry: "金融", price: 47.18, changePercent: -0.21, volume: 120840, pe: 8.9, pb: 0.93, roe: 12.6, marketCap: 8624, history: makeStockHistory(47.18, -0.21, 19) },
-      { id: "sh600036", name: "招商银行", code: "600036", market: "SH", industry: "金融", price: 36.62, changePercent: 0.68, volume: 158300, pe: 6.8, pb: 1.02, roe: 15.4, marketCap: 9235, history: makeStockHistory(36.62, 0.68, 29) },
-      { id: "sh601899", name: "紫金矿业", code: "601899", market: "SH", industry: "有色金属", price: 17.75, changePercent: 2.16, volume: 356720, pe: 17.4, pb: 3.3, roe: 19.7, marketCap: 4678, history: makeStockHistory(17.75, 2.16, 31) },
-      { id: "sz002594", name: "比亚迪", code: "002594", market: "SZ", industry: "汽车", price: 232.41, changePercent: -1.26, volume: 109630, pe: 19.8, pb: 4.5, roe: 20.2, marketCap: 6764, history: makeStockHistory(232.41, -1.26, 41) },
-      { id: "sh600900", name: "长江电力", code: "600900", market: "SH", industry: "公用事业", price: 28.03, changePercent: 0.19, volume: 82430, pe: 20.2, pb: 3.2, roe: 15.1, marketCap: 6858, history: makeStockHistory(28.03, 0.19, 43) },
-      { id: "sz300760", name: "迈瑞医疗", code: "300760", market: "SZ", industry: "医药", price: 287.54, changePercent: 0.53, volume: 38650, pe: 31.7, pb: 8.4, roe: 27.8, marketCap: 3487, history: makeStockHistory(287.54, 0.53, 47) },
-      { id: "sh601012", name: "隆基绿能", code: "601012", market: "SH", industry: "新能源", price: 17.46, changePercent: -2.08, volume: 263880, pe: 14.9, pb: 1.7, roe: 11.4, marketCap: 1324, history: makeStockHistory(17.46, -2.08, 53) },
-      { id: "sh688981", name: "中芯国际", code: "688981", market: "SH", industry: "半导体", price: 48.36, changePercent: 1.36, volume: 93640, pe: 58.2, pb: 2.8, roe: 6.2, marketCap: 3842, history: makeStockHistory(48.36, 1.36, 59) },
-      { id: "sh600276", name: "恒瑞医药", code: "600276", market: "SH", industry: "医药", price: 43.92, changePercent: 0.06, volume: 87650, pe: 42.8, pb: 6.3, roe: 14.7, marketCap: 2802, history: makeStockHistory(43.92, 0.06, 61) },
-      { id: "sh601288", name: "农业银行", code: "601288", market: "SH", industry: "金融", price: 4.56, changePercent: 0.89, volume: 521400, pe: 6.1, pb: 0.72, roe: 11.6, marketCap: 15958, history: makeStockHistory(4.56, 0.89, 67) },
-      { id: "sz002415", name: "海康威视", code: "002415", market: "SZ", industry: "科技", price: 31.18, changePercent: -0.42, volume: 102640, pe: 20.5, pb: 2.6, roe: 13.8, marketCap: 2868, history: makeStockHistory(31.18, -0.42, 71) },
-      { id: "sz300059", name: "东方财富", code: "300059", market: "SZ", industry: "金融", price: 14.77, changePercent: 1.48, volume: 402300, pe: 28.4, pb: 3.5, roe: 12.3, marketCap: 2341, history: makeStockHistory(14.77, 1.48, 73) },
-      { id: "sh601857", name: "中国石油", code: "601857", market: "SH", industry: "能源", price: 9.18, changePercent: -0.11, volume: 286500, pe: 9.6, pb: 1.08, roe: 11.1, marketCap: 16801, history: makeStockHistory(9.18, -0.11, 79) },
-      { id: "sz000651", name: "格力电器", code: "000651", market: "SZ", industry: "家电", price: 41.83, changePercent: 0.31, volume: 116240, pe: 8.4, pb: 2.1, roe: 23.9, marketCap: 2355, history: makeStockHistory(41.83, 0.31, 83) },
-      { id: "sh600030", name: "中信证券", code: "600030", market: "SH", industry: "金融", price: 21.06, changePercent: 0.58, volume: 226180, pe: 15.2, pb: 1.12, roe: 7.4, marketCap: 3121, history: makeStockHistory(21.06, 0.58, 89) },
-      { id: "sz002230", name: "科大讯飞", code: "002230", market: "SZ", industry: "人工智能", price: 46.31, changePercent: 2.47, volume: 198620, pe: 76.5, pb: 5.7, roe: 5.1, marketCap: 1072, history: makeStockHistory(46.31, 2.47, 97) }
-    ];
-
-    stockUniverse.push(...makeMockStockUniverse(STOCK_MOCK_TOTAL - stockUniverse.length));
-    stockUniverse.forEach((stock, index) => {
-      hydrateStockTechnicalData(stock, index);
-    });
+    const marketIndices = [];
+    const stockUniverse = [];
 
     const USER_CONFIG_KEY = "glass_nav_user_config";
     const UNLOCKED_KEY = "glass_nav_unlocked";
@@ -3819,6 +3825,7 @@
     let activeStockDailyPeriod = "day";
     let stockDailyMoreOpen = false;
     let stockDailySort = "name";
+    let activeStockDailyTags = [];
     let stockDailyVirtualStart = 0;
     let stockDailyListScrollTop = 0;
     let stockDailyViewportStart = -1;
@@ -3826,6 +3833,11 @@
     let stockDailyPinchState = null;
     const stockDailyTouchPointers = new Map();
     let stockRefreshTimer = null;
+    let stockApiReady = false;
+    let stockApiLoading = false;
+    let stockApiStatus = "loading";
+    let stockApiErrorMessage = "";
+    let stockDataSource = "xueqiu";
     let stockDragState = { fromCode: "", overCode: "", placement: "before" };
     const stockFilters = {
       minChange: "",
@@ -4327,166 +4339,8 @@
     }
 
     /* Stock Module Logic */
-    function makeStockHistory(basePrice, changePercent = 0, seed = 1) {
-      const history = [];
-      let close = Math.max(0.01, basePrice * (1 - (changePercent / 100) * 0.72));
-      for (let i = 0; i < 18; i++) {
-        const wave = Math.sin((i + seed) * 0.74) * 0.012 + Math.cos((i + seed) * 0.41) * 0.006;
-        const drift = (changePercent / 100) / 18;
-        const open = close;
-        close = Math.max(0.01, open * (1 + wave + drift));
-        const high = Math.max(open, close) * (1 + 0.006 + Math.abs(Math.sin(seed + i)) * 0.006);
-        const low = Math.min(open, close) * (1 - 0.006 - Math.abs(Math.cos(seed + i)) * 0.005);
-        history.push({
-          open: Number(open.toFixed(2)),
-          close: Number(close.toFixed(2)),
-          high: Number(high.toFixed(2)),
-          low: Number(low.toFixed(2))
-        });
-      }
-      history[history.length - 1].close = Number(basePrice.toFixed(2));
-      history[history.length - 1].high = Math.max(history[history.length - 1].high, Number((basePrice * 1.004).toFixed(2)));
-      history[history.length - 1].low = Math.min(history[history.length - 1].low, Number((basePrice * 0.996).toFixed(2)));
-      return history;
-    }
-
-    function makeStockDailyK(basePrice, changePercent = 0, seed = 1, days = 520) {
-      const dailyK = [];
-      const start = new Date();
-      start.setDate(start.getDate() - days);
-      let close = Math.max(0.01, basePrice * (1 - (changePercent / 100) * 0.88));
-      for (let i = 0; i < days; i++) {
-        const date = new Date(start);
-        date.setDate(start.getDate() + i + 1);
-        const wave = Math.sin((i + seed) * 0.19) * 0.018 + Math.cos((i + seed) * 0.07) * 0.01;
-        const drift = (changePercent / 100) / Math.max(40, days / 3);
-        const open = close;
-        close = Math.max(0.01, open * (1 + wave + drift));
-        const high = Math.max(open, close) * (1 + 0.006 + Math.abs(Math.sin(seed + i)) * 0.008);
-        const low = Math.min(open, close) * (1 - 0.006 - Math.abs(Math.cos(seed + i)) * 0.007);
-        dailyK.push({
-          date: date.toISOString().slice(0, 10),
-          open: Number(open.toFixed(2)),
-          close: Number(close.toFixed(2)),
-          high: Number(high.toFixed(2)),
-          low: Number(low.toFixed(2)),
-          volume: Math.max(1000, Math.round((seed * 1700 + i * 911) % 420000 + 18000))
-        });
-      }
-      dailyK[dailyK.length - 1].close = Number(basePrice.toFixed(2));
-      dailyK[dailyK.length - 1].high = Math.max(dailyK[dailyK.length - 1].high, Number((basePrice * 1.006).toFixed(2)));
-      dailyK[dailyK.length - 1].low = Math.min(dailyK[dailyK.length - 1].low, Number((basePrice * 0.994).toFixed(2)));
-      return dailyK;
-    }
-
-    function makeMockStockUniverse(count) {
-      const industries = ["半导体", "新能源", "消费", "金融", "医药", "人工智能", "军工", "有色金属", "汽车", "云计算"];
-      const nameSeeds = ["星河", "华信", "云岭", "锦程", "蓝海", "东辰", "启明", "远航", "瑞景", "中科"];
-      return Array.from({ length: Math.max(0, count) }, (_, index) => {
-        const serial = index + 1;
-        const market = serial % 5 === 0 ? "BJ" : serial % 2 === 0 ? "SZ" : "SH";
-        const prefix = market === "BJ" ? "83" : market === "SZ" ? (serial % 4 === 0 ? "300" : "002") : (serial % 7 === 0 ? "688" : "600");
-        const code = `${prefix}${String(100 + serial).padStart(market === "BJ" ? 4 : 3, "0")}`.slice(0, 6);
-        const seed = 101 + serial * 7;
-        const price = Number((8 + (seed % 140) * 0.86 + Math.sin(seed) * 2.4).toFixed(2));
-        const changePercent = Number((Math.sin(seed * 0.37) * 4.6).toFixed(2));
-        const volume = Math.round(18000 + (seed * 791) % 420000);
-        const industry = industries[index % industries.length];
-        return {
-          id: `${market.toLowerCase()}${code}`,
-          name: `${nameSeeds[index % nameSeeds.length]}${industry}${String(serial).padStart(2, "0")}`,
-          code,
-          market,
-          industry,
-          price,
-          changePercent,
-          volume,
-          pe: Number((8 + (seed % 64) * 0.9).toFixed(1)),
-          pb: Number((0.6 + (seed % 28) * 0.16).toFixed(2)),
-          roe: Number((4 + (seed % 26) * 0.9).toFixed(1)),
-          marketCap: Math.round(120 + (seed * 37) % 9800),
-          history: makeStockHistory(price, changePercent, seed)
-        };
-      });
-    }
-
-    function makeStockIntradaySeries(stock, days = 1, seed = 1) {
-      const sourceDays = getStockDailyK(stock).slice(-days);
-      const points = [];
-      sourceDays.forEach((day, dayIndex) => {
-        let price = Number(day.open) || Number(stock.price) || 1;
-        let amount = 0;
-        let volumeSum = 0;
-        for (let minuteIndex = 0; minuteIndex < 242; minuteIndex++) {
-          const sessionMinute = minuteIndex <= 120 ? 570 + minuteIndex : 780 + minuteIndex - 121;
-          const hour = Math.floor(sessionMinute / 60);
-          const minute = sessionMinute % 60;
-          const time = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
-          const progress = minuteIndex / 241;
-          const target = day.open + (day.close - day.open) * progress;
-          const wave = Math.sin((minuteIndex + seed + dayIndex * 17) * 0.18) * day.open * 0.0028;
-          price = Math.max(0.01, target + wave);
-          const volume = Math.max(1, Math.round((day.volume / 242) * (0.55 + Math.abs(Math.sin(seed + minuteIndex)) * 1.25)));
-          amount += price * volume;
-          volumeSum += volume;
-          points.push({
-            date: day.date,
-            time,
-            label: days > 1 ? `${day.date} ${time}` : time,
-            price: Number(price.toFixed(2)),
-            average: Number((amount / Math.max(1, volumeSum)).toFixed(2)),
-            volume
-          });
-        }
-      });
-      return points;
-    }
-
-    function makeStockOrderBook(stock, seed = 1) {
-      const price = Number(stock.price) || 1;
-      const step = price >= 100 ? 0.1 : 0.01;
-      const makeLevel = (offset, side) => ({
-        label: `${side}${offset}`,
-        price: Number((price + (side === "卖" ? offset : -offset) * step).toFixed(2)),
-        volume: Math.max(1, Math.round((Number(stock.volume || 1000) * (0.012 + ((seed + offset * 13) % 9) * 0.002))))
-      });
-      return {
-        asks: [5, 4, 3, 2, 1].map(offset => makeLevel(offset, "卖")),
-        bids: [1, 2, 3, 4, 5].map(offset => makeLevel(offset, "买"))
-      };
-    }
-
-    function makeStockPriceDistribution(stock, seed = 1) {
-      const price = Number(stock.price) || 1;
-      return Array.from({ length: 8 }, (_, index) => {
-        const offset = index - 3.5;
-        return {
-          price: Number((price * (1 + offset * 0.006)).toFixed(2)),
-          ratio: Math.max(4, Math.round(8 + Math.abs(Math.sin(seed + index)) * 22)),
-          side: offset >= 0 ? "up" : "down"
-        };
-      });
-    }
-
-    function hydrateStockTechnicalData(stock, index = 0) {
-      const seed = Number(String(stock.code || index + 1).slice(-3)) || index + 1;
-      stock.dailyK = makeStockDailyK(stock.price, stock.changePercent, seed);
-      stock.intraday = makeStockIntradaySeries(stock, 1, seed);
-      stock.multiDayMinute = {
-        three: makeStockIntradaySeries(stock, 3, seed + 3),
-        five: makeStockIntradaySeries(stock, 5, seed + 5)
-      };
-      stock.orderBook = makeStockOrderBook(stock, seed);
-      stock.priceDistribution = makeStockPriceDistribution(stock, seed);
-      return stock;
-    }
-
     function getStockDailyK(stock) {
-      if (!Array.isArray(stock.dailyK) || stock.dailyK.length < 60) {
-        const seed = Number(String(stock.code || "1").slice(-3)) || 1;
-        stock.dailyK = makeStockDailyK(stock.price, stock.changePercent, seed);
-      }
-      return stock.dailyK;
+      return Array.isArray(stock?.dailyK) ? stock.dailyK : [];
     }
 
     function getStockIdentity(stock) {
@@ -4511,6 +4365,27 @@
       };
     }
 
+    function getStockApiBaseUrl() {
+      const configured = window.STOCK_API_BASE_URL || localStorage.getItem(STOCK_API_BASE_URL_KEY) || STOCK_DEFAULT_API_BASE_URL;
+      return String(configured).replace(/\/+$/, "");
+    }
+
+    async function fetchStockApi(path, options = {}) {
+      const response = await fetch(`${getStockApiBaseUrl()}${path}`, {
+        ...options,
+        headers: {
+          "content-type": "application/json",
+          ...(options.headers || {})
+        }
+      });
+      const text = await response.text();
+      const body = text ? JSON.parse(text) : {};
+      if (!response.ok) {
+        throw new Error(body.message || `Stock API ${response.status}`);
+      }
+      return { ...body, headers: response.headers };
+    }
+
     function getStockByCode(code, market = "") {
       const value = String(code || "").trim();
       const targetMarket = String(market || "").toUpperCase();
@@ -4519,9 +4394,201 @@
       ) || stockUniverse.find(stock => stock.code === value);
     }
 
+    function getStockId(market, code) {
+      return `${String(market || "").toLowerCase()}${String(code || "")}`;
+    }
+
+    function inferStockMarket(code) {
+      const value = String(code || "");
+      if (value.startsWith("6")) return "SH";
+      if (value.startsWith("4") || value.startsWith("8")) return "BJ";
+      return "SZ";
+    }
+
+    function makeStockIdentityPlaceholder(code, market = "") {
+      const safeCode = String(code || "").trim();
+      const safeMarket = String(market || inferStockMarket(safeCode)).toUpperCase();
+      return {
+        id: getStockId(safeMarket, safeCode),
+        name: safeCode,
+        code: safeCode,
+        market: safeMarket,
+        industry: "unknown",
+        price: 0,
+        changePercent: 0,
+        changeAmount: 0,
+        volume: 0,
+        amount: 0,
+        pe: 0,
+        pb: 0,
+        roe: 0,
+        marketCap: 0,
+        source: stockDataSource,
+        delayed: true,
+        updatedAt: ""
+      };
+    }
+
+    function getStockApiErrorMessage(error) {
+      return error?.message || "行情接口不可用，请检查后端服务和 Xueqiu 凭据配置。";
+    }
+
+    function mapApiStock(raw) {
+      const code = String(raw?.code || "").trim();
+      const market = String(raw?.market || "").trim().toUpperCase();
+      if (!code || !market) return null;
+      const fallback = getStockByCode(code, market);
+      const base = fallback ? cloneStock(fallback) : makeStockIdentityPlaceholder(code, market);
+      const mapped = {
+        ...base,
+        ...raw,
+        id: getStockId(market, code),
+        code,
+        market,
+        name: raw.name || base.name,
+        industry: raw.industry || base.industry || "unknown",
+        price: Number(raw.price ?? base.price ?? 0),
+        changePercent: Number(raw.changePercent ?? base.changePercent ?? 0),
+        changeAmount: Number(raw.changeAmount ?? base.changeAmount ?? 0),
+        volume: Number(raw.volume ?? base.volume ?? 0),
+        amount: Number(raw.amount ?? base.amount ?? 0),
+        pe: Number(raw.pe ?? base.pe ?? 0),
+        pb: Number(raw.pb ?? base.pb ?? 0),
+        roe: Number(raw.roe ?? base.roe ?? 0),
+        marketCap: Number(raw.marketCap ?? base.marketCap ?? 0),
+        source: raw.source || stockDataSource,
+        delayed: Boolean(raw.delayed ?? true),
+        updatedAt: raw.updatedAt || new Date().toISOString(),
+        history: Array.isArray(raw.history) ? raw.history.map(item => ({ ...item })) : (base.history || []).map(item => ({ ...item })),
+        dailyK: Array.isArray(raw.dailyK) ? raw.dailyK.map(item => ({ ...item })) : (base.dailyK || []).map(item => ({ ...item })),
+        intraday: Array.isArray(raw.intraday) ? raw.intraday.map(item => ({ ...item })) : (base.intraday || []).map(item => ({ ...item })),
+        multiDayMinute: raw.multiDayMinute || base.multiDayMinute,
+        orderBook: raw.orderBook || base.orderBook,
+        priceDistribution: Array.isArray(raw.priceDistribution) ? raw.priceDistribution.map(item => ({ ...item })) : (base.priceDistribution || []).map(item => ({ ...item }))
+      };
+      return mapped;
+    }
+
+    function mergeStockQuote(raw) {
+      const stock = mapApiStock(raw);
+      if (!stock) return null;
+      const identity = getStockIdentity(stock);
+      const universeIndex = stockUniverse.findIndex(item => getStockIdentity(item) === identity);
+      if (universeIndex >= 0) stockUniverse.splice(universeIndex, 1, stock);
+      else stockUniverse.push(stock);
+      const watchIndex = stockWatchlist.findIndex(item => getStockIdentity(item) === identity);
+      if (watchIndex >= 0) stockWatchlist.splice(watchIndex, 1, cloneStock(stock));
+      return stock;
+    }
+
+    async function loadRealStockUniverse() {
+      if (stockApiLoading) return false;
+      stockApiLoading = true;
+      stockApiStatus = "loading";
+      stockApiErrorMessage = "";
+      try {
+        const response = await fetchStockApi("/v1/stocks/universe?limit=6000");
+        stockDataSource = response.source || response.headers.get("x-data-source") || stockDataSource;
+        const mapped = (response.items || []).map(mapApiStock).filter(Boolean);
+        if (!mapped.length) throw new Error("Stock API returned no stocks");
+        stockUniverse.splice(0, stockUniverse.length, ...mapped);
+        stockWatchlist = stockWatchlist.map(stock => getStockByCode(stock.code, stock.market) || stock).map(cloneStock);
+        stockApiReady = true;
+        stockApiStatus = "live";
+        await refreshRealStockQuotes();
+        if (stockUniverse.length) {
+          stockApiReady = true;
+          stockApiStatus = "live";
+        }
+        return true;
+      } catch (error) {
+        stockApiReady = false;
+        stockApiStatus = "error";
+        stockApiErrorMessage = getStockApiErrorMessage(error);
+        if (activeFeature === "stocks") showToast(stockApiErrorMessage, "error");
+        return false;
+      } finally {
+        stockApiLoading = false;
+      }
+    }
+
+    async function refreshRealStockQuotes() {
+      const symbols = [];
+      const seen = new Set();
+      [...stockWatchlist, ...stockUniverse.slice(0, 100)].forEach(stock => {
+        const identity = getStockIdentity(stock);
+        if (!stock.code || !stock.market || seen.has(identity) || symbols.length >= 100) return;
+        seen.add(identity);
+        symbols.push({ market: stock.market, code: stock.code });
+      });
+      if (!symbols.length) return false;
+      try {
+        const response = await fetchStockApi("/v1/quotes", {
+          method: "POST",
+          body: JSON.stringify({ symbols })
+        });
+        stockDataSource = response.source || response.headers.get("x-data-source") || stockDataSource;
+        response.items.forEach(mergeStockQuote);
+        stockApiReady = true;
+        stockApiStatus = "live";
+        return true;
+      } catch (error) {
+        stockApiReady = false;
+        stockApiStatus = "error";
+        stockApiErrorMessage = getStockApiErrorMessage(error);
+        if (activeFeature === "stocks") showToast(stockApiErrorMessage, "error");
+        return false;
+      }
+    }
+
+    function getStockHistoryRangeParam() {
+      const range = getStockDailyRange();
+      if (range.id === "half") return "120d";
+      if (range.id === "1y") return "250d";
+      if (range.id === "2y") return "500d";
+      return `${range.days || 60}d`;
+    }
+
+    function mergeStockHistory(item) {
+      return {
+        date: item.time || item.date,
+        open: Number(item.open || 0),
+        high: Number(item.high || 0),
+        low: Number(item.low || 0),
+        close: Number(item.close || 0),
+        volume: Number(item.volume || 0),
+        amount: Number(item.amount || 0)
+      };
+    }
+
+    async function loadRealStockHistory(stock) {
+      if (!stockApiReady || !stock?.market || !stock?.code) return false;
+      const dailyPeriod = getStockDailyPeriod();
+      const period = dailyPeriod.mode === "k" ? dailyPeriod.id : "day";
+      const range = getStockHistoryRangeParam();
+      try {
+        const response = await fetchStockApi(`/v1/stocks/${stock.market}/${stock.code}/history?period=${encodeURIComponent(period)}&range=${encodeURIComponent(range)}`);
+        if (!Array.isArray(response.items) || !response.items.length) return false;
+        stock.dailyK = response.items.map(mergeStockHistory);
+        stock.history = stock.dailyK.slice(-18).map(item => ({
+          open: item.open,
+          high: item.high,
+          low: item.low,
+          close: item.close
+        }));
+        return true;
+      } catch (error) {
+        stockApiStatus = "error";
+        stockApiErrorMessage = getStockApiErrorMessage(error);
+        return false;
+      }
+    }
+
     function normalizeStock(raw) {
-      const fallback = getStockByCode(raw?.code, raw?.market);
-      if (!fallback) return null;
+      const code = String(raw?.code || "").trim();
+      if (!code) return null;
+      const market = String(raw?.market || inferStockMarket(code)).toUpperCase();
+      const fallback = getStockByCode(code, market) || makeStockIdentityPlaceholder(code, market);
       return {
         ...cloneStock(fallback),
         ...raw,
@@ -4561,7 +4628,7 @@
       } catch (error) {
         localStorage.removeItem(STOCK_WATCHLIST_KEY);
       }
-      return defaultStockWatchCodes.map(code => cloneStock(getStockByCode(code))).filter(Boolean);
+      return defaultStockWatchCodes.map(code => cloneStock(makeStockIdentityPlaceholder(code)));
     }
 
     function saveStockWatchlist() {
@@ -4661,6 +4728,19 @@
       stockRefreshTimer = setTimeout(scheduleStockRefresh, getStockRefreshDelay());
     }
 
+    async function initializeRealStockData() {
+      const loaded = await loadRealStockUniverse();
+      if (!loaded) {
+        if (activeFeature === "stocks") renderStockPage();
+        return;
+      }
+      if (activeFeature !== "stocks") return;
+      await loadRealStockHistory(getActiveDailyStock());
+      renderStockSideList();
+      renderStockPage();
+      updateStockDynamicData();
+    }
+
     function getStockChangeClass(value) {
       const number = Number(value) || 0;
       if (number > 0) return "up";
@@ -4705,6 +4785,27 @@
       return `${Math.round(number).toLocaleString("zh-CN")}亿`;
     }
 
+    function formatStockUpdatedAt(value) {
+      if (!value) return "更新时间=待获取";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return `更新时间=${String(value)}`;
+      return `更新时间=${date.toLocaleString("zh-CN", { hour12: false })}`;
+    }
+
+    function formatStockDataMeta(stock) {
+      return `source=${escapeHTML(stock.source || stockDataSource)} · ${escapeHTML(formatStockUpdatedAt(stock.updatedAt))} · ${stock.delayed ? "延迟" : "未延迟"}`;
+    }
+
+    function renderStockDataStatus() {
+      if (stockApiStatus === "live") {
+        return `<div class="stock-refresh-note" data-stock-api-status>source=${escapeHTML(stockDataSource)} · ${stockUniverse.length} 只 · 未回退</div>`;
+      }
+      if (stockApiStatus === "error") {
+        return `<div class="stock-empty" data-stock-api-status>${escapeHTML(stockApiErrorMessage || "行情接口不可用，请检查后端服务和 Xueqiu 凭据配置。")}</div>`;
+      }
+      return `<div class="stock-empty" data-stock-api-status>正在通过后端行情接口获取股票全集...</div>`;
+    }
+
     function formatStockTradeAmount(value) {
       const number = Number(value) || 0;
       if (number >= 100000000) return `${(number / 100000000).toFixed(2)}亿`;
@@ -4721,14 +4822,21 @@
     }
 
     function getStockBoardType(stock) {
-      if (stock.boardType) return stock.boardType;
+      const value = String(stock.boardType || "").toLowerCase();
+      if (value === "star" || stock.boardType === "科创板") return "科创板";
+      if (value === "bse") return "非科创板";
+      if (value === "main" || value === "gem" || value === "unknown" || stock.boardType) return "非科创板";
       return stock.code?.startsWith("688") ? "科创板" : "非科创板";
     }
 
     function getStockStatus(stock) {
-      if (stock.status) return stock.status;
-      if (/退/.test(stock.name)) return "退市风险";
-      if (/^ST|^\*ST/.test(stock.name)) return "ST";
+      const name = String(stock.name || "");
+      const value = String(stock.status || "").toLowerCase();
+      if (/退/.test(name)) return "退市风险";
+      if (/^\*?ST/i.test(name)) return "ST";
+      if (value === "st" || stock.status === "ST") return "ST";
+      if (value === "delist-risk" || stock.status === "退市风险") return "退市风险";
+      if (value === "normal" || stock.status === "非ST") return "非ST";
       return "非ST";
     }
 
@@ -4785,7 +4893,14 @@
       ].some(key => conditions[key] !== undefined && conditions[key] !== "") ||
         (conditions.industry && conditions.industry !== "all") ||
         (conditions.metric && conditions.metric !== "all") ||
-        Boolean(conditions.exchange || conditions.boardType || conditions.status);
+        Boolean(conditions.exchange || conditions.excludeExchange || conditions.boardType || conditions.status);
+    }
+
+    function getStockConditionNumber(conditions, key) {
+      const value = conditions[key];
+      if (value === undefined || value === null || value === "") return null;
+      const number = Number(value);
+      return Number.isFinite(number) ? number : null;
     }
 
     function stockMatchesConditions(stock, conditions = stockFilters) {
@@ -4793,16 +4908,16 @@
       const addCheck = (enabled, passed) => {
         if (enabled) checks.push(Boolean(passed));
       };
-      const minChange = conditions.minChange === "" ? null : Number(conditions.minChange);
-      const maxChange = conditions.maxChange === "" ? null : Number(conditions.maxChange);
-      const minVolume = conditions.minVolume === "" ? null : Number(conditions.minVolume);
-      const maxVolume = conditions.maxVolume === "" ? null : Number(conditions.maxVolume);
-      const minPe = conditions.minPe === "" ? null : Number(conditions.minPe);
-      const maxPe = conditions.maxPe === "" ? null : Number(conditions.maxPe);
-      const minPb = conditions.minPb === "" ? null : Number(conditions.minPb);
-      const maxPb = conditions.maxPb === "" ? null : Number(conditions.maxPb);
-      const minRoe = conditions.minRoe === "" ? null : Number(conditions.minRoe);
-      const maxRoe = conditions.maxRoe === "" ? null : Number(conditions.maxRoe);
+      const minChange = getStockConditionNumber(conditions, "minChange");
+      const maxChange = getStockConditionNumber(conditions, "maxChange");
+      const minVolume = getStockConditionNumber(conditions, "minVolume");
+      const maxVolume = getStockConditionNumber(conditions, "maxVolume");
+      const minPe = getStockConditionNumber(conditions, "minPe");
+      const maxPe = getStockConditionNumber(conditions, "maxPe");
+      const minPb = getStockConditionNumber(conditions, "minPb");
+      const maxPb = getStockConditionNumber(conditions, "maxPb");
+      const minRoe = getStockConditionNumber(conditions, "minRoe");
+      const maxRoe = getStockConditionNumber(conditions, "maxRoe");
 
       addCheck(minChange !== null, stock.changePercent >= minChange);
       addCheck(maxChange !== null, stock.changePercent <= maxChange);
@@ -4815,6 +4930,7 @@
       addCheck(minRoe !== null, stock.roe >= minRoe);
       addCheck(maxRoe !== null, stock.roe <= maxRoe);
       addCheck(Boolean(conditions.exchange), getStockExchange(stock) === conditions.exchange);
+      addCheck(Boolean(conditions.excludeExchange), getStockExchange(stock) !== conditions.excludeExchange);
       addCheck(Boolean(conditions.boardType), getStockBoardType(stock) === conditions.boardType);
       addCheck(Boolean(conditions.status), getStockStatus(stock) === conditions.status);
       addCheck(conditions.industry && conditions.industry !== "all", stock.industry === conditions.industry);
@@ -4936,10 +5052,14 @@
     }
 
     function setActiveDailyStock(id) {
-      if (!stockUniverse.some(stock => stock.id === id)) return;
+      const stock = stockUniverse.find(item => item.id === id);
+      if (!stock) return;
       activeDailyStockId = id;
       stockDailyViewportStart = -1;
       updateStockDailyChart();
+      loadRealStockHistory(stock).then(loaded => {
+        if (loaded && activeDailyStockId === id) updateStockDailyChart();
+      });
     }
 
     function setStockDailyRange(id) {
@@ -4947,6 +5067,9 @@
       activeStockDailyRange = id;
       stockDailyViewportStart = -1;
       updateStockDailyChart();
+      loadRealStockHistory(getActiveDailyStock()).then(loaded => {
+        if (loaded) updateStockDailyChart();
+      });
     }
 
     function getStockDailyRangeIndex() {
@@ -4963,6 +5086,9 @@
       activeStockDailyPeriod = id;
       stockDailyViewportStart = -1;
       updateStockDailyChart();
+      loadRealStockHistory(getActiveDailyStock()).then(loaded => {
+        if (loaded) updateStockDailyChart();
+      });
     }
 
     function zoomStockDailyRange(direction) {
@@ -5125,7 +5251,7 @@
           <div class="stock-result" role="button" tabindex="0" data-stock-open="${escapeHTML(stock.code)}" data-stock-market="${escapeHTML(stock.market)}">
             <span class="stock-result-main">
               <span class="stock-result-name">${escapeHTML(stock.name)}</span>
-              <span class="stock-result-meta">${escapeHTML(stock.market)} ${escapeHTML(stock.code)} · ${escapeHTML(stock.industry)} · ${formatStockPrice(stock.price)}</span>
+              <span class="stock-result-meta">${escapeHTML(stock.market)} ${escapeHTML(stock.code)} · ${escapeHTML(stock.industry)} · ${formatStockPrice(stock.price)} · ${formatStockDataMeta(stock)}</span>
             </span>
             <span class="stock-change ${getStockChangeClass(stock.changePercent)}">${formatStockPercent(stock.changePercent)}</span>
             <button class="stock-table-action ${exists ? "" : "primary"}" type="button" data-stock-add="${escapeHTML(stock.code)}" data-stock-market="${escapeHTML(stock.market)}" aria-label="${exists ? "已添加" : `添加${escapeHTML(stock.name)}到自选`}">${exists ? "✓" : "+"}</button>
@@ -5202,7 +5328,7 @@
                     <td>
                       <div class="stock-name-cell">
                         <span class="stock-name">${escapeHTML(stock.name)}</span>
-                        <span class="stock-code">${escapeHTML(stock.market)} ${escapeHTML(stock.code)} · ${escapeHTML(stock.industry)}</span>
+                        <span class="stock-code">${escapeHTML(stock.market)} ${escapeHTML(stock.code)} · ${escapeHTML(stock.industry)} · ${formatStockDataMeta(stock)}</span>
                       </div>
                     </td>
                     <td class="stock-price" data-stock-cell="price">${formatStockPrice(stock.price)}</td>
@@ -5251,11 +5377,39 @@
       `;
     }
 
+    function getDailyFilterTag(id) {
+      return stockDailyFilterTags.find(tag => tag.id === id);
+    }
+
+    function getDailyFilteredStocks() {
+      const tags = activeStockDailyTags.map(getDailyFilterTag).filter(Boolean);
+      if (!tags.length) return stockUniverse;
+      return stockUniverse.filter(stock => tags.every(tag => stockMatchesConditions(stock, { ...tag.conditions, logic: "and" })));
+    }
+
+    function toggleStockDailyFilter(id) {
+      if (!getDailyFilterTag(id)) return;
+      activeStockDailyTags = activeStockDailyTags.includes(id)
+        ? activeStockDailyTags.filter(item => item !== id)
+        : [...activeStockDailyTags, id];
+      stockDailyVirtualStart = 0;
+      stockDailyListScrollTop = 0;
+      stockDailyViewportStart = -1;
+      const nextStock = getActiveDailyStock();
+      renderStockPage();
+      if (nextStock) {
+        loadRealStockHistory(nextStock).then(loaded => {
+          if (loaded && activeDailyStockId === nextStock.id) updateStockDailyChart();
+        });
+      }
+    }
+
     function getActiveDailyStock() {
-      const stock = stockUniverse.find(item => item.id === activeDailyStockId);
+      const stocks = getDailyFilteredStocks();
+      const stock = stocks.find(item => item.id === activeDailyStockId);
       if (stock) return stock;
-      activeDailyStockId = stockUniverse[0]?.id || "";
-      return stockUniverse[0];
+      activeDailyStockId = stocks[0]?.id || "";
+      return stocks[0];
     }
 
     function getStockDailyRange() {
@@ -5291,9 +5445,9 @@
     }
 
     function getStockMinuteSeries(stock, periodId = activeStockDailyPeriod) {
-      if (periodId === "three") return stock.multiDayMinute?.three || makeStockIntradaySeries(stock, 3, Number(String(stock.code).slice(-3)) || 3);
-      if (periodId === "five") return stock.multiDayMinute?.five || makeStockIntradaySeries(stock, 5, Number(String(stock.code).slice(-3)) || 5);
-      return stock.intraday || makeStockIntradaySeries(stock, 1, Number(String(stock.code).slice(-3)) || 1);
+      if (periodId === "three") return stock.multiDayMinute?.three || [];
+      if (periodId === "five") return stock.multiDayMinute?.five || [];
+      return stock.intraday || [];
     }
 
     function isStockMinutePeriod(period = getStockDailyPeriod()) {
@@ -5400,7 +5554,7 @@
           <div class="stock-daily-quote-main">
             <div class="stock-daily-quote-name">
               <strong data-stock-daily-field="name">${escapeHTML(stock.name)}</strong>
-              <span class="stock-daily-quote-code" data-stock-daily-field="code">${escapeHTML(stock.market)} ${escapeHTML(stock.code)}</span>
+              <span class="stock-daily-quote-code" data-stock-daily-field="code">${escapeHTML(stock.market)} ${escapeHTML(stock.code)} · ${formatStockDataMeta(stock)}</span>
             </div>
             <div class="stock-daily-quote-price">
               <strong data-stock-daily-field="price">${formatStockPrice(quote.latest.close)}</strong>
@@ -5423,7 +5577,7 @@
     }
 
     function getSortedDailyStocks() {
-      return [...stockUniverse].sort((a, b) => {
+      return [...getDailyFilteredStocks()].sort((a, b) => {
         if (stockDailySort === "code") return `${a.market}${a.code}`.localeCompare(`${b.market}${b.code}`);
         if (stockDailySort === "change") return b.changePercent - a.changePercent;
         return a.name.localeCompare(b.name, "zh-CN");
@@ -5477,6 +5631,18 @@
       `).join("");
     }
 
+    function renderStockDailyFilters() {
+      return `
+        <div class="stock-daily-filter-row" aria-label="日K筛选条件">
+          ${stockDailyFilterTags.map(tag => `
+            <button class="stock-daily-filter ${activeStockDailyTags.includes(tag.id) ? "active" : ""}" type="button" data-stock-daily-filter="${escapeHTML(tag.id)}" aria-pressed="${activeStockDailyTags.includes(tag.id)}" title="${escapeHTML(tag.desc)}">
+              ${escapeHTML(tag.name)}
+            </button>
+          `).join("")}
+        </div>
+      `;
+    }
+
     function renderStockDailyScrollbar() {
       const data = getStockChartData(getActiveDailyStock());
       const viewport = getStockDailyViewport(data);
@@ -5486,8 +5652,11 @@
     }
 
     function renderStockDailyDepth(stock) {
-      const orderBook = stock.orderBook || makeStockOrderBook(stock);
-      const distribution = stock.priceDistribution || makeStockPriceDistribution(stock);
+      const orderBook = stock.orderBook;
+      const distribution = stock.priceDistribution || [];
+      if (!orderBook?.asks?.length || !orderBook?.bids?.length || !distribution.length) {
+        return `<div class="stock-empty">当前行情源未返回盘口或量价分布数据。</div>`;
+      }
       const maxBookVolume = Math.max(1, ...orderBook.asks.map(item => item.volume), ...orderBook.bids.map(item => item.volume));
       const maxDistribution = Math.max(1, ...distribution.map(item => item.ratio));
       const renderBookRow = (item, side) => `
@@ -5522,14 +5691,45 @@
 
     function renderStockDailyView() {
       const stock = getActiveDailyStock();
+      const dailyStockCount = getDailyFilteredStocks().length;
+      const dailyStockCountLabel = activeStockDailyTags.length ? `${dailyStockCount}/${stockUniverse.length} 只` : `${stockUniverse.length} 只`;
+      if (!stock && stockUniverse.length) {
+        return `
+          <div class="stock-daily-layout">
+            <aside class="stock-card stock-daily-sidebar">
+              <div class="stock-section-head">
+                <h2 class="stock-section-title">股票池</h2>
+                <span class="stock-refresh-note">${dailyStockCountLabel}</span>
+              </div>
+              <div class="stock-daily-toolbar">
+                ${renderStockDailyFilters()}
+                <select class="stock-select" data-stock-daily-sort aria-label="日K股票排序">
+                  <option value="name" ${stockDailySort === "name" ? "selected" : ""}>按名称</option>
+                  <option value="code" ${stockDailySort === "code" ? "selected" : ""}>按代码</option>
+                  <option value="change" ${stockDailySort === "change" ? "selected" : ""}>按涨幅</option>
+                </select>
+              </div>
+              <div class="stock-daily-list" data-stock-daily-list aria-label="股票选择列表">${renderStockDailyList()}</div>
+            </aside>
+
+            <section class="stock-card stock-daily-chart-card">
+              <div class="stock-empty">当前筛选条件没有匹配股票。</div>
+            </section>
+          </div>
+        `;
+      }
+      if (!stock) {
+        return `<section class="stock-card">${renderStockDataStatus()}</section>`;
+      }
       return `
         <div class="stock-daily-layout">
           <aside class="stock-card stock-daily-sidebar">
             <div class="stock-section-head">
               <h2 class="stock-section-title">股票池</h2>
-              <span class="stock-refresh-note">${stockUniverse.length} 只</span>
+              <span class="stock-refresh-note">${dailyStockCountLabel}</span>
             </div>
             <div class="stock-daily-toolbar">
+              ${renderStockDailyFilters()}
               <select class="stock-select" data-stock-daily-sort aria-label="日K股票排序">
                 <option value="name" ${stockDailySort === "name" ? "selected" : ""}>按名称</option>
                 <option value="code" ${stockDailySort === "code" ? "selected" : ""}>按代码</option>
@@ -5543,7 +5743,7 @@
             <div class="stock-section-head">
               <div>
                 <h2 class="stock-section-title" data-stock-daily-title>${escapeHTML(stock.name)} 分时/日K图</h2>
-                <span class="stock-refresh-note" data-stock-daily-meta>${escapeHTML(stock.market)} ${escapeHTML(stock.code)} · ${escapeHTML(getStockDailyPeriod().label)} · ${escapeHTML(getStockDailyRange().label)}</span>
+                <span class="stock-refresh-note" data-stock-daily-meta>${escapeHTML(stock.market)} ${escapeHTML(stock.code)} · ${escapeHTML(getStockDailyPeriod().label)} · ${escapeHTML(getStockDailyRange().label)} · ${formatStockDataMeta(stock)}</span>
               </div>
             </div>
             ${renderStockDailyQuote(stock)}
@@ -5675,7 +5875,7 @@
                     <td>
                       <div class="stock-name-cell">
                         <span class="stock-name">${escapeHTML(stock.name)}</span>
-                        <span class="stock-code">${escapeHTML(stock.industry)}</span>
+                        <span class="stock-code">${escapeHTML(stock.industry)} · ${formatStockDataMeta(stock)}</span>
                       </div>
                     </td>
                     <td class="stock-code">${escapeHTML(stock.market)} ${escapeHTML(stock.code)}</td>
@@ -5852,6 +6052,8 @@
 
           ${renderStockMobileTabs()}
 
+          ${renderStockDataStatus()}
+
           ${activeStockView === "watchlist" ? `<section class="stock-card">
             <div class="stock-section-head">
               <h2 class="stock-section-title">快速观察</h2>
@@ -5946,43 +6148,6 @@
       stockResultPage = 1;
       saveStockFilterState();
       renderStockPage();
-    }
-
-    function mutateStockQuote(stock) {
-      const move = (Math.random() - 0.5) * 1.1;
-      const previous = Number(stock.price) || 1;
-      const next = Math.max(0.01, previous * (1 + move / 100));
-      const open = previous;
-      const close = Number(next.toFixed(2));
-      const high = Number((Math.max(open, close) * (1 + Math.random() * 0.008)).toFixed(2));
-      const low = Number((Math.min(open, close) * (1 - Math.random() * 0.008)).toFixed(2));
-      stock.price = close;
-      stock.changePercent = Math.max(-10, Math.min(10, Number((Number(stock.changePercent || 0) + move).toFixed(2))));
-      stock.volume = Math.max(1000, Math.round(Number(stock.volume || 0) * (0.96 + Math.random() * 0.08)));
-      stock.marketCap = Math.max(1, Number((Number(stock.marketCap || 0) * (1 + move / 100)).toFixed(0)));
-      stock.history = [...(stock.history || []).slice(-17), { open: Number(open.toFixed(2)), close, high, low }];
-      const dailyK = getStockDailyK(stock);
-      const lastDate = new Date(dailyK[dailyK.length - 1]?.date || new Date());
-      lastDate.setDate(lastDate.getDate() + 1);
-      stock.dailyK = [
-        ...dailyK.slice(-519),
-        {
-          date: lastDate.toISOString().slice(0, 10),
-          open: Number(open.toFixed(2)),
-          close,
-          high,
-          low,
-          volume: stock.volume
-        }
-      ];
-      const seed = Number(String(stock.code || "1").slice(-3)) || 1;
-      stock.intraday = makeStockIntradaySeries(stock, 1, seed);
-      stock.multiDayMinute = {
-        three: makeStockIntradaySeries(stock, 3, seed + 3),
-        five: makeStockIntradaySeries(stock, 5, seed + 5)
-      };
-      stock.orderBook = makeStockOrderBook(stock, seed);
-      stock.priceDistribution = makeStockPriceDistribution(stock, seed);
     }
 
     function pulseStockNode(node) {
@@ -6087,10 +6252,17 @@
       updateStockDailyChart();
     }
 
-    function refreshStockPrices() {
-      marketIndices.forEach(mutateStockQuote);
-      stockUniverse.forEach(mutateStockQuote);
-      stockWatchlist.forEach(mutateStockQuote);
+    function updateStockDataStatus() {
+      const status = document.querySelector("[data-stock-api-status]");
+      if (status) status.outerHTML = renderStockDataStatus();
+    }
+
+    async function refreshStockPrices() {
+      const refreshed = await refreshRealStockQuotes();
+      if (!refreshed) {
+        if (activeFeature === "stocks") updateStockDataStatus();
+        return;
+      }
       saveStockWatchlist();
       if (activeFeature === "stocks") {
         updateStockDynamicData();
@@ -6774,6 +6946,12 @@
         return;
       }
 
+      const dailyFilterButton = event.target.closest("[data-stock-daily-filter]");
+      if (dailyFilterButton) {
+        toggleStockDailyFilter(dailyFilterButton.dataset.stockDailyFilter);
+        return;
+      }
+
       const dailyRangeButton = event.target.closest("[data-stock-daily-range]");
       if (dailyRangeButton) {
         setStockDailyRange(dailyRangeButton.dataset.stockDailyRange);
@@ -7112,6 +7290,7 @@
         mainScroll.classList.add("no-search");
         renderStockSideList();
         renderStockPage();
+        initializeRealStockData();
         scheduleStockRefresh();
         observeSections();
         return;

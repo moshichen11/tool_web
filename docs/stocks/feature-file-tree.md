@@ -86,7 +86,7 @@ tool_web/
 | `src/stocks/storage.ts` | localStorage 读写和旧数据迁移 | 兼容当前 `glass_nav_stock_watchlist` 的数组结构 |
 | `src/stocks/state-machine.ts` | 纯状态转移，不直接操作 DOM | 保留 `daily` 默认视图和 `daily/watchlist/filter` 子视图 |
 | `src/stocks/selectors.ts` | 统一维护现有 DOM selector 和 data 属性 | 不改 `[data-stock-*]`、`#stockSearchInput`、`#stockDailyTooltip` |
-| `src/stocks/mock-data.ts` | 当前 mock 行情、技术指标、盘口数据生成 | API 不可用时继续 fallback |
+| `src/stocks/mock-data.ts` | 旧 mock 行情隔离区 | 仅 test/demo 使用；生产 API 不回退 fake 数据 |
 | `src/stocks/api-client.ts` | OpenAPI 对应的 HTTP client | 行情源密钥只在后端，不进浏览器 |
 | `src/stocks/mappers.ts` | API 响应到现有 view model 的映射 | 保证 `stockUniverse` / `stockWatchlist` 视图字段稳定 |
 | `src/stocks/patch-dom.ts` | 局部 DOM patch，更新价格、涨跌、计数和 quick cards | 刷新 tick 不允许整页 `renderStockPage()` |
@@ -103,7 +103,7 @@ tool_web/
 | `server/mock-server.js` | 本地联调 mock server 入口，暴露 REST + SSE | 仅 local-dev/test/demo；生产必须换授权行情源 |
 | `server/routes.js` | OpenAPI 对应路由、错误码、分页、缓存响应头 | 不绕过契约字段，不做网页抓取 |
 | `server/tushare-provider.js` | Tushare Pro HTTP provider，调用 `stock_basic`、`daily/weekly/monthly` 并映射到 `/v1/*` 契约 | token 只读服务端 env；未授权返回 `MARKET_DATA_UNLICENSED` |
-| `server/mock-data.js` | A股 mock 行情、K线、盘口、行情变动生成 | A股红涨绿跌，`source=mock-a-share` |
+| `server/mock-data.js` | A股 mock 行情、K线、盘口数据 | 仅 `mock-a-share` 显式 test/demo provider 使用，生产默认禁用 |
 | `server/sse.js` | `text/event-stream` 报价流和局部 patch 事件 | `patchOnly: true`，断线由前端 polling fallback |
 | `server/sync.js` | localStorage 到云同步冲突模拟 | 支持 `local-wins`、`cloud-wins`、`merge/manual` 决策边界 |
 | `server/audit.js` | 内存审计事件存储和分页查询 | 覆盖搜索、行情、同步、限流、流连接 |
@@ -113,7 +113,7 @@ tool_web/
 
 1. 保留 `index.html` 运行代码，先落地 `contracts.ts`、OpenAPI 和文档。
 2. 抽出纯数据模型和 mapper，不碰 DOM。
-3. 抽出 API client，并让当前 mock 数据作为 fallback。
+3. 抽出 API client，API 不可用或缺少凭据时进入错误态，不回退 mock 数据。
 4. 抽出 patch-dom，保护报价刷新只局部更新。
 5. 抽出 chart interactions，专门回归 Ctrl+滚轮、pinch、pointer pan。
 6. 最后拆 views，并保留所有现有 selector 和 data 属性。

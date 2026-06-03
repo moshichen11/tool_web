@@ -111,6 +111,22 @@ paths:
                     items:
                       $ref: "#/components/schemas/DataSourceEntitlement"
 
+  /v1/stocks/universe:
+    get:
+      tags: [MarketData]
+      summary: List the full stock universe for import and screening
+      parameters:
+        - $ref: "#/components/parameters/MarketQuery"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Paged stock universe
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockSummaryPage"
+
   /v1/stocks/search:
     get:
       tags: [MarketData]

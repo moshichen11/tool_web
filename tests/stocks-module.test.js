@@ -14,10 +14,37 @@ function extractBlock(startPattern, endPattern) {
   return rest.slice(0, end);
 }
 
+function extractFunction(name) {
+  const start = html.indexOf(`function ${name}(`);
+  assert.notEqual(start, -1, `Missing function ${name}`);
+  const braceStart = html.indexOf("{", start);
+  let depth = 0;
+  for (let index = braceStart; index < html.length; index += 1) {
+    const char = html[index];
+    if (char === "{") depth += 1;
+    if (char === "}") depth -= 1;
+    if (depth === 0) return html.slice(start, index + 1);
+  }
+  throw new Error(`Unclosed function ${name}`);
+}
+
+function loadStockConditionMatcher() {
+  return new Function(`
+    ${extractFunction("getStockExchange")}
+    ${extractFunction("getStockBoardType")}
+    ${extractFunction("getStockStatus")}
+    ${extractFunction("getStockTrend")}
+    ${extractFunction("getStockConditionNumber")}
+    ${extractFunction("stockMatchesConditions")}
+    return { stockMatchesConditions };
+  `)();
+}
+
 test("stocks module is registered and routed from the existing feature shell", () => {
   assert.match(html, /const STOCK_WATCHLIST_KEY = "glass_nav_stock_watchlist"/);
-  assert.match(html, /const marketIndices = \[/);
-  assert.match(html, /const stockUniverse = \[/);
+  assert.match(html, /const marketIndices = \[\]/);
+  assert.match(html, /const stockUniverse = \[\]/);
+  assert.match(html, /let stockApiStatus = "loading"/);
   assert.match(html, /activeFeature === "stocks"/);
   assert.match(html, /renderStockSideList\(\)/);
   assert.match(html, /renderStockPage\(\)/);
@@ -81,6 +108,15 @@ test("stock secondary sidebar switches modules instead of scrolling sections", (
 
 test("stocks logic supports search, filters, watchlist persistence, sorting, charts, and refresh", () => {
   const requiredFunctions = [
+    "getStockApiBaseUrl",
+    "fetchStockApi",
+    "mapApiStock",
+    "mergeStockQuote",
+    "getStockHistoryRangeParam",
+    "mergeStockHistory",
+    "loadRealStockHistory",
+    "loadRealStockUniverse",
+    "refreshRealStockQuotes",
     "loadStockWatchlist",
     "saveStockWatchlist",
     "searchStocks",
@@ -107,10 +143,57 @@ test("stocks logic supports search, filters, watchlist persistence, sorting, cha
 
   assert.match(html, /setTimeout\(scheduleStockRefresh,\s*getStockRefreshDelay\(\)\)/);
   assert.match(html, /5000 \+ Math\.floor\(Math\.random\(\) \* 10001\)/);
+  assert.match(html, /const STOCK_API_BASE_URL_KEY = "glass_nav_stock_api_base_url"/);
+  assert.match(html, /function searchStocks\(keyword\)/);
+  assert.match(html, /stockUniverse\.filter\(stock =>/);
+  assert.match(html, /\/v1\/stocks\/\$\{stock\.market\}\/\$\{stock\.code\}\/history/);
+  assert.match(html, /\/v1\/quotes/);
+  assert.match(html, /x-data-source/);
+  assert.match(html, /stockDataSource = "xueqiu"/);
+  assert.match(html, /stockApiErrorMessage/);
+  assert.match(html, /function renderStockDataStatus\(\)/);
+  assert.match(html, /function formatStockDataMeta\(stock\)/);
+  assert.match(html, /stockDataSource = response\.source \|\| response\.headers\.get\("x-data-source"\) \|\| stockDataSource/);
+  assert.match(html, /stockApiStatus = "live"/);
+  assert.match(html, /source=\$\{escapeHTML\(stock\.source \|\| stockDataSource\)\}/);
+  assert.match(html, /updatedAt/);
+  assert.match(html, /delayed/);
   assert.match(html, /localStorage\.setItem\(STOCK_WATCHLIST_KEY/);
   assert.match(html, /openStockDetail\(first\)/);
   assert.doesNotMatch(html, /if \(first\) addStockToWatchlist\(first\.code, first\.market\)/);
   assert.match(html, /\.slice\(-5\)/);
+});
+
+test("stocks module requires the backend API and does not fall back to generated mock quotes", () => {
+  assert.match(html, /async function loadRealStockUniverse\(\)/);
+  assert.match(html, /await fetchStockApi\("\/v1\/stocks\/universe\?limit=6000"\)/);
+  assert.doesNotMatch(html, /STOCK_REAL_SEARCH_SEEDS/);
+  assert.doesNotMatch(html, /encodeURIComponent\(seed\)/);
+  assert.match(html, /stockUniverse\.splice\(0, stockUniverse\.length, \.\.\.mapped\)/);
+  assert.match(html, /stockWatchlist = stockWatchlist\.map\(stock => getStockByCode\(stock\.code, stock\.market\) \|\| stock\)/);
+  assert.match(html, /async function refreshRealStockQuotes\(\)/);
+  assert.match(html, /body: JSON\.stringify\(\{ symbols \}\)/);
+  assert.match(html, /response\.items\.forEach\(mergeStockQuote\)/);
+  assert.match(html, /stockApiStatus = "error"/);
+  assert.match(html, /stockApiErrorMessage = getStockApiErrorMessage\(error\)/);
+  assert.match(html, /showToast\(stockApiErrorMessage, "error"\)/);
+  assert.doesNotMatch(html, /marketIndices\.forEach\(mutateStockQuote\)/);
+  assert.doesNotMatch(html, /stockUniverse\.forEach\(mutateStockQuote\)/);
+  assert.doesNotMatch(html, /stockWatchlist\.forEach\(mutateStockQuote\)/);
+  assert.doesNotMatch(html, /makeMockStockUniverse/);
+  assert.doesNotMatch(html, /STOCK_MOCK_TOTAL/);
+  assert.doesNotMatch(html, /stockDataSource = "mock-a-share"/);
+  assert.match(html, /await loadRealStockUniverse\(\)/);
+});
+
+test("stock daily K view fetches real history for the active stock", () => {
+  assert.match(html, /function getStockHistoryRangeParam\(\)/);
+  assert.match(html, /async function loadRealStockHistory\(stock\)/);
+  assert.match(html, /period=\$\{encodeURIComponent\(period\)\}&range=\$\{encodeURIComponent\(range\)\}/);
+  assert.match(html, /stock\.dailyK = response\.items\.map\(mergeStockHistory\)/);
+  assert.match(html, /await loadRealStockHistory\(getActiveDailyStock\(\)\)/);
+  assert.match(html, /loadRealStockHistory\(stock\)\.then/);
+  assert.match(html, /drawStockDailyCanvas\(\)/);
 });
 
 test("stock refresh updates existing nodes instead of rerendering the page", () => {
@@ -121,7 +204,7 @@ test("stock refresh updates existing nodes instead of rerendering the page", () 
   assert.match(html, /@keyframes stockTickPulse/);
 
   const refreshBlock = extractBlock(
-    /function refreshStockPrices\(\) \{/,
+    /async function refreshStockPrices\(\) \{/,
     /\n    \}\n\n    function clearStockDragClasses/
   );
   assert.match(refreshBlock, /updateStockDynamicData\(\)/);
@@ -130,7 +213,7 @@ test("stock refresh updates existing nodes instead of rerendering the page", () 
 
   const dynamicUpdateBlock = extractBlock(
     /function updateStockDynamicData\(\) \{/,
-    /\n    \}\n\n    function refreshStockPrices/
+    /\n    \}\n\n    async function refreshStockPrices/
   );
   assert.doesNotMatch(dynamicUpdateBlock, /updateStockMarketData\(\)/);
   assert.match(dynamicUpdateBlock, /updateStockWatchlistData\(\)/);
@@ -243,13 +326,11 @@ test("stock filter tags, guru strategies, sorting, and pagination are wired", ()
 
 test("stock minute and K module renders virtual stock list, range controls, canvas, and tooltip", () => {
   const requiredFunctions = [
-    "makeStockDailyK",
     "getStockDailyK",
-    "makeMockStockUniverse",
-    "hydrateStockTechnicalData",
-    "makeStockIntradaySeries",
-    "makeStockOrderBook",
-    "makeStockPriceDistribution",
+    "getDailyFilterTag",
+    "getDailyFilteredStocks",
+    "toggleStockDailyFilter",
+    "renderStockDailyFilters",
     "renderStockDailyView",
     "renderStockDailyList",
     "renderStockDailyVirtualRows",
@@ -270,8 +351,8 @@ test("stock minute and K module renders virtual stock list, range controls, canv
   assert.match(html, /id: "daily"/);
   assert.match(html, /股票分时\/日K图/);
   assert.doesNotMatch(html, /name: "全市场日K图"/);
-  assert.match(html, /const STOCK_MOCK_TOTAL = 200/);
-  assert.match(html, /stockUniverse\.push\(\.\.\.makeMockStockUniverse\(STOCK_MOCK_TOTAL - stockUniverse\.length\)\)/);
+  assert.match(html, /const stockUniverse = \[\]/);
+  assert.doesNotMatch(html, /stockUniverse\.push\(\.\.\.makeMockStockUniverse/);
   assert.match(html, /const stockDailyRanges = \[/);
   assert.match(html, /15日/);
   assert.match(html, /30日/);
@@ -286,6 +367,13 @@ test("stock minute and K module renders virtual stock list, range controls, canv
   assert.match(html, /priceDistribution/);
   assert.match(html, /data-stock-daily-row/);
   assert.match(html, /data-stock-daily-list/);
+  assert.match(html, /data-stock-daily-filter/);
+  assert.match(html, /const stockDailyFilterTags = \[/);
+  assert.match(html, /id: "non-bj"/);
+  assert.match(html, /name: "非北交所"/);
+  assert.match(html, /activeStockDailyTags/);
+  assert.match(html, /getDailyFilteredStocks\(\)\.length/);
+  assert.match(html, /当前筛选条件没有匹配股票/);
   assert.match(html, /data-stock-daily-spacer="top"/);
   assert.match(html, /data-stock-daily-spacer="bottom"/);
   assert.match(html, /data-stock-daily-change/);
@@ -304,6 +392,8 @@ test("stock minute and K module renders virtual stock list, range controls, canv
     /\n    \}\n\n    function refreshCategorySection/
   );
   assert.match(clickBlock, /event\.target\.closest\("\[data-stock-daily-row\]"\)/);
+  assert.match(clickBlock, /event\.target\.closest\("\[data-stock-daily-filter\]"\)/);
+  assert.match(clickBlock, /toggleStockDailyFilter\(dailyFilterButton\.dataset\.stockDailyFilter\)/);
   assert.match(clickBlock, /event\.target\.closest\("\[data-stock-daily-range\]"\)/);
   assert.match(clickBlock, /event\.target\.closest\("\[data-stock-daily-sort\]"\)/);
 
@@ -319,6 +409,39 @@ test("stock minute and K module renders virtual stock list, range controls, canv
     /\n    \}\);\n\n    content\.addEventListener\("mouseout"/
   );
   assert.match(moveBlock, /handleStockDailyCanvasMove\(event, dailyCanvas\)/);
+});
+
+test("stock condition matcher ignores omitted numeric fields for daily tag filters", () => {
+  const { stockMatchesConditions } = loadStockConditionMatcher();
+  const mainBoardStock = {
+    id: "SH:600000",
+    market: "SH",
+    code: "600000",
+    name: "浦发银行",
+    boardType: "main",
+    status: "normal",
+    changePercent: 0.5,
+    volume: 100000,
+    pe: 10,
+    pb: 1,
+    roe: 8,
+    history: [{ close: 10 }, { close: 10.1 }],
+  };
+
+  assert.equal(
+    stockMatchesConditions(mainBoardStock, {
+      status: "非ST",
+      boardType: "非科创板",
+      excludeExchange: "北交所",
+      logic: "and",
+    }),
+    true,
+  );
+  assert.equal(stockMatchesConditions({ ...mainBoardStock, market: "BJ", code: "920992" }, { excludeExchange: "北交所", logic: "and" }), false);
+  assert.equal(stockMatchesConditions({ ...mainBoardStock, code: "688001", boardType: "star" }, { boardType: "非科创板", logic: "and" }), false);
+  assert.equal(stockMatchesConditions({ ...mainBoardStock, name: "*ST艾艾", status: "normal" }, { status: "非ST", logic: "and" }), false);
+  assert.equal(stockMatchesConditions({ ...mainBoardStock, market: "SH" }, { exchange: "深交所", logic: "and" }), false);
+  assert.equal(stockMatchesConditions({ ...mainBoardStock, market: "SZ" }, { exchange: "深交所", logic: "and" }), true);
 });
 
 test("stock daily technical chart exposes quote metrics, MA, volume, MACD, periods and scrolling", () => {

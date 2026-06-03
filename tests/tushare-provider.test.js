@@ -1,8 +1,31 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-function createFakeTushareFetch() {
+function createStockBasicRows(count = 2) {
+  if (count === 2) {
+    return [
+      ["600519.SH", "600519", "贵州茅台", "贵州", "白酒", "主板", "SSE", "20010827"],
+      ["300750.SZ", "300750", "宁德时代", "福建", "电池", "创业板", "SZSE", "20180611"],
+    ];
+  }
+
+  return Array.from({ length: count }, (_, index) => {
+    const bucket = index % 3;
+    const code = bucket === 0
+      ? String(600000 + index).padStart(6, "0")
+      : bucket === 1
+        ? String(index + 1).padStart(6, "0")
+        : String(830000 + index).padStart(6, "0");
+    const suffix = bucket === 0 ? "SH" : bucket === 1 ? "SZ" : "BJ";
+    const exchange = bucket === 0 ? "SSE" : bucket === 1 ? "SZSE" : "BSE";
+    const market = bucket === 2 ? "北交所" : bucket === 1 ? "创业板" : "主板";
+    return [`${code}.${suffix}`, code, `测试股票${index + 1}`, "测试地区", "测试行业", market, exchange, "20200101"];
+  });
+}
+
+function createFakeTushareFetch(options = {}) {
   const calls = [];
+  const stockBasicRows = options.stockBasicRows || createStockBasicRows();
 
   async function fakeFetch(url, options) {
     const payload = JSON.parse(options.body);
@@ -18,10 +41,7 @@ function createFakeTushareFetch() {
         msg: null,
         data: {
           fields: ["ts_code", "symbol", "name", "area", "industry", "market", "exchange", "list_date"],
-          items: [
-            ["600519.SH", "600519", "贵州茅台", "贵州", "白酒", "主板", "SSE", "20010827"],
-            ["300750.SZ", "300750", "宁德时代", "福建", "电池", "创业板", "SZSE", "20180611"],
-          ],
+          items: stockBasicRows,
         },
       }), { status: 200 });
     }
@@ -92,6 +112,24 @@ test("tushare provider maps official stock_basic and daily responses into stock 
   assert.equal(history.items[1].time, "2026-05-12");
   assert.equal(fetchImpl.calls.some(call => call.payload.api_name === "stock_basic"), true);
   assert.equal(fetchImpl.calls.some(call => call.payload.api_name === "daily"), true);
+});
+
+test("tushare provider exposes the full listed stock universe without search seed limits", async () => {
+  const { createTushareProvider } = await import("../server/tushare-provider.js");
+  const fetchImpl = createFakeTushareFetch({ stockBasicRows: createStockBasicRows(5_205) });
+  const provider = createTushareProvider({
+    endpoint: "http://api.tushare.pro",
+    token: "test-token",
+    fetchImpl,
+  });
+
+  const universe = await provider.getStockUniverse({ limit: 6_000 });
+  assert.equal(universe.source, "tushare");
+  assert.equal(universe.total, 5_205);
+  assert.equal(universe.items.length, 5_205);
+  assert.equal(universe.items[0].id, "SH:600000");
+  assert.equal(universe.items.some(item => item.market === "BJ"), true);
+  assert.equal(fetchImpl.calls.filter(call => call.payload.api_name === "stock_basic").length, 1);
 });
 
 test("server routes use Tushare when configured and keep the existing /v1 contract", async () => {
