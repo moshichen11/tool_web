@@ -17,7 +17,19 @@ function extractBlock(startPattern, endPattern) {
 function extractFunction(name) {
   const start = html.indexOf(`function ${name}(`);
   assert.notEqual(start, -1, `Missing function ${name}`);
-  const braceStart = html.indexOf("{", start);
+  const parenStart = html.indexOf("(", start);
+  let parenDepth = 0;
+  let braceStart = -1;
+  for (let index = parenStart; index < html.length; index += 1) {
+    const char = html[index];
+    if (char === "(") parenDepth += 1;
+    if (char === ")") parenDepth -= 1;
+    if (parenDepth === 0) {
+      braceStart = html.indexOf("{", index);
+      break;
+    }
+  }
+  assert.notEqual(braceStart, -1, `Missing function body for ${name}`);
   let depth = 0;
   for (let index = braceStart; index < html.length; index += 1) {
     const char = html[index];
@@ -31,12 +43,147 @@ function extractFunction(name) {
 function loadStockConditionMatcher() {
   return new Function(`
     ${extractFunction("getStockExchange")}
+    ${extractFunction("getStockBoardCategory")}
     ${extractFunction("getStockBoardType")}
     ${extractFunction("getStockStatus")}
     ${extractFunction("getStockTrend")}
     ${extractFunction("getStockConditionNumber")}
     ${extractFunction("stockMatchesConditions")}
     return { stockMatchesConditions };
+  `)();
+}
+
+function loadStockSearchMatcher() {
+  return new Function(`
+    ${extractFunction("getStockPinyinCollator")}
+    ${extractFunction("getStockTextInitial")}
+    ${extractFunction("getStockTextInitials")}
+    ${extractFunction("stockMatchesSearchText")}
+    return { getStockTextInitials, stockMatchesSearchText };
+  `)();
+}
+
+function loadStockChangeClass() {
+  return new Function(`
+    ${extractFunction("getStockChangeClass")}
+    return { getStockChangeClass };
+  `)();
+}
+
+function loadStockWatchlistAdder() {
+  return new Function(`
+    let stockUniverse = [];
+    let stockWatchlist = [];
+    let stockDataSource = "eastmoney";
+    let activeFeature = "stocks";
+    let saved = 0;
+    let rendered = 0;
+    const messages = [];
+    function showToast(message, type = "") { messages.push({ message, type }); }
+    function saveStockWatchlist() { saved += 1; }
+    function renderStockSideList() { rendered += 1; }
+    function renderStockPage() { rendered += 1; }
+    async function refreshRealStockQuotes() { return false; }
+    ${extractFunction("getStockIdentity")}
+    ${extractFunction("cloneStock")}
+    ${extractFunction("getStockByCode")}
+    ${extractFunction("getStockId")}
+    ${extractFunction("inferStockMarket")}
+    ${extractFunction("makeStockIdentityPlaceholder")}
+    ${extractFunction("addStockToWatchlist")}
+    return {
+      addStockToWatchlist,
+      setUniverse(items) { stockUniverse = items; },
+      state() { return { stockUniverse, stockWatchlist, saved, rendered, messages }; },
+    };
+  `)();
+}
+
+function loadStockFilterApplier() {
+  return new Function(`
+    let activeQuickStockFilter = "";
+    let activeStockTags = [];
+    let activeStockStrategy = "";
+    let customStockStrategies = [];
+    const defaultStockStrategies = [];
+    const stockFilterTags = [
+      { id: "sz-only", conditions: { exchange: "深交所" } }
+    ];
+    const stockFilters = {
+      minChange: "",
+      maxChange: "",
+      minVolume: "",
+      maxVolume: "",
+      minPe: "",
+      maxPe: "",
+      minPb: "",
+      maxPb: "",
+      minRoe: "",
+      maxRoe: "",
+      industry: "all",
+      metric: "all",
+      logic: "and"
+    };
+    ${extractFunction("getStockExchange")}
+    ${extractFunction("getStockBoardCategory")}
+    ${extractFunction("getStockBoardType")}
+    ${extractFunction("getStockStatus")}
+    ${extractFunction("getStockTrend")}
+    ${extractFunction("getCombinedStockConditions")}
+    ${extractFunction("hasStockConditions")}
+    ${extractFunction("getStockConditionNumber")}
+    ${extractFunction("stockMatchesConditions")}
+    ${extractFunction("getQuickFilterStocks")}
+    ${extractFunction("applyStockFilters")}
+    return {
+      applyStockFilters,
+      setQuickFilter(value) { activeQuickStockFilter = value; },
+      setActiveTags(value) { activeStockTags = value; },
+    };
+  `)();
+}
+
+function loadStockMiniChartDrawer() {
+  return new Function(`
+    let stockApiReady = true;
+    let activeFeature = "stocks";
+    let stockMiniHistoryLoading = new Set();
+    let marketIndices = [];
+    let stockUniverse = [];
+    let stockWatchlist = [];
+    let loadCalls = 0;
+    let drawCalls = 0;
+    const canvas = {
+      dataset: { stockChart: "sh600001" },
+      drawnHistory: [],
+    };
+    const document = {
+      querySelectorAll(selector) {
+        return selector === "canvas[data-stock-chart]" ? [canvas] : [];
+      },
+    };
+    function drawMiniKLine(target, history) {
+      drawCalls += 1;
+      target.drawnHistory = history;
+    }
+    async function loadRealStockHistory(stock) {
+      loadCalls += 1;
+      stock.history = [
+        { open: 10, high: 11, low: 9, close: 10.5 },
+        { open: 10.5, high: 12, low: 10, close: 11.8 },
+      ];
+      return true;
+    }
+    ${extractFunction("getStockIdentity")}
+    ${extractFunction("getStockMiniChartHistory")}
+    ${extractFunction("requestStockMiniChartHistory")}
+    ${extractFunction("drawStockCanvases")}
+    return {
+      canvas,
+      drawStockCanvases,
+      setWatchlist(items) { stockWatchlist = items; },
+      stats() { return { loadCalls, drawCalls }; },
+    };
   `)();
 }
 
@@ -161,7 +308,7 @@ test("stocks logic supports search, filters, watchlist persistence, sorting, cha
   assert.match(html, /localStorage\.setItem\(STOCK_WATCHLIST_KEY/);
   assert.match(html, /openStockDetail\(first\)/);
   assert.doesNotMatch(html, /if \(first\) addStockToWatchlist\(first\.code, first\.market\)/);
-  assert.match(html, /\.slice\(-5\)/);
+  assert.match(html, /getStockMiniChartHistory\(stock, days\)/);
 });
 
 test("stocks module requires the backend API and does not fall back to generated mock quotes", () => {
@@ -184,6 +331,20 @@ test("stocks module requires the backend API and does not fall back to generated
   assert.doesNotMatch(html, /STOCK_MOCK_TOTAL/);
   assert.doesNotMatch(html, /stockDataSource = "mock-a-share"/);
   assert.match(html, /await loadRealStockUniverse\(\)/);
+});
+
+test("stocks data starts loading when the app opens", () => {
+  const startupBlock = extractBlock(
+    /const initialConfig = loadUserConfig\(\);/,
+    /\n  <\/script>/
+  );
+  const loadUniverseBlock = extractBlock(
+    /async function loadRealStockUniverse\(\) \{/,
+    /\n    \}\n\n    async function refreshRealStockQuotes/
+  );
+
+  assert.match(startupBlock, /initializeRealStockData\(\);\s*renderAppShell\(\)/);
+  assert.match(loadUniverseBlock, /if \(stockApiReady && stockUniverse\.length\) return true/);
 });
 
 test("stock daily K view fetches real history for the active stock", () => {
@@ -219,6 +380,134 @@ test("stock refresh updates existing nodes instead of rerendering the page", () 
   assert.match(dynamicUpdateBlock, /updateStockWatchlistData\(\)/);
   assert.match(dynamicUpdateBlock, /updateQuickStockCards\(\)/);
   assert.match(dynamicUpdateBlock, /drawStockCanvases\(\)/);
+});
+
+test("stock watchlist add falls back to a placeholder while universe is loading", () => {
+  const module = loadStockWatchlistAdder();
+
+  assert.equal(module.addStockToWatchlist("603380", "SH"), true);
+
+  const state = module.state();
+  assert.equal(state.stockWatchlist.length, 1);
+  assert.equal(state.stockWatchlist[0].code, "603380");
+  assert.equal(state.stockWatchlist[0].market, "SH");
+  assert.equal(state.stockWatchlist[0].name, "603380");
+  assert.equal(state.saved, 1);
+  assert.equal(state.rendered, 2);
+  assert.equal(state.messages.at(-1).message, "已添加 603380");
+  assert.equal(module.addStockToWatchlist("603380", "SH"), false);
+});
+
+test("stock quick observation filters ignore stale advanced filters", () => {
+  const module = loadStockFilterApplier();
+  const watchlist = [
+    { name: "上交上涨", code: "600001", market: "SH", changePercent: 2.1, volume: 10000, pe: 10, pb: 1, roe: 8, industry: "电力", history: [] },
+    { name: "深交下跌", code: "000001", market: "SZ", changePercent: -1.2, volume: 10000, pe: 10, pb: 1, roe: 8, industry: "银行", history: [] },
+  ];
+
+  module.setActiveTags(["sz-only"]);
+  assert.deepEqual(module.applyStockFilters(watchlist).map(stock => stock.name), ["深交下跌"]);
+
+  module.setQuickFilter("top-up");
+  assert.deepEqual(module.applyStockFilters(watchlist).map(stock => stock.name), ["上交上涨"]);
+  assert.match(html, /筛选结果\/自选总数/);
+});
+
+test("stock watchlist mini K chart loads missing history before drawing", async () => {
+  const module = loadStockMiniChartDrawer();
+  module.setWatchlist([
+    {
+      id: "sh600001",
+      name: "上交股票",
+      code: "600001",
+      market: "SH",
+      changePercent: 1,
+      history: [],
+    },
+  ]);
+
+  module.drawStockCanvases();
+  assert.deepEqual(module.stats(), { loadCalls: 1, drawCalls: 0 });
+
+  await new Promise(resolve => setTimeout(resolve, 0));
+
+  assert.deepEqual(module.stats(), { loadCalls: 1, drawCalls: 1 });
+  assert.equal(module.canvas.drawnHistory.length, 2);
+});
+
+test("stock watchlist expanded row renders that stock daily K chart", () => {
+  const detailBlock = extractBlock(
+    /function renderStockDetailRow\(stock\) \{/,
+    /\n    \}\n\n    function renderStockWatchlist/
+  );
+
+  assert.match(detailBlock, /stock-row-daily-detail/);
+  assert.match(detailBlock, /日K图/);
+  assert.match(detailBlock, /data-stock-detail-mode="day"/);
+  assert.match(detailBlock, /data-stock-detail-mode="minute"/);
+  assert.match(detailBlock, /getStockDetailChartMode\(\) === "day"/);
+  assert.match(detailBlock, /getStockDetailChartMode\(\) === "minute"/);
+  assert.match(detailBlock, /class="stock-detail-chart"/);
+  assert.match(detailBlock, /data-stock-detail-chart="\$\{escapeHTML\(stock\.id\)\}"/);
+  assert.match(detailBlock, /data-stock-chart="\$\{escapeHTML\(stock\.id\)\}"/);
+  assert.match(detailBlock, /data-stock-chart-mode="\$\{escapeHTML\(getStockDetailChartMode\(\)\)\}"/);
+  assert.match(detailBlock, /data-stock-chart-days="60"/);
+  assert.doesNotMatch(detailBlock, /stock-detail-stat/);
+});
+
+test("stock watchlist expanded row shows market cap and turnover summary", () => {
+  const detailBlock = extractBlock(
+    /function renderStockDetailRow\(stock\) \{/,
+    /\n    \}\n\n    function renderStockWatchlist/
+  );
+
+  assert.match(detailBlock, /const quote = getStockDailyQuoteSnapshot\(stock\)/);
+  assert.match(detailBlock, /stock-detail-metrics/);
+  assert.match(detailBlock, /总市值/);
+  assert.match(detailBlock, /data-stock-detail-cell="marketCap"/);
+  assert.match(detailBlock, /formatStockMarketCap\(stock\.marketCap\)/);
+  assert.match(detailBlock, /换手率/);
+  assert.match(detailBlock, /data-stock-detail-cell="turnover"/);
+  assert.match(detailBlock, /quote\.turnover\.toFixed\(2\)/);
+});
+
+test("stock watchlist expanded chart can switch between daily K and minute", () => {
+  const requiredFunctions = [
+    "getStockDetailChartMode",
+    "setStockDetailChartMode",
+    "getStockDetailMinuteSeries",
+    "drawStockDetailMinuteChart"
+  ];
+
+  for (const name of requiredFunctions) {
+    assert.match(html, new RegExp(`function ${name}\\(`), `Missing ${name}`);
+  }
+
+  const clickBlock = extractBlock(
+    /function handleStockContentClick\(event\) \{/,
+    /\n    \}\n\n    function refreshCategorySection/
+  );
+  const drawBlock = extractBlock(
+    /function drawStockCanvases\(\) \{/,
+    /\n    \}\n\n    function drawMiniKLine/
+  );
+
+  assert.match(clickBlock, /event\.target\.closest\("\[data-stock-detail-mode\]"\)/);
+  assert.match(clickBlock, /setStockDetailChartMode\(detailModeButton\.dataset\.stockDetailMode\)/);
+  assert.match(drawBlock, /canvas\.dataset\.stockChartMode === "minute"/);
+  assert.match(drawBlock, /drawStockDetailMinuteChart\(canvas, stock\)/);
+});
+
+test("stocks use A-share red for gains and green for losses", () => {
+  const { getStockChangeClass } = loadStockChangeClass();
+
+  assert.equal(getStockChangeClass(1.2), "up");
+  assert.equal(getStockChangeClass(-1.2), "down");
+  assert.match(html, /\.stock-change\.up\s*\{\s*color:\s*#f05a5a;/);
+  assert.match(html, /\.stock-change\.down\s*\{\s*color:\s*#3ac97e;/);
+  assert.match(html, /const color = up \? "#ff8b8b" : "#7ee787"/);
+  assert.match(html, /ctx\.fillStyle = up \? "#ff8b8b" : "#7ee787"/);
+  assert.match(html, /macdItem\.macd >= 0 \? "#ff8b8b" : "#7ee787"/);
 });
 
 test("stock filter workspace is a vertical screener without market cards", () => {
@@ -327,9 +616,12 @@ test("stock filter tags, guru strategies, sorting, and pagination are wired", ()
 test("stock minute and K module renders virtual stock list, range controls, canvas, and tooltip", () => {
   const requiredFunctions = [
     "getStockDailyK",
+    "stockMatchesSearchText",
     "getDailyFilterTag",
+    "setStockDailySearch",
     "getDailyFilteredStocks",
     "toggleStockDailyFilter",
+    "renderStockDailySearch",
     "renderStockDailyFilters",
     "renderStockDailyView",
     "renderStockDailyList",
@@ -367,10 +659,16 @@ test("stock minute and K module renders virtual stock list, range controls, canv
   assert.match(html, /priceDistribution/);
   assert.match(html, /data-stock-daily-row/);
   assert.match(html, /data-stock-daily-list/);
+  assert.match(html, /id="stockDailySearchInput"/);
+  assert.match(html, /data-stock-daily-search/);
+  assert.match(html, /placeholder="名称\/代码\/首字母"/);
   assert.match(html, /data-stock-daily-filter/);
   assert.match(html, /const stockDailyFilterTags = \[/);
   assert.match(html, /id: "non-bj"/);
   assert.match(html, /name: "非北交所"/);
+  assert.match(html, /id: "non-gem-board"/);
+  assert.match(html, /name: "非创业板"/);
+  assert.match(html, /excludeBoardType: "创业板"/);
   assert.match(html, /activeStockDailyTags/);
   assert.match(html, /getDailyFilteredStocks\(\)\.length/);
   assert.match(html, /当前筛选条件没有匹配股票/);
@@ -397,6 +695,13 @@ test("stock minute and K module renders virtual stock list, range controls, canv
   assert.match(clickBlock, /event\.target\.closest\("\[data-stock-daily-range\]"\)/);
   assert.match(clickBlock, /event\.target\.closest\("\[data-stock-daily-sort\]"\)/);
 
+  const inputBlock = extractBlock(
+    /content\.addEventListener\("input", event => \{/,
+    /\n    \}\);\n\n    content\.addEventListener\("scroll"/
+  );
+  assert.match(inputBlock, /#stockDailySearchInput/);
+  assert.match(inputBlock, /setStockDailySearch\(dailySearch\.value\)/);
+
   const scrollBlock = extractBlock(
     /content\.addEventListener\("scroll", event => \{/,
     /\n    \}, true\);/
@@ -409,6 +714,45 @@ test("stock minute and K module renders virtual stock list, range controls, canv
     /\n    \}\);\n\n    content\.addEventListener\("mouseout"/
   );
   assert.match(moveBlock, /handleStockDailyCanvasMove\(event, dailyCanvas\)/);
+});
+
+test("stock search supports Chinese pinyin initials", () => {
+  const { getStockTextInitials, stockMatchesSearchText } = loadStockSearchMatcher();
+  const maotai = {
+    name: "贵州茅台",
+    code: "600519",
+    market: "SH",
+    industry: "白酒",
+  };
+  const yidelong = {
+    name: "易德龙",
+    code: "603380",
+    market: "SH",
+    industry: "消费电子",
+  };
+  const energy = {
+    name: "恒盛能源",
+    code: "605580",
+    market: "SH",
+    industry: "电力",
+  };
+  const circuit = {
+    name: "世运电路",
+    code: "603920",
+    market: "SH",
+    industry: "元件",
+  };
+
+  assert.equal(getStockTextInitials("贵州茅台"), "gzmt");
+  assert.equal(getStockTextInitials("宁德时代"), "ndsd");
+  assert.equal(stockMatchesSearchText(maotai, "gzmt"), true);
+  assert.equal(stockMatchesSearchText(maotai, "mt"), false);
+  assert.equal(stockMatchesSearchText(maotai, "SH600519"), true);
+  assert.equal(stockMatchesSearchText(maotai, "ndsd"), false);
+  assert.equal(stockMatchesSearchText(yidelong, "ydl"), true);
+  assert.equal(stockMatchesSearchText(energy, "ydl"), false);
+  assert.equal(stockMatchesSearchText(circuit, "ydl"), false);
+  assert.equal(stockMatchesSearchText(circuit, "sydl"), true);
 });
 
 test("stock condition matcher ignores omitted numeric fields for daily tag filters", () => {
@@ -437,6 +781,11 @@ test("stock condition matcher ignores omitted numeric fields for daily tag filte
     }),
     true,
   );
+  assert.equal(stockMatchesConditions({ ...mainBoardStock, market: "SZ", code: "300750", boardType: "gem" }, { boardType: "非科创板", logic: "and" }), true);
+  assert.equal(stockMatchesConditions({ ...mainBoardStock, market: "SZ", code: "300750", boardType: "gem" }, { excludeBoardType: "创业板", logic: "and" }), false);
+  assert.equal(stockMatchesConditions({ ...mainBoardStock, market: "SZ", code: "300750", boardType: "创业板" }, { excludeBoardType: "创业板", logic: "and" }), false);
+  assert.equal(stockMatchesConditions({ ...mainBoardStock, market: "SZ", code: "301001", boardType: "" }, { excludeBoardType: "创业板", logic: "and" }), false);
+  assert.equal(stockMatchesConditions({ ...mainBoardStock, market: "SZ", code: "002415", boardType: "main" }, { excludeBoardType: "创业板", logic: "and" }), true);
   assert.equal(stockMatchesConditions({ ...mainBoardStock, market: "BJ", code: "920992" }, { excludeExchange: "北交所", logic: "and" }), false);
   assert.equal(stockMatchesConditions({ ...mainBoardStock, code: "688001", boardType: "star" }, { boardType: "非科创板", logic: "and" }), false);
   assert.equal(stockMatchesConditions({ ...mainBoardStock, name: "*ST艾艾", status: "normal" }, { status: "非ST", logic: "and" }), false);

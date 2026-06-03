@@ -1624,11 +1624,11 @@
     }
 
     .stock-change.up {
-      color: #3ac97e;
+      color: #f05a5a;
     }
 
     .stock-change.down {
-      color: #f05a5a;
+      color: #3ac97e;
     }
 
     .stock-change.flat {
@@ -1639,6 +1639,18 @@
       font-size: 12px;
       font-weight: 750;
       font-variant-numeric: tabular-nums;
+    }
+
+    .stock-change-amount.up {
+      color: #f05a5a;
+    }
+
+    .stock-change-amount.down {
+      color: #3ac97e;
+    }
+
+    .stock-change-amount.flat {
+      color: rgba(255,255,255,0.68);
     }
 
     .stock-tick-change {
@@ -2366,6 +2378,94 @@
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 10px;
+    }
+
+    .stock-row-daily-detail {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 10px;
+    }
+
+    .stock-detail-chart-head {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .stock-detail-chart-title {
+      min-width: 0;
+      flex: 1 1 220px;
+      display: grid;
+      gap: 3px;
+    }
+
+    .stock-detail-chart-title strong {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 780;
+    }
+
+    .stock-detail-chart-meta {
+      color: rgba(255,255,255,0.52);
+      font-size: 11px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .stock-detail-chart-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 0 0 auto;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .stock-detail-chart-actions .stock-action {
+      height: auto;
+      min-height: 28px;
+      padding: 4px 10px;
+      border-radius: 6px;
+    }
+
+    .stock-detail-chart-actions .stock-action.active {
+      color: #68cbff;
+      border-color: rgba(104,203,255,0.4);
+      background: rgba(104,203,255,0.15);
+    }
+
+    .stock-detail-metrics {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 14px;
+      color: rgba(255,255,255,0.56);
+      font-size: 11px;
+    }
+
+    .stock-detail-metric {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 6px;
+      min-width: 94px;
+    }
+
+    .stock-detail-metric strong {
+      color: rgba(255,255,255,0.9);
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stock-detail-chart {
+      width: 100%;
+      height: 220px;
+      display: block;
     }
 
     .stock-detail-stat {
@@ -3604,6 +3704,7 @@
     const stockDailyFilterTags = [
       { id: "non-st", name: "非ST", desc: "排除 ST 与退市风险", conditions: { status: "非ST" } },
       { id: "non-star-board", name: "非科创板", desc: "排除 688 科创板", conditions: { boardType: "非科创板" } },
+      { id: "non-gem-board", name: "非创业板", desc: "排除 30 开头创业板", conditions: { excludeBoardType: "创业板" } },
       { id: "non-bj", name: "非北交所", desc: "排除北交所股票", conditions: { excludeExchange: "北交所" } },
       { id: "exchange-sh", name: "上交所", desc: "仅上交所", conditions: { exchange: "上交所" } },
       { id: "exchange-sz", name: "深交所", desc: "仅深交所", conditions: { exchange: "深交所" } }
@@ -3820,17 +3921,20 @@
     let stockResultSort = { field: "changePercent", direction: "desc" };
     let expandedStockIdentity = "";
     let expandedStockFilterIdentity = "";
+    let stockDetailChartMode = "day";
     let activeDailyStockId = "";
     let activeStockDailyRange = "60";
     let activeStockDailyPeriod = "day";
     let stockDailyMoreOpen = false;
     let stockDailySort = "name";
+    let stockDailySearchTerm = "";
     let activeStockDailyTags = [];
     let stockDailyVirtualStart = 0;
     let stockDailyListScrollTop = 0;
     let stockDailyViewportStart = -1;
     let stockDailyDragState = null;
     let stockDailyPinchState = null;
+    const stockMiniHistoryLoading = new Set();
     const stockDailyTouchPointers = new Map();
     let stockRefreshTimer = null;
     let stockApiReady = false;
@@ -4482,6 +4586,7 @@
     }
 
     async function loadRealStockUniverse() {
+      if (stockApiReady && stockUniverse.length) return true;
       if (stockApiLoading) return false;
       stockApiLoading = true;
       stockApiStatus = "loading";
@@ -4821,12 +4926,20 @@
       return "其他";
     }
 
-    function getStockBoardType(stock) {
+    function getStockBoardCategory(stock) {
       const value = String(stock.boardType || "").toLowerCase();
-      if (value === "star" || stock.boardType === "科创板") return "科创板";
-      if (value === "bse") return "非科创板";
-      if (value === "main" || value === "gem" || value === "unknown" || stock.boardType) return "非科创板";
-      return stock.code?.startsWith("688") ? "科创板" : "非科创板";
+      const label = String(stock.boardType || "");
+      const market = String(stock.market || "").toUpperCase();
+      const code = String(stock.code || "");
+      if (value === "star" || label === "科创板" || code.startsWith("688")) return "科创板";
+      if (value === "gem" || label === "创业板" || (market === "SZ" && /^30/.test(code))) return "创业板";
+      if (value === "bse" || label === "北交所" || market === "BJ" || /^(4|8|920)/.test(code)) return "北交所";
+      if (value === "main" || label === "主板" || market === "SH" || market === "SZ") return "主板";
+      return "其他";
+    }
+
+    function getStockBoardType(stock) {
+      return getStockBoardCategory(stock) === "科创板" ? "科创板" : "非科创板";
     }
 
     function getStockStatus(stock) {
@@ -4844,19 +4957,62 @@
       return Array.from(new Set(stockUniverse.map(stock => stock.industry))).sort((a, b) => a.localeCompare(b, "zh-CN"));
     }
 
+    function getStockPinyinCollator() {
+      if (!getStockPinyinCollator.instance && typeof Intl !== "undefined" && Intl.Collator) {
+        getStockPinyinCollator.instance = new Intl.Collator("zh-Hans-u-co-pinyin", { sensitivity: "base" });
+      }
+      return getStockPinyinCollator.instance || null;
+    }
+
+    function getStockTextInitial(char) {
+      const value = String(char || "").trim();
+      if (!value) return "";
+      const first = Array.from(value)[0];
+      if (/^[a-z0-9]$/i.test(first)) return first.toLowerCase();
+      if (!/[\u3400-\u9fff]/.test(first)) return "";
+      const overrides = { 长: "c", 厦: "x", 沈: "s", 重: "c" };
+      if (overrides[first]) return overrides[first];
+      const collator = getStockPinyinCollator();
+      if (!collator) return "";
+      const boundaries = [
+        ["a", "阿"], ["b", "八"], ["c", "嚓"], ["d", "哒"], ["e", "屙"],
+        ["f", "发"], ["g", "旮"], ["h", "哈"], ["j", "击"], ["k", "喀"],
+        ["l", "垃"], ["m", "妈"], ["n", "拿"], ["o", "哦"], ["p", "啪"],
+        ["q", "期"], ["r", "然"], ["s", "撒"], ["t", "塌"], ["w", "挖"],
+        ["x", "昔"], ["y", "压"], ["z", "匝"]
+      ];
+      let letter = "";
+      for (const [initial, boundary] of boundaries) {
+        if (collator.compare(first, boundary) >= 0) letter = initial;
+        else break;
+      }
+      return letter;
+    }
+
+    function getStockTextInitials(value) {
+      return Array.from(String(value || "")).map(getStockTextInitial).join("");
+    }
+
+    function stockMatchesSearchText(stock, keyword) {
+      const query = String(keyword || "").trim().toLowerCase();
+      if (!query) return true;
+      const compactQuery = query.replace(/\s+/g, "");
+      const textFields = [
+        stock.name,
+        stock.code,
+        stock.market,
+        `${stock.market}${stock.code}`
+      ].map(item => String(item || "").toLowerCase());
+      const matchesText = textFields.some(field => field.includes(query) || field.replace(/\s+/g, "").includes(compactQuery));
+      if (matchesText) return true;
+      if (!/^[a-z]+$/.test(compactQuery)) return false;
+      return getStockTextInitials(stock.name).startsWith(compactQuery);
+    }
+
     function searchStocks(keyword) {
-      const value = String(keyword || "").trim().toLowerCase();
+      const value = String(keyword || "").trim();
       if (!value) return [];
-      return stockUniverse.filter(stock => {
-        const haystack = [
-          stock.name,
-          stock.code,
-          stock.market,
-          `${stock.market}${stock.code}`,
-          stock.industry
-        ].join(" ").toLowerCase();
-        return haystack.includes(value);
-      }).slice(0, 8);
+      return stockUniverse.filter(stock => stockMatchesSearchText(stock, value)).slice(0, 8);
     }
 
     function getStockTrend(stock, days = 15) {
@@ -4893,7 +5049,7 @@
       ].some(key => conditions[key] !== undefined && conditions[key] !== "") ||
         (conditions.industry && conditions.industry !== "all") ||
         (conditions.metric && conditions.metric !== "all") ||
-        Boolean(conditions.exchange || conditions.excludeExchange || conditions.boardType || conditions.status);
+        Boolean(conditions.exchange || conditions.excludeExchange || conditions.boardType || conditions.excludeBoardType || conditions.status);
     }
 
     function getStockConditionNumber(conditions, key) {
@@ -4932,6 +5088,7 @@
       addCheck(Boolean(conditions.exchange), getStockExchange(stock) === conditions.exchange);
       addCheck(Boolean(conditions.excludeExchange), getStockExchange(stock) !== conditions.excludeExchange);
       addCheck(Boolean(conditions.boardType), getStockBoardType(stock) === conditions.boardType);
+      addCheck(Boolean(conditions.excludeBoardType), getStockBoardCategory(stock) !== conditions.excludeBoardType);
       addCheck(Boolean(conditions.status), getStockStatus(stock) === conditions.status);
       addCheck(conditions.industry && conditions.industry !== "all", stock.industry === conditions.industry);
       addCheck(conditions.metric === "low-pe", stock.pe < 20);
@@ -4947,6 +5104,7 @@
     }
 
     function applyStockFilters(list = stockWatchlist) {
+      if (activeQuickStockFilter) return getQuickFilterStocks(activeQuickStockFilter, list);
       const conditions = getCombinedStockConditions();
       const tagConditions = activeStockTags
         .map(id => stockFilterTags.find(tag => tag.id === id)?.conditions)
@@ -4959,7 +5117,7 @@
         const matches = conditionGroups.map(item => stockMatchesConditions(stock, { ...item, logic: "and" }));
         return stockFilters.logic === "or" ? matches.some(Boolean) : matches.every(Boolean);
       });
-      return activeQuickStockFilter ? getQuickFilterStocks(activeQuickStockFilter, filtered) : filtered;
+      return filtered;
     }
 
     function sortStockResults(list) {
@@ -4974,15 +5132,9 @@
     }
 
     function getStockFilterResults() {
-      const keyword = stockFilterSearchTerm.trim().toLowerCase();
+      const keyword = stockFilterSearchTerm.trim();
       const searched = keyword
-        ? stockUniverse.filter(stock => [
-          stock.name,
-          stock.code,
-          stock.market,
-          `${stock.market}${stock.code}`,
-          stock.industry
-        ].join(" ").toLowerCase().includes(keyword))
+        ? stockUniverse.filter(stock => stockMatchesSearchText(stock, keyword))
         : stockUniverse;
       return sortStockResults(applyStockFilters(searched));
     }
@@ -5049,6 +5201,27 @@
           input.setSelectionRange(input.value.length, input.value.length);
         }
       });
+    }
+
+    function setStockDailySearch(value) {
+      stockDailySearchTerm = String(value || "").trim();
+      stockDailyVirtualStart = 0;
+      stockDailyListScrollTop = 0;
+      stockDailyViewportStart = -1;
+      const nextStock = getActiveDailyStock();
+      renderStockPage();
+      requestAnimationFrame(() => {
+        const input = document.getElementById("stockDailySearchInput");
+        if (input) {
+          input.focus();
+          input.setSelectionRange(input.value.length, input.value.length);
+        }
+      });
+      if (nextStock) {
+        loadRealStockHistory(nextStock).then(loaded => {
+          if (loaded && activeDailyStockId === nextStock.id) updateStockDailyChart();
+        });
+      }
     }
 
     function setActiveDailyStock(id) {
@@ -5169,9 +5342,22 @@
       renderStockPage();
     }
 
+    function getStockDetailChartMode() {
+      return stockDetailChartMode === "minute" ? "minute" : "day";
+    }
+
+    function setStockDetailChartMode(mode) {
+      const nextMode = mode === "minute" ? "minute" : "day";
+      if (stockDetailChartMode === nextMode) return;
+      stockDetailChartMode = nextMode;
+      renderStockPage();
+    }
+
     function toggleStockRowExpand(code, market = "") {
       const identity = `${String(market || "").toUpperCase()}${String(code || "")}`;
-      expandedStockIdentity = expandedStockIdentity === identity ? "" : identity;
+      const nextIdentity = expandedStockIdentity === identity ? "" : identity;
+      expandedStockIdentity = nextIdentity;
+      if (nextIdentity) stockDetailChartMode = "day";
       renderStockPage();
     }
 
@@ -5268,26 +5454,29 @@
 
     function renderStockDetailRow(stock) {
       const changeAmount = getStockChangeAmount(stock);
+      const quote = getStockDailyQuoteSnapshot(stock);
+      const chartMode = getStockDetailChartMode();
+      const chartTitle = chartMode === "minute" ? "分时图" : "日K图";
       return `
         <tr class="stock-detail-row" data-stock-detail-row>
           <td colspan="8">
-            <div class="stock-row-detail">
-              <div class="stock-detail-stat">
-                <span>涨跌额</span>
-                <strong class="stock-change-amount ${getStockChangeClass(changeAmount)}" data-stock-detail-cell="changeAmount">${formatStockAmount(changeAmount)}</strong>
+            <div class="stock-row-detail stock-row-daily-detail">
+              <div class="stock-detail-chart-head">
+                <div class="stock-detail-chart-title">
+                  <strong>${escapeHTML(stock.name)} ${chartTitle}</strong>
+                  <span class="stock-detail-chart-meta">${escapeHTML(stock.market)} ${escapeHTML(stock.code)} · ${formatStockDataMeta(stock)}</span>
+                </div>
+                <div class="stock-detail-chart-actions">
+                  <span class="stock-change ${getStockChangeClass(stock.changePercent)}">${formatStockAmount(changeAmount)} · ${formatStockPercent(stock.changePercent)}</span>
+                  <button class="stock-action ${getStockDetailChartMode() === "day" ? "active" : ""}" type="button" data-stock-detail-mode="day" aria-pressed="${getStockDetailChartMode() === "day"}">日K</button>
+                  <button class="stock-action ${getStockDetailChartMode() === "minute" ? "active" : ""}" type="button" data-stock-detail-mode="minute" aria-pressed="${getStockDetailChartMode() === "minute"}">分时</button>
+                </div>
               </div>
-              <div class="stock-detail-stat">
-                <span>ROE</span>
-                <strong data-stock-detail-cell="roe">${Number(stock.roe || 0).toFixed(1)}%</strong>
+              <div class="stock-detail-metrics">
+                <span class="stock-detail-metric"><span>总市值</span><strong data-stock-detail-cell="marketCap">${formatStockMarketCap(stock.marketCap)}</strong></span>
+                <span class="stock-detail-metric"><span>换手率</span><strong data-stock-detail-cell="turnover">${quote.turnover.toFixed(2)}%</strong></span>
               </div>
-              <div class="stock-detail-stat">
-                <span>PB</span>
-                <strong data-stock-detail-cell="pb">${Number(stock.pb || 0).toFixed(2)}</strong>
-              </div>
-              <div class="stock-detail-stat">
-                <span>详情</span>
-                <strong>${escapeHTML(stock.market)}${escapeHTML(stock.code)}</strong>
-              </div>
+              <canvas class="stock-detail-chart" data-stock-chart="${escapeHTML(stock.id)}" data-stock-detail-chart="${escapeHTML(stock.id)}" data-stock-chart-mode="${escapeHTML(getStockDetailChartMode())}" data-stock-chart-days="60" width="920" height="240" aria-label="${escapeHTML(stock.name)}${chartTitle}"></canvas>
             </div>
           </td>
         </tr>
@@ -5300,7 +5489,12 @@
       }
 
       if (!list.length) {
-        return `<div class="stock-empty">当前筛选条件下暂无股票。</div>`;
+        return `
+          <div class="stock-empty">
+            <span>当前快速观察或筛选条件下暂无股票，右上角 ${list.length}/${stockWatchlist.length} 表示筛选结果/自选总数。</span>
+            <button class="stock-action" type="button" data-stock-filter-reset>清除筛选</button>
+          </div>
+        `;
       }
 
       return `
@@ -5383,8 +5577,13 @@
 
     function getDailyFilteredStocks() {
       const tags = activeStockDailyTags.map(getDailyFilterTag).filter(Boolean);
-      if (!tags.length) return stockUniverse;
-      return stockUniverse.filter(stock => tags.every(tag => stockMatchesConditions(stock, { ...tag.conditions, logic: "and" })));
+      const keyword = stockDailySearchTerm.trim();
+      if (!tags.length && !keyword) return stockUniverse;
+      return stockUniverse.filter(stock => {
+        const matchesSearch = !keyword || stockMatchesSearchText(stock, keyword);
+        const matchesTags = tags.every(tag => stockMatchesConditions(stock, { ...tag.conditions, logic: "and" }));
+        return matchesSearch && matchesTags;
+      });
     }
 
     function toggleStockDailyFilter(id) {
@@ -5448,6 +5647,56 @@
       if (periodId === "three") return stock.multiDayMinute?.three || [];
       if (periodId === "five") return stock.multiDayMinute?.five || [];
       return stock.intraday || [];
+    }
+
+    function getStockDetailMinuteSeries(stock) {
+      const realSeries = getStockMinuteSeries(stock, "one")
+        .map(item => ({
+          ...item,
+          price: Number(item.price),
+          average: Number(item.average ?? item.price),
+          volume: Number(item.volume || 0)
+        }))
+        .filter(item => Number.isFinite(item.price));
+      if (realSeries.length) return realSeries;
+
+      const history = getStockMiniChartHistory(stock, 2);
+      const latest = history[history.length - 1];
+      if (!latest) return [];
+
+      const previous = history[history.length - 2] || latest;
+      const open = Number(latest.open || previous.close || stock.price || 1);
+      const close = Number(latest.close || stock.price || open);
+      const high = Math.max(Number(latest.high || open || close), open, close);
+      const low = Math.min(Number(latest.low || open || close), open, close);
+      const totalVolume = Math.max(1, Number(latest.volume || stock.volume || 4800));
+      const range = Math.max(0.01, high - low);
+      const points = 48;
+      let amount = 0;
+      let volumeSum = 0;
+
+      return Array.from({ length: points }, (_, index) => {
+        const progress = points === 1 ? 1 : index / (points - 1);
+        const minuteIndex = Math.round(progress * 241);
+        const sessionMinute = minuteIndex <= 120 ? 570 + minuteIndex : 780 + minuteIndex - 121;
+        const hour = Math.floor(sessionMinute / 60);
+        const minute = sessionMinute % 60;
+        const time = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+        const wave = Math.sin(index * 0.48) * range * 0.18;
+        const trendPrice = open + (close - open) * progress;
+        const price = Math.max(low, Math.min(high, trendPrice + wave));
+        const volume = Math.max(1, Math.round(totalVolume / points * (0.68 + Math.abs(Math.sin(index * 0.8)) * 0.72)));
+        amount += price * volume;
+        volumeSum += volume;
+
+        return {
+          time,
+          label: time,
+          price: Number(price.toFixed(2)),
+          average: Number((amount / Math.max(1, volumeSum)).toFixed(2)),
+          volume
+        };
+      });
     }
 
     function isStockMinutePeriod(period = getStockDailyPeriod()) {
@@ -5692,7 +5941,7 @@
     function renderStockDailyView() {
       const stock = getActiveDailyStock();
       const dailyStockCount = getDailyFilteredStocks().length;
-      const dailyStockCountLabel = activeStockDailyTags.length ? `${dailyStockCount}/${stockUniverse.length} 只` : `${stockUniverse.length} 只`;
+      const dailyStockCountLabel = activeStockDailyTags.length || stockDailySearchTerm ? `${dailyStockCount}/${stockUniverse.length} 只` : `${stockUniverse.length} 只`;
       if (!stock && stockUniverse.length) {
         return `
           <div class="stock-daily-layout">
@@ -5702,6 +5951,7 @@
                 <span class="stock-refresh-note">${dailyStockCountLabel}</span>
               </div>
               <div class="stock-daily-toolbar">
+                ${renderStockDailySearch()}
                 ${renderStockDailyFilters()}
                 <select class="stock-select" data-stock-daily-sort aria-label="日K股票排序">
                   <option value="name" ${stockDailySort === "name" ? "selected" : ""}>按名称</option>
@@ -5729,6 +5979,7 @@
               <span class="stock-refresh-note">${dailyStockCountLabel}</span>
             </div>
             <div class="stock-daily-toolbar">
+              ${renderStockDailySearch()}
               ${renderStockDailyFilters()}
               <select class="stock-select" data-stock-daily-sort aria-label="日K股票排序">
                 <option value="name" ${stockDailySort === "name" ? "selected" : ""}>按名称</option>
@@ -5785,6 +6036,15 @@
         <div class="stock-filter-search">
           <span class="search-icon" aria-hidden="true">⌕</span>
           <input class="stock-search-input" id="stockFilterSearchInput" data-stock-filter-search type="search" value="${escapeHTML(stockFilterSearchTerm)}" placeholder="搜索股票代码或名称" autocomplete="off" />
+        </div>
+      `;
+    }
+
+    function renderStockDailySearch() {
+      return `
+        <div class="stock-filter-search">
+          <span class="search-icon" aria-hidden="true">⌕</span>
+          <input class="stock-search-input" id="stockDailySearchInput" data-stock-daily-search type="search" value="${escapeHTML(stockDailySearchTerm)}" placeholder="名称/代码/首字母" autocomplete="off" />
         </div>
       `;
     }
@@ -6074,8 +6334,8 @@
     }
 
     function addStockToWatchlist(code, market = "") {
-      const stock = getStockByCode(code, market);
-      if (!stock) {
+      const stock = getStockByCode(code, market) || makeStockIdentityPlaceholder(code, market);
+      if (!stock.code) {
         showToast("未找到这只股票", "error");
         return false;
       }
@@ -6089,6 +6349,12 @@
       renderStockSideList();
       renderStockPage();
       showToast(`已添加 ${stock.name}`);
+      refreshRealStockQuotes().then(refreshed => {
+        if (refreshed && activeFeature === "stocks") {
+          renderStockSideList();
+          renderStockPage();
+        }
+      });
       return true;
     }
 
@@ -6207,7 +6473,10 @@
 
         const detailRow = row.nextElementSibling?.matches?.("[data-stock-detail-row]") ? row.nextElementSibling : null;
         if (detailRow) {
+          const quote = getStockDailyQuoteSnapshot(stock);
           setStockNodeText(detailRow.querySelector('[data-stock-detail-cell="changeAmount"]'), formatStockAmount(getStockChangeAmount(stock)), changeClass);
+          setStockNodeText(detailRow.querySelector('[data-stock-detail-cell="marketCap"]'), formatStockMarketCap(stock.marketCap));
+          setStockNodeText(detailRow.querySelector('[data-stock-detail-cell="turnover"]'), `${quote.turnover.toFixed(2)}%`);
           setStockNodeText(detailRow.querySelector('[data-stock-detail-cell="roe"]'), `${Number(stock.roe || 0).toFixed(1)}%`);
           setStockNodeText(detailRow.querySelector('[data-stock-detail-cell="pb"]'), Number(stock.pb || 0).toFixed(2));
         }
@@ -6348,14 +6617,149 @@
       suppressNextDragClick();
     }
 
+    function getStockMiniChartHistory(stock, days = 18) {
+      const dailyHistory = (stock?.dailyK || []).map(item => ({
+          open: item.open,
+          high: item.high,
+          low: item.low,
+          close: item.close
+        }));
+      const history = Array.isArray(stock?.history) && stock.history.length ? stock.history : [];
+      const source = dailyHistory.length >= days || !history.length ? dailyHistory : history;
+      if (!source.length) return [];
+      return source.slice(-days).filter(item =>
+        Number.isFinite(Number(item.open)) &&
+        Number.isFinite(Number(item.high)) &&
+        Number.isFinite(Number(item.low)) &&
+        Number.isFinite(Number(item.close))
+      );
+    }
+
+    function requestStockMiniChartHistory(stock) {
+      const identity = getStockIdentity(stock);
+      if (!stockApiReady || !identity || stockMiniHistoryLoading.has(identity)) return;
+      stockMiniHistoryLoading.add(identity);
+      loadRealStockHistory(stock).then(loaded => {
+        if (loaded && activeFeature === "stocks") drawStockCanvases();
+      }).finally(() => {
+        stockMiniHistoryLoading.delete(identity);
+      });
+    }
+
+    function drawStockDetailMinuteChart(canvas, stock) {
+      const ctx = canvas.getContext?.("2d");
+      if (!ctx || !stock) return;
+
+      const data = getStockDetailMinuteSeries(stock)
+        .map(item => ({
+          ...item,
+          price: Number(item.price),
+          average: Number(item.average ?? item.price),
+          volume: Number(item.volume || 0)
+        }))
+        .filter(item => Number.isFinite(item.price));
+
+      if (!data.length) {
+        requestStockMiniChartHistory(stock);
+        return;
+      }
+
+      const rect = canvas.getBoundingClientRect();
+      const width = Math.max(360, rect.width || Number(canvas.getAttribute("width")) || 920);
+      const height = Math.max(180, rect.height || Number(canvas.getAttribute("height")) || 240);
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, width, height);
+
+      const pad = { top: 18, right: 52, bottom: 28, left: 52 };
+      const pricePane = { top: pad.top, bottom: Math.floor(height * 0.68) };
+      pricePane.height = pricePane.bottom - pricePane.top;
+      const volumePane = { top: pricePane.bottom + 22, bottom: height - pad.bottom };
+      volumePane.height = volumePane.bottom - volumePane.top;
+      const plotWidth = width - pad.left - pad.right;
+      const prices = data.flatMap(item => [item.price, item.average]).filter(Number.isFinite);
+      const maxPrice = Math.max(...prices);
+      const minPrice = Math.min(...prices);
+      const priceRange = Math.max(0.01, maxPrice - minPrice);
+      const maxVolume = Math.max(1, ...data.map(item => Number(item.volume || 0)));
+      const pointSpace = plotWidth / Math.max(1, data.length - 1);
+      const xAt = index => pad.left + pointSpace * index;
+      const priceY = value => pricePane.top + (maxPrice - value) / priceRange * pricePane.height;
+      const volumeY = value => volumePane.bottom - (value / maxVolume) * volumePane.height;
+
+      ctx.font = "11px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+      ctx.strokeStyle = "rgba(255,255,255,0.08)";
+      ctx.fillStyle = "rgba(255,255,255,0.42)";
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const y = pricePane.top + pricePane.height * i / 4;
+        const price = maxPrice - priceRange * i / 4;
+        ctx.beginPath();
+        ctx.moveTo(pad.left, y);
+        ctx.lineTo(width - pad.right, y);
+        ctx.stroke();
+        ctx.fillText(price.toFixed(2), 8, y + 4);
+      }
+      ctx.fillText("分时", pad.left, pricePane.top + 12);
+      ctx.fillText("成交量", pad.left, volumePane.top + 12);
+
+      data.forEach((item, index) => {
+        const x = xAt(index);
+        const previous = data[index - 1] || item;
+        const up = item.price >= previous.price;
+        const barWidth = Math.max(1, Math.min(4, pointSpace * 0.62));
+        const volTop = volumeY(item.volume);
+        ctx.fillStyle = up ? "#ff8b8b" : "#7ee787";
+        ctx.globalAlpha = 0.42;
+        ctx.fillRect(x - barWidth / 2, volTop, barWidth, volumePane.bottom - volTop);
+        ctx.globalAlpha = 1;
+      });
+
+      const drawLine = (field, color, lineWidth = 1.4) => {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = lineWidth;
+        ctx.beginPath();
+        data.forEach((item, index) => {
+          const value = Number(item[field]);
+          if (!Number.isFinite(value)) return;
+          const x = xAt(index);
+          const y = priceY(value);
+          if (index === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+        ctx.lineWidth = 1;
+      };
+
+      drawLine("average", "rgba(255,213,128,0.78)", 1.1);
+      drawLine("price", "rgba(104,203,255,0.95)", 1.6);
+
+      const first = data[0];
+      const last = data[data.length - 1];
+      ctx.fillStyle = "rgba(255,255,255,0.42)";
+      ctx.fillText(first.label || first.time || "", pad.left, height - 8);
+      const lastLabel = last.label || last.time || "";
+      const labelWidth = ctx.measureText(lastLabel).width;
+      ctx.fillText(lastLabel, width - pad.right - labelWidth, height - 8);
+      ctx.fillStyle = last.price >= first.price ? "#ff8b8b" : "#7ee787";
+      ctx.fillText(last.price.toFixed(2), width - pad.right + 8, priceY(last.price) + 4);
+    }
+
     function drawStockCanvases() {
       const quotes = new Map([...marketIndices, ...stockUniverse, ...stockWatchlist].map(stock => [stock.id, stock]));
       document.querySelectorAll("canvas[data-stock-chart]").forEach(canvas => {
         const stock = quotes.get(canvas.dataset.stockChart);
         if (stock) {
+          if (canvas.dataset.stockChartMode === "minute") {
+            drawStockDetailMinuteChart(canvas, stock);
+            return;
+          }
           const days = Number(canvas.dataset.stockChartDays) || 18;
-          const history = days === 5 ? (stock.history || []).slice(-5) : (stock.history || []);
-          drawMiniKLine(canvas, history, stock.changePercent);
+          const history = getStockMiniChartHistory(stock, days);
+          if (history.length) drawMiniKLine(canvas, history, stock.changePercent);
+          else requestStockMiniChartHistory(stock);
         }
       });
     }
@@ -6392,7 +6796,7 @@
       history.forEach((item, index) => {
         const x = pad + candleSpace * index + candleSpace / 2;
         const up = item.close >= item.open;
-        const color = up ? "#7ee787" : "#ff8b8b";
+        const color = up ? "#ff8b8b" : "#7ee787";
         const openY = y(item.open);
         const closeY = y(item.close);
         ctx.strokeStyle = color;
@@ -6505,7 +6909,7 @@
         const up = item.price >= previous.price;
         const barWidth = Math.max(1, Math.min(4, pointSpace * 0.62));
         const volTop = volumeY(item.volume);
-        ctx.fillStyle = up ? "#7ee787" : "#ff8b8b";
+        ctx.fillStyle = up ? "#ff8b8b" : "#7ee787";
         ctx.globalAlpha = 0.42;
         ctx.fillRect(x - barWidth / 2, volTop, barWidth, volumePane.bottom - volTop);
         ctx.globalAlpha = 1;
@@ -6635,7 +7039,7 @@
         const x = xAt(index);
         const globalIndex = viewport.start + index;
         const up = item.close >= item.open;
-        const color = up ? "#7ee787" : "#ff8b8b";
+        const color = up ? "#ff8b8b" : "#7ee787";
         const openY = priceY(item.open);
         const closeY = priceY(item.close);
         ctx.strokeStyle = color;
@@ -6655,7 +7059,7 @@
         if (macdItem) {
           const zeroY = macdY(0);
           const macdValueY = macdY(macdItem.macd);
-          ctx.fillStyle = macdItem.macd >= 0 ? "#7ee787" : "#ff8b8b";
+          ctx.fillStyle = macdItem.macd >= 0 ? "#ff8b8b" : "#7ee787";
           ctx.globalAlpha = 0.72;
           ctx.fillRect(x - candleWidth / 2, Math.min(zeroY, macdValueY), candleWidth, Math.max(1, Math.abs(zeroY - macdValueY)));
           ctx.globalAlpha = 1;
@@ -6967,6 +7371,12 @@
       const dailySort = event.target.closest("[data-stock-daily-sort]");
       if (dailySort) {
         setStockDailySort(dailySort.value);
+        return;
+      }
+
+      const detailModeButton = event.target.closest("[data-stock-detail-mode]");
+      if (detailModeButton) {
+        setStockDetailChartMode(detailModeButton.dataset.stockDetailMode);
         return;
       }
 
@@ -8256,6 +8666,11 @@
         setStockFilterSearch(filterSearch.value);
         return;
       }
+      const dailySearch = event.target.closest("#stockDailySearchInput");
+      if (dailySearch) {
+        setStockDailySearch(dailySearch.value);
+        return;
+      }
       const input = event.target.closest("#stockSearchInput");
       if (!input) return;
       stockSearchTerm = input.value.trim();
@@ -8477,6 +8892,7 @@
     customStockStrategies = loadCustomStockStrategies();
     restoreStockFilterState();
     initSchulteGame(5);
+    initializeRealStockData();
     renderAppShell();
   </script>
 </body>
