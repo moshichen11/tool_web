@@ -236,6 +236,32 @@ test("mock server reads rate limit env defaults for CLI startup", async () => {
   }
 });
 
+test("mock server uses platform PORT and public host defaults for web service deploys", async () => {
+  const previousPort = process.env.PORT;
+  const previousHost = process.env.MOCK_SERVER_HOST;
+  process.env.PORT = "0";
+  delete process.env.MOCK_SERVER_HOST;
+
+  const mod = await import("../server/mock-server.js");
+  const server = mod.createMockServer({ dataSource: "mock-a-share" });
+  let started = false;
+  try {
+    await server.start();
+    started = true;
+    const address = server.server.address();
+    assert.equal(typeof address, "object");
+    assert.equal(address.address, "0.0.0.0");
+    assert.notEqual(address.port, 8787);
+    assert.equal((await requestJson(server.url, "/v1/health")).response.status, 200);
+  } finally {
+    if (started) await server.stop();
+    if (previousPort === undefined) delete process.env.PORT;
+    else process.env.PORT = previousPort;
+    if (previousHost === undefined) delete process.env.MOCK_SERVER_HOST;
+    else process.env.MOCK_SERVER_HOST = previousHost;
+  }
+});
+
 test("quote stream emits SSE connected and quote patch events", async () => {
   const server = await startTestServer({ sseIntervalMs: 20 });
   try {

@@ -1,0 +1,27 @@
+services:
+  - type: web
+    runtime: node
+    name: tool-web-stock-api
+    plan: free
+    buildCommand: ""
+    startCommand: node server/mock-server.js
+    healthCheckPath: /v1/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: STOCK_DATA_SOURCE
+        value: xueqiu
+      - key: MOCK_SERVER_HOST
+        value: 0.0.0.0
+      - key: XUEQIU_COOKIE
+        sync: false
+      - key: XUEQIU_TOKEN
+        sync: false
+      - key: XUEQIU_TIMEOUT_MS
+        value: "6000"
+      - key: XUEQIU_RETRY_ATTEMPTS
+        value: "3"
+      - key: XUEQIU_RETRY_DELAY_MS
+        value: "250"
+      - key: XUEQIU_CACHE_TTL_MS
+        value: "5000"
