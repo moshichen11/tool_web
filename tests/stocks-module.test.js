@@ -333,6 +333,16 @@ test("stocks module requires the backend API and does not fall back to generated
   assert.match(html, /await loadRealStockUniverse\(\)/);
 });
 
+test("stocks default API base is configured to the public Render backend before startup", () => {
+  const apiConfig = 'const STOCK_DEFAULT_API_BASE_URL = "https://tool-web-stock-api.onrender.com";';
+  const configIndex = html.indexOf(apiConfig);
+  const startupIndex = html.lastIndexOf("initializeRealStockData();");
+
+  assert.notEqual(configIndex, -1);
+  assert.notEqual(startupIndex, -1);
+  assert.ok(configIndex < startupIndex);
+});
+
 test("stocks data starts loading when the app opens", () => {
   const startupBlock = extractBlock(
     /const initialConfig = loadUserConfig\(\);/,
