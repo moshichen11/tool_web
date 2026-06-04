@@ -317,10 +317,10 @@ export function createEastmoneyProvider(options = {}) {
     return { items, source: "eastmoney", delayed: false, updatedAt: new Date().toISOString() };
   }
 
-  async function getListPage(page) {
+  async function getListPage(page, pageSize = listPageSize) {
     const url = new URL(listEndpoint);
     url.searchParams.set("pn", String(page));
-    url.searchParams.set("pz", String(listPageSize));
+    url.searchParams.set("pz", String(Math.max(1, Math.min(Number(pageSize) || listPageSize, 10000))));
     url.searchParams.set("po", "1");
     url.searchParams.set("np", "1");
     url.searchParams.set("fltt", "2");
@@ -339,6 +339,22 @@ export function createEastmoneyProvider(options = {}) {
     const requestedLimit = Math.max(1, Math.min(Number(limit) || 6000, 10000));
     const requestedOffset = Math.max(Number(offset) || 0, 0);
     const targetMarket = market ? String(market).toUpperCase() : "";
+
+    if (!targetMarket && requestedLimit < listPageSize && requestedOffset % requestedLimit === 0) {
+      const page = Math.floor(requestedOffset / requestedLimit) + 1;
+      const result = await getListPage(page, requestedLimit);
+      const items = result.rows.map(listSummary).filter(Boolean);
+      return {
+        items,
+        total: Number(result.total || items.length),
+        limit: requestedLimit,
+        offset: requestedOffset,
+        source: "eastmoney",
+        delayed: false,
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
     const first = await getListPage(1);
     const firstRows = first.rows;
     const total = Number(first.total || firstRows.length);

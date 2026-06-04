@@ -8,6 +8,8 @@ import { route, sendRateLimited } from "./routes.js";
 import { createSyncStore } from "./sync.js";
 import { createStockDataProvider, DEFAULT_STOCK_DATA_SOURCE } from "./stock-data-provider.js";
 
+const STOCK_UNIVERSE_CACHE_TTL_MS = 30 * 60 * 1000;
+
 function createState() {
   const stocks = new Map(createInitialStocks().map(stock => [stock.id, stock]));
   const watchlist = [
@@ -35,6 +37,7 @@ export function createMockServer(options = {}) {
   const port = Number(options.port ?? platformPort ?? process.env.MOCK_SERVER_PORT ?? 8787);
   const host = options.host ?? process.env.MOCK_SERVER_HOST ?? (platformPort ? "0.0.0.0" : "127.0.0.1");
   const sseIntervalMs = Number(options.sseIntervalMs ?? process.env.MOCK_SSE_INTERVAL_MS ?? 1_000);
+  const universeCacheTtlMs = Number(options.universeCacheTtlMs ?? process.env.STOCK_UNIVERSE_CACHE_TTL_MS ?? STOCK_UNIVERSE_CACHE_TTL_MS);
   const dataSource = options.dataSource ?? process.env.STOCK_DATA_SOURCE ?? DEFAULT_STOCK_DATA_SOURCE;
   const provider = createStockDataProvider({
     dataSource,
@@ -85,7 +88,7 @@ export function createMockServer(options = {}) {
       return;
     }
 
-    await route(req, res, { state, audit, sync, rateLimitState, traceId, sseIntervalMs, provider });
+    await route(req, res, { state, audit, sync, rateLimitState, traceId, sseIntervalMs, provider, universeCacheTtlMs });
   });
 
   return {

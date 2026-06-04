@@ -312,11 +312,13 @@ test("stocks logic supports search, filters, watchlist persistence, sorting, cha
 });
 
 test("stocks module requires the backend API and does not fall back to generated mock quotes", () => {
-  assert.match(html, /async function loadRealStockUniverse\(\)/);
-  assert.match(html, /await fetchStockApi\("\/v1\/stocks\/universe\?limit=6000"\)/);
+  assert.match(html, /async function loadRealStockUniverse\(page = activeStockUniversePage, \{ force = false, foreground = true \} = \{\}\)/);
+  assert.match(html, /const STOCK_UNIVERSE_PAGE_SIZE = 100/);
+  assert.match(html, /const request = fetchStockApi\(`\/v1\/stocks\/universe\?limit=\$\{STOCK_UNIVERSE_PAGE_SIZE\}&offset=\$\{getStockUniverseOffset\(page\)\}`\)/);
   assert.doesNotMatch(html, /STOCK_REAL_SEARCH_SEEDS/);
   assert.doesNotMatch(html, /encodeURIComponent\(seed\)/);
-  assert.match(html, /stockUniverse\.splice\(0, stockUniverse\.length, \.\.\.mapped\)/);
+  assert.match(html, /stockUniversePages\.set\(page, mapped\)/);
+  assert.match(html, /mergeStockUniversePage\(mapped\)/);
   assert.match(html, /stockWatchlist = stockWatchlist\.map\(stock => getStockByCode\(stock\.code, stock\.market\) \|\| stock\)/);
   assert.match(html, /async function refreshRealStockQuotes\(\)/);
   assert.match(html, /body: JSON\.stringify\(\{ symbols \}\)/);
@@ -343,28 +345,106 @@ test("stocks default API base is configured to the public Render backend before 
   assert.ok(configIndex < startupIndex);
 });
 
+test("stock daily list exposes page controls for paged universe loading", () => {
+  assert.match(html, /const STOCK_UNIVERSE_PREFETCH_CONCURRENCY = 4/);
+  assert.match(html, /let activeStockUniversePage = 1/);
+  assert.match(html, /let stockUniverseTotal = 0/);
+  assert.match(html, /const stockUniversePages = new Map\(\)/);
+  assert.match(html, /const stockUniversePageLoads = new Map\(\)/);
+  assert.match(html, /let stockUniversePrefetching = false/);
+  assert.match(html, /function renderStockUniversePagination\(\)/);
+  assert.match(html, /data-stock-daily-page="prev"/);
+  assert.match(html, /data-stock-daily-page="next"/);
+  assert.match(html, /data-stock-daily-page-input/);
+  assert.match(html, /function setStockUniversePage\(action\)/);
+  assert.match(html, /const dailyPageButton = event\.target\.closest\("\[data-stock-daily-page\]"\)/);
+  assert.match(html, /const dailyPageInput = event\.target\.closest\("\[data-stock-daily-page-input\]"\)/);
+});
+
+test("stock universe pages preload in the background after the first page", () => {
+  const prefetchBlock = extractBlock(
+    /async function prefetchRemainingStockUniversePages\(\) \{/,
+    /\n    \}\n\n    function scheduleStockUniversePrefetch/
+  );
+
+  assert.match(html, /function getMissingStockUniversePages\(\)/);
+  assert.match(html, /async function prefetchRemainingStockUniversePages\(\)/);
+  assert.match(html, /function scheduleStockUniversePrefetch\(\)/);
+  assert.match(html, /Array\.from\(\{ length: Math\.min\(STOCK_UNIVERSE_PREFETCH_CONCURRENCY, pages\.length\) \}, preloadWorker\)/);
+  assert.match(html, /await loadRealStockUniverse\(page, \{ foreground: false \}\)/);
+  assert.match(html, /async function preloadStockUniversePageCharts\(page\)/);
+  assert.match(prefetchBlock, /scheduleStockUniverseChartPreload\(\)/);
+  assert.doesNotMatch(prefetchBlock, /await preloadStockUniversePageCharts\(page\)/);
+  assert.match(html, /scheduleStockUniversePrefetch\(\)/);
+});
+
+test("stock universe background preload also prepares daily chart history", () => {
+  assert.match(html, /const STOCK_UNIVERSE_CHART_PREFETCH_LIMIT = STOCK_UNIVERSE_PAGE_SIZE/);
+  assert.match(html, /const stockHistoryLoads = new Map\(\)/);
+  assert.match(html, /const stockUniverseChartPages = new Set\(\)/);
+  assert.match(html, /let stockUniverseChartPreloadCursor = 1/);
+  assert.match(html, /let stockUniverseChartPreloadRunning = false/);
+  assert.match(html, /function getStockHistoryLoadKey\(stock\)/);
+  assert.match(html, /async function loadRealStockHistory\(stock, \{ force = false, foreground = true \} = \{\}\)/);
+  assert.match(html, /loadRealStockHistory\(stock, \{ foreground: false \}\)/);
+});
+
+test("stock universe chart preload follows the same page and stock order as the stock list", () => {
+  const orderedChartBlock = extractBlock(
+    /async function preloadStockUniverseChartsInOrder\(\) \{/,
+    /\n    \}\n\n    function scheduleStockUniverseChartPreload/
+  );
+
+  assert.match(html, /function scheduleStockUniverseChartPreload\(\)/);
+  assert.match(orderedChartBlock, /while \(stockUniversePages\.has\(stockUniverseChartPreloadCursor\)\)/);
+  assert.match(orderedChartBlock, /const page = stockUniverseChartPreloadCursor/);
+  assert.match(orderedChartBlock, /await preloadStockUniversePageCharts\(page\)/);
+  assert.match(orderedChartBlock, /stockUniverseChartPreloadCursor = page \+ 1/);
+  assert.match(orderedChartBlock, /if \(activeFeature === "stocks"\) drawStockCanvases\(\)/);
+});
+
+test("stock daily chart prioritizes the selected stock over background chart preload", () => {
+  const selectBlock = extractBlock(
+    /function setActiveDailyStock\(id\) \{/,
+    /\n    \}\n\n    function setStockDailyRange/
+  );
+
+  assert.match(selectBlock, /loadRealStockHistory\(stock, \{ force: true \}\)\.then/);
+});
+
 test("stocks data starts loading when the app opens", () => {
   const startupBlock = extractBlock(
     /const initialConfig = loadUserConfig\(\);/,
     /\n  <\/script>/
   );
   const loadUniverseBlock = extractBlock(
-    /async function loadRealStockUniverse\(\) \{/,
+    /async function loadRealStockUniverse\(page = activeStockUniversePage, \{ force = false, foreground = true \} = \{\}\) \{/,
     /\n    \}\n\n    async function refreshRealStockQuotes/
   );
 
   assert.match(startupBlock, /initializeRealStockData\(\);\s*renderAppShell\(\)/);
-  assert.match(loadUniverseBlock, /if \(stockApiReady && stockUniverse\.length\) return true/);
+  assert.match(loadUniverseBlock, /if \(!force && stockUniversePages\.has\(page\)\)/);
 });
 
 test("stock daily K view fetches real history for the active stock", () => {
   assert.match(html, /function getStockHistoryRangeParam\(\)/);
-  assert.match(html, /async function loadRealStockHistory\(stock\)/);
+  assert.match(html, /async function loadRealStockHistory\(stock, \{ force = false, foreground = true \} = \{\}\)/);
   assert.match(html, /period=\$\{encodeURIComponent\(period\)\}&range=\$\{encodeURIComponent\(range\)\}/);
   assert.match(html, /stock\.dailyK = response\.items\.map\(mergeStockHistory\)/);
   assert.match(html, /await loadRealStockHistory\(getActiveDailyStock\(\)\)/);
   assert.match(html, /loadRealStockHistory\(stock\)\.then/);
   assert.match(html, /drawStockDailyCanvas\(\)/);
+});
+
+test("stock daily minute chart falls back to loaded K history when intraday is missing", () => {
+  assert.match(html, /function getFallbackStockMinuteSeries\(stock\)/);
+  assert.match(html, /return getFallbackStockMinuteSeries\(stock\)/);
+  assert.match(html, /const history = getStockMiniChartHistory\(stock, 2\)/);
+});
+
+test("stock daily chart shows an explicit loading state while history is missing", () => {
+  assert.match(html, /function drawStockDailyEmptyState\(canvas, message\)/);
+  assert.match(html, /drawStockDailyEmptyState\(canvas, "图表加载中"\)/);
 });
 
 test("stock refresh updates existing nodes instead of rerendering the page", () => {

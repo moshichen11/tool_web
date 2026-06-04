@@ -31,11 +31,11 @@ function stockIdentity(stock) {
   return { market: stock.market, code: stock.code };
 }
 
-async function withCache(state, key, compute) {
+async function withCache(state, key, compute, ttlMs = 5_000) {
   const entry = state.cache.get(key);
   if (entry && entry.expiresAt > Date.now()) return { hit: true, value: entry.value };
   const value = await compute();
-  state.cache.set(key, { value, expiresAt: Date.now() + 5_000 });
+  state.cache.set(key, { value, expiresAt: Date.now() + ttlMs });
   return { hit: false, value };
 }
 
@@ -104,7 +104,7 @@ export async function route(req, res, context) {
       const offset = Math.max(Number(url.searchParams.get("offset")) || 0, 0);
       const market = url.searchParams.get("market");
       const key = `universe:${market || ""}:${limit}:${offset}`;
-      const cached = await withCache(state, key, async () => provider.getStockUniverse({ market, limit, offset }));
+      const cached = await withCache(state, key, async () => provider.getStockUniverse({ market, limit, offset }), context.universeCacheTtlMs);
       audit.record("stock.universe", { traceId, target: `${cached.value.items.length}/${cached.value.total}` });
       const dataSource = cached.value.source || provider.id;
       const headers = {

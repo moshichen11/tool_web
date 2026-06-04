@@ -25,3 +25,5 @@ services:
         value: "250"
       - key: XUEQIU_CACHE_TTL_MS
         value: "5000"
+      - key: STOCK_UNIVERSE_CACHE_TTL_MS
+        value: "1800000"

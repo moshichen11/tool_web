@@ -159,6 +159,22 @@ test("eastmoney provider paginates the full A-share universe beyond 5000 stocks"
   assert.equal(listCalls[0].parsed.searchParams.get("fs").includes("m:0+t:81"), true);
 });
 
+test("eastmoney provider fetches the requested stock universe page directly", async () => {
+  const { createEastmoneyProvider } = await import("../server/eastmoney-provider.js");
+  const fetchImpl = createFakeEastmoneyFetch({ universeTotal: 5_205 });
+  const provider = createEastmoneyProvider({ fetchImpl });
+
+  const universe = await provider.getStockUniverse({ limit: 100, offset: 900 });
+  const listCalls = fetchImpl.calls.filter(call => call.parsed.pathname.includes("/api/qt/clist/get"));
+
+  assert.equal(universe.total, 5_205);
+  assert.equal(universe.items.length, 100);
+  assert.equal(universe.items[0].id, "SH:600900");
+  assert.equal(listCalls.length, 1);
+  assert.equal(listCalls[0].parsed.searchParams.get("pn"), "10");
+  assert.equal(listCalls[0].parsed.searchParams.get("pz"), "100");
+});
+
 test("eastmoney provider marks ST names in stock universe summaries", async () => {
   const { createEastmoneyProvider } = await import("../server/eastmoney-provider.js");
   const fetchImpl = createFakeEastmoneyFetch({

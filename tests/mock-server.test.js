@@ -1,5 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 
 async function startTestServer(options = {}) {
   const mod = await import("../server/mock-server.js");
@@ -260,6 +262,15 @@ test("mock server uses platform PORT and public host defaults for web service de
     if (previousHost === undefined) delete process.env.MOCK_SERVER_HOST;
     else process.env.MOCK_SERVER_HOST = previousHost;
   }
+});
+
+test("stock universe routes use a long cache ttl for paged public loading", () => {
+  const serverSource = fs.readFileSync(path.join(__dirname, "..", "server", "mock-server.js"), "utf8");
+  const routesSource = fs.readFileSync(path.join(__dirname, "..", "server", "routes.js"), "utf8");
+
+  assert.match(serverSource, /const STOCK_UNIVERSE_CACHE_TTL_MS = 30 \* 60 \* 1000/);
+  assert.match(serverSource, /universeCacheTtlMs/);
+  assert.match(routesSource, /withCache\(state, key, async \(\) => provider\.getStockUniverse\(\{ market, limit, offset \}\), context\.universeCacheTtlMs\)/);
 });
 
 test("quote stream emits SSE connected and quote patch events", async () => {
