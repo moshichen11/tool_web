@@ -157,11 +157,22 @@ export function createStockDataProvider(options = {}) {
       cacheTtlMs: options.providerCacheTtlMs,
       outboundLimit: options.providerOutboundLimit,
     });
-    const universeProvider = createEastmoneyProvider({
+    const eastmoneyProvider = createEastmoneyProvider({
       fetchImpl: options.fetchImpl,
+      quoteEndpoint: options.eastmoneyQuoteUrl,
+      klineEndpoint: options.eastmoneyKlineUrl,
       listEndpoint: options.eastmoneyListUrl,
     });
-    return { ...provider, getStockUniverse: universeProvider.getStockUniverse };
+    return {
+      ...provider,
+      getStockUniverse: eastmoneyProvider.getStockUniverse,
+      async getHistory(params) {
+        const history = await provider.getHistory(params);
+        if (Array.isArray(history?.items) && history.items.length) return history;
+        const fallback = await eastmoneyProvider.getHistory(params);
+        return Array.isArray(fallback?.items) && fallback.items.length ? fallback : history;
+      },
+    };
   }
 
   if (dataSource === "tushare") {

@@ -98,6 +98,45 @@ function createFakeXueqiuFetch() {
   return fakeFetch;
 }
 
+function createFakeXueqiuEmptyHistoryWithEastmoneyFetch() {
+  const calls = [];
+
+  async function fakeFetch(url, options = {}) {
+    const parsed = new URL(url);
+    calls.push({ url, parsed, options });
+
+    if (parsed.pathname.includes("/chart/kline.json")) {
+      return jsonResponse({
+        data: {
+          symbol: "SZ000535",
+          column: ["timestamp", "volume", "open", "high", "low", "close", "chg", "percent", "turnoverrate", "amount"],
+          item: [],
+        },
+      });
+    }
+
+    if (parsed.hostname === "push2his.eastmoney.com" && parsed.pathname.includes("/api/qt/stock/kline/get")) {
+      return jsonResponse({
+        rc: 0,
+        data: {
+          code: "000535",
+          market: 0,
+          name: "*ST猴王",
+          klines: [
+            "2005-09-20,0.50,0.50,0.51,0.49,1000,50000.00,4.00,0.00,0.00,0.01",
+            "2005-09-21,0.50,0.50,0.50,0.50,0,0.00,0.00,0.00,0.00,0.00",
+          ],
+        },
+      });
+    }
+
+    return jsonResponse({ error_code: 404, error_description: "not found" }, { status: 404 });
+  }
+
+  fakeFetch.calls = calls;
+  return fakeFetch;
+}
+
 async function requestJson(baseUrl, path, options = {}) {
   const response = await fetch(`${baseUrl}${path}`, {
     ...options,
@@ -150,6 +189,26 @@ test("xueqiu provider maps search, quote, and kline responses into stock contrac
   assert.equal(fetchImpl.calls.some(call => call.options.headers.cookie === "test-session-cookie"), true);
   assert.equal(fetchImpl.calls.some(call => call.parsed.hostname === "stock.xueqiu.com"), true);
   assert.equal(fetchImpl.calls.some(call => call.parsed.hostname === "xueqiu.com"), true);
+});
+
+test("stock data provider falls back to eastmoney history when xueqiu returns no klines", async () => {
+  const { createStockDataProvider } = await import("../server/stock-data-provider.js");
+  const fetchImpl = createFakeXueqiuEmptyHistoryWithEastmoneyFetch();
+  const provider = createStockDataProvider({
+    dataSource: "xueqiu",
+    xueqiuCookie: "test-session-cookie",
+    fetchImpl,
+  });
+
+  const history = await provider.getHistory({ market: "SZ", code: "000535", period: "day", range: "60d" });
+
+  assert.equal(history.source, "eastmoney");
+  assert.equal(history.stock.id, "SZ:000535");
+  assert.equal(history.items.length, 2);
+  assert.equal(history.items[0].time, "2005-09-20");
+  assert.equal(history.items[1].close, 0.5);
+  assert.equal(fetchImpl.calls.some(call => call.parsed.hostname === "stock.xueqiu.com"), true);
+  assert.equal(fetchImpl.calls.some(call => call.parsed.hostname === "push2his.eastmoney.com"), true);
 });
 
 test("xueqiu provider requires credentials and never calls upstream without them", async () => {

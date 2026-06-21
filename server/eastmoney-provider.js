@@ -170,6 +170,25 @@ function listSummary(row) {
   };
 }
 
+function stockMatchesSearchQuery(item, queryText) {
+  if (!queryText) return true;
+  const compactQuery = queryText.replace(/[\s:：.-]+/g, "");
+  const fields = [
+    item.code,
+    item.name,
+    item.market,
+    item.id,
+    `${item.market}${item.code}`,
+    `${item.market} ${item.code}`,
+    `${item.market}:${item.code}`,
+    item.industry,
+  ].map(value => String(value || "").toLowerCase());
+  return fields.some(field => (
+    field.includes(queryText)
+    || field.replace(/[\s:：.-]+/g, "").includes(compactQuery)
+  ));
+}
+
 function normalizeDiff(diff) {
   if (Array.isArray(diff)) return diff;
   if (diff && typeof diff === "object") return Object.values(diff);
@@ -300,20 +319,27 @@ export function createEastmoneyProvider(options = {}) {
 
   async function searchStocks({ q, market, limit = 20 }) {
     const queryText = String(q || "").trim().toLowerCase();
-    const items = stockCatalog
-      .filter(item => !market || item.market === market)
-      .filter(item => {
-        if (!queryText) return true;
-        return [
-          item.code,
-          item.name,
-          item.market,
-          `${item.market}${item.code}`,
-          item.industry,
-        ].join(" ").toLowerCase().includes(queryText);
-      })
-      .slice(0, Math.min(Number(limit) || 20, 100))
-      .map(catalogSummary);
+    const targetMarket = market ? String(market).toUpperCase() : "";
+    const requestedLimit = Math.min(Number(limit) || 20, 100);
+    const byId = new Map();
+
+    for (const item of stockCatalog) {
+      if (targetMarket && item.market !== targetMarket) continue;
+      if (!stockMatchesSearchQuery(item, queryText)) continue;
+      byId.set(item.id, catalogSummary(item));
+      if (byId.size >= requestedLimit) break;
+    }
+
+    if (byId.size < requestedLimit) {
+      const universe = await getStockUniverse({ market: targetMarket, limit: 10000 });
+      for (const item of universe.items) {
+        if (!stockMatchesSearchQuery(item, queryText)) continue;
+        if (!byId.has(item.id)) byId.set(item.id, item);
+        if (byId.size >= requestedLimit) break;
+      }
+    }
+
+    const items = [...byId.values()].slice(0, requestedLimit);
     return { items, source: "eastmoney", delayed: false, updatedAt: new Date().toISOString() };
   }
 

@@ -3666,9 +3666,9 @@
     const STOCK_FILTER_STATE_KEY = "glass_nav_stock_filter_state";
     const STOCK_API_BASE_URL_KEY = "glass_nav_stock_api_base_url";
     const STOCK_DEFAULT_API_BASE_URL = "https://tool-web-stock-api.onrender.com";
-    const STOCK_UNIVERSE_PAGE_SIZE = 100;
-    const STOCK_UNIVERSE_PREFETCH_CONCURRENCY = 4;
-    const STOCK_UNIVERSE_CHART_PREFETCH_LIMIT = STOCK_UNIVERSE_PAGE_SIZE;
+    const STOCK_LOCAL_API_BASE_URL = "http://127.0.0.1:8787";
+    const STOCK_UNIVERSE_LOAD_LIMIT = 6000;
+    const STOCK_UNIVERSE_CHART_PREFETCH_LIMIT = 30;
     const defaultStockWatchCodes = ["600519", "300750", "000001", "601318"];
     const STOCK_FILTER_PAGE_SIZE = 8;
     const STOCK_DAILY_ROW_HEIGHT = 56;
@@ -3734,9 +3734,6 @@
 
     const marketIndices = [];
     const stockUniverse = [];
-    const stockUniversePages = new Map();
-    const stockUniversePageLoads = new Map();
-    const stockUniverseChartPages = new Set();
     const stockHistoryLoads = new Map();
 
     const USER_CONFIG_KEY = "glass_nav_user_config";
@@ -3949,11 +3946,9 @@
     let stockDailySort = "name";
     let stockDailySearchTerm = "";
     let activeStockDailyTags = [];
-    let activeStockUniversePage = 1;
     let stockUniverseTotal = 0;
-    let stockUniversePrefetching = false;
-    let stockUniverseChartPreloadCursor = 1;
     let stockUniverseChartPreloadRunning = false;
+    let stockUniverseChartPreloadScheduled = false;
     let stockDailyVirtualStart = 0;
     let stockDailyListScrollTop = 0;
     let stockDailyViewportStart = -1;
@@ -4494,8 +4489,14 @@
       };
     }
 
+    function getDefaultStockApiBaseUrl() {
+      const hostname = String(window.location?.hostname || "").toLowerCase();
+      if (hostname === "127.0.0.1" || hostname === "localhost") return STOCK_LOCAL_API_BASE_URL;
+      return STOCK_DEFAULT_API_BASE_URL;
+    }
+
     function getStockApiBaseUrl() {
-      const configured = window.STOCK_API_BASE_URL || localStorage.getItem(STOCK_API_BASE_URL_KEY) || STOCK_DEFAULT_API_BASE_URL;
+      const configured = window.STOCK_API_BASE_URL || localStorage.getItem(STOCK_API_BASE_URL_KEY) || getDefaultStockApiBaseUrl();
       return String(configured).replace(/\/+$/, "");
     }
 
@@ -4610,70 +4611,21 @@
       return stock;
     }
 
-    function getStockUniverseOffset(page = activeStockUniversePage) {
-      return (Math.max(1, Number(page) || 1) - 1) * STOCK_UNIVERSE_PAGE_SIZE;
-    }
-
-    function getStockUniverseMaxPage() {
-      const total = Math.max(stockUniverseTotal, stockUniverse.length, STOCK_UNIVERSE_PAGE_SIZE);
-      return Math.max(1, Math.ceil(total / STOCK_UNIVERSE_PAGE_SIZE));
-    }
-
-    function getCurrentStockUniversePage() {
-      return Math.max(1, Math.min(activeStockUniversePage, getStockUniverseMaxPage()));
-    }
-
-    function getCurrentStockUniversePageItems() {
-      return stockUniversePages.get(getCurrentStockUniversePage()) || [];
-    }
-
-    function mergeStockUniversePage(items) {
-      items.forEach(stock => {
-        const identity = getStockIdentity(stock);
-        const index = stockUniverse.findIndex(item => getStockIdentity(item) === identity);
-        if (index >= 0) stockUniverse.splice(index, 1, stock);
-        else stockUniverse.push(stock);
-      });
-    }
-
-    function applyStockUniversePage(page) {
-      activeStockUniversePage = Math.max(1, Math.min(Number(page) || 1, getStockUniverseMaxPage()));
-      const pageItems = getCurrentStockUniversePageItems();
-      stockWatchlist = stockWatchlist.map(stock => getStockByCode(stock.code, stock.market) || stock).map(cloneStock);
-      if (!pageItems.some(stock => stock.id === activeDailyStockId)) {
-        activeDailyStockId = pageItems[0]?.id || "";
-      }
-    }
-
-    function storeStockUniversePage(page, response) {
+    function storeStockUniverse(response) {
       const mapped = (response.items || []).map(mapApiStock).filter(Boolean);
-      if (!mapped.length && !stockUniverse.length) throw new Error("Stock API returned no stocks");
-      stockUniverseTotal = Number(response.total || mapped.length || stockUniverseTotal || 0);
+      if (!mapped.length) throw new Error("Stock API returned no stocks");
+      stockUniverseTotal = Number(response.total || mapped.length || 0);
       stockDataSource = response.source || response.headers.get("x-data-source") || stockDataSource;
-      stockUniversePages.set(page, mapped);
-      mergeStockUniversePage(mapped);
+      stockUniverse.splice(0, stockUniverse.length, ...mapped);
+      stockWatchlist = stockWatchlist.map(stock => getStockByCode(stock.code, stock.market) || stock).map(cloneStock);
+      if (!stockUniverse.some(stock => stock.id === activeDailyStockId)) {
+        activeDailyStockId = stockUniverse[0]?.id || "";
+      }
       return mapped;
     }
 
-    async function fetchStockUniversePage(page, { force = false } = {}) {
-      if (!force && stockUniversePages.has(page)) return true;
-      if (stockUniversePageLoads.has(page)) return stockUniversePageLoads.get(page);
-      const request = fetchStockApi(`/v1/stocks/universe?limit=${STOCK_UNIVERSE_PAGE_SIZE}&offset=${getStockUniverseOffset(page)}`)
-        .then(response => {
-          storeStockUniversePage(page, response);
-          return true;
-        })
-        .finally(() => {
-          stockUniversePageLoads.delete(page);
-        });
-      stockUniversePageLoads.set(page, request);
-      return request;
-    }
-
-    async function loadRealStockUniverse(page = activeStockUniversePage, { force = false, foreground = true } = {}) {
-      page = Math.max(1, Math.min(Number(page) || 1, getStockUniverseMaxPage()));
-      if (!force && stockUniversePages.has(page)) {
-        if (foreground) applyStockUniversePage(page);
+    async function loadRealStockUniverse({ force = false, foreground = true } = {}) {
+      if (!force && stockUniverse.length) {
         stockApiReady = true;
         stockApiStatus = "live";
         scheduleStockUniverseChartPreload();
@@ -4686,8 +4638,8 @@
         stockApiErrorMessage = "";
       }
       try {
-        await fetchStockUniversePage(page, { force });
-        if (foreground) applyStockUniversePage(page);
+        const response = await fetchStockApi(`/v1/stocks/universe?limit=${STOCK_UNIVERSE_LOAD_LIMIT}`);
+        storeStockUniverse(response);
         stockApiReady = true;
         stockApiStatus = "live";
         if (foreground) await refreshRealStockQuotes();
@@ -4710,77 +4662,56 @@
       }
     }
 
-    function getMissingStockUniversePages() {
-      const maxPage = getStockUniverseMaxPage();
-      return Array.from({ length: maxPage }, (_, index) => index + 1)
-        .filter(page => !stockUniversePages.has(page) && !stockUniversePageLoads.has(page));
+    function getStockUniverseChartPreloadStocks() {
+      const candidates = [];
+      const seen = new Set();
+      const addStock = stock => {
+        if (!stock || candidates.length >= STOCK_UNIVERSE_CHART_PREFETCH_LIMIT) return;
+        const identity = getStockIdentity(stock);
+        if (seen.has(identity)) return;
+        seen.add(identity);
+        candidates.push(stock);
+      };
+
+      addStock(getActiveDailyStock());
+      const sortedStocks = getSortedDailyStocks();
+      const maxStart = Math.max(0, sortedStocks.length - STOCK_DAILY_VIRTUAL_COUNT);
+      const start = Math.max(0, Math.min(maxStart, stockDailyVirtualStart));
+      const windowStart = Math.max(0, start - STOCK_DAILY_VIRTUAL_BUFFER);
+      const windowEnd = Math.min(sortedStocks.length, start + STOCK_DAILY_VIRTUAL_COUNT + STOCK_DAILY_VIRTUAL_BUFFER);
+      sortedStocks.slice(windowStart, windowEnd).forEach(addStock);
+
+      return candidates;
     }
 
-    function updateStockUniverseProgress() {
-      updateStockDataStatus();
-      const pagination = document.querySelector("[data-stock-daily-pagination]");
-      if (pagination) pagination.outerHTML = renderStockUniversePagination();
-    }
-
-    async function preloadStockUniversePageCharts(page) {
-      if (stockUniverseChartPages.has(page)) return true;
-      const stocks = (stockUniversePages.get(page) || []).slice(0, STOCK_UNIVERSE_CHART_PREFETCH_LIMIT);
-      for (const stock of stocks) {
-        await loadRealStockHistory(stock, { foreground: false });
+    async function preloadStockUniverseCharts() {
+      if (!stockApiReady) return;
+      if (stockUniverseChartPreloadRunning) {
+        stockUniverseChartPreloadScheduled = true;
+        return;
       }
-      stockUniverseChartPages.add(page);
-      return true;
-    }
-
-    async function preloadStockUniverseChartsInOrder() {
-      if (stockUniverseChartPreloadRunning || !stockApiReady) return;
+      stockUniverseChartPreloadScheduled = false;
       stockUniverseChartPreloadRunning = true;
       try {
-        while (stockUniversePages.has(stockUniverseChartPreloadCursor)) {
-          const page = stockUniverseChartPreloadCursor;
-          await preloadStockUniversePageCharts(page);
-          stockUniverseChartPreloadCursor = page + 1;
-          if (activeFeature === "stocks") drawStockCanvases();
+        const stocks = getStockUniverseChartPreloadStocks();
+        for (const stock of stocks) {
+          await loadRealStockHistory(stock, { foreground: false });
         }
+        if (activeFeature === "stocks") drawStockCanvases();
       } finally {
         stockUniverseChartPreloadRunning = false;
+        if (stockUniverseChartPreloadScheduled) {
+          stockUniverseChartPreloadScheduled = false;
+          scheduleStockUniverseChartPreload();
+        }
       }
     }
 
     function scheduleStockUniverseChartPreload() {
-      if (!stockApiReady || stockUniverseChartPreloadRunning) return;
-      const run = () => preloadStockUniverseChartsInOrder();
-      if (typeof window.requestIdleCallback === "function") {
-        window.requestIdleCallback(run, { timeout: 1000 });
-      } else {
-        setTimeout(run, 0);
-      }
-    }
-
-    async function prefetchRemainingStockUniversePages() {
-      if (stockUniversePrefetching || !stockUniverseTotal) return;
-      stockUniversePrefetching = true;
-      const pages = getMissingStockUniversePages();
-      let cursor = 0;
-      const preloadWorker = async () => {
-        while (cursor < pages.length) {
-          const page = pages[cursor];
-          cursor += 1;
-          await loadRealStockUniverse(page, { foreground: false });
-          scheduleStockUniverseChartPreload();
-          if (activeFeature === "stocks") updateStockUniverseProgress();
-        }
-      };
-      try {
-        await Promise.all(Array.from({ length: Math.min(STOCK_UNIVERSE_PREFETCH_CONCURRENCY, pages.length) }, preloadWorker));
-      } finally {
-        stockUniversePrefetching = false;
-      }
-    }
-
-    function scheduleStockUniversePrefetch() {
-      if (!stockUniverseTotal || stockUniversePrefetching) return;
-      const run = () => prefetchRemainingStockUniversePages();
+      if (activeFeature !== "stocks" || !stockApiReady || stockUniverseChartPreloadScheduled) return;
+      stockUniverseChartPreloadScheduled = true;
+      if (stockUniverseChartPreloadRunning) return;
+      const run = () => preloadStockUniverseCharts();
       if (typeof window.requestIdleCallback === "function") {
         window.requestIdleCallback(run, { timeout: 1000 });
       } else {
@@ -4791,7 +4722,7 @@
     async function refreshRealStockQuotes() {
       const symbols = [];
       const seen = new Set();
-      [...stockWatchlist, ...getCurrentStockUniversePageItems(), ...stockUniverse.slice(0, 100)].forEach(stock => {
+      [...stockWatchlist, ...stockUniverse.slice(0, 100)].forEach(stock => {
         const identity = getStockIdentity(stock);
         if (!stock.code || !stock.market || seen.has(identity) || symbols.length >= 100) return;
         seen.add(identity);
@@ -4854,7 +4785,15 @@
       if (!force && stockHistoryLoads.has(loadKey)) return stockHistoryLoads.get(loadKey);
       const request = fetchStockApi(`/v1/stocks/${stock.market}/${stock.code}/history?period=${encodeURIComponent(period)}&range=${encodeURIComponent(range)}`)
         .then(response => {
-          if (!Array.isArray(response.items) || !response.items.length) return false;
+          if (!Array.isArray(response.items) || !response.items.length) {
+            stock.dailyK = [];
+            stock.history = [];
+            stock.historyLoadKey = loadKey;
+            stock.historyLoadEmptyKey = loadKey;
+            stock.historyLoadErrorKey = "";
+            stock.historyLoadErrorMessage = "";
+            return false;
+          }
           stock.dailyK = response.items.map(mergeStockHistory);
           stock.history = stock.dailyK.slice(-18).map(item => ({
             open: item.open,
@@ -4863,9 +4802,14 @@
             close: item.close
           }));
           stock.historyLoadKey = loadKey;
+          stock.historyLoadEmptyKey = "";
+          stock.historyLoadErrorKey = "";
+          stock.historyLoadErrorMessage = "";
           return true;
         })
         .catch(error => {
+          stock.historyLoadErrorKey = loadKey;
+          stock.historyLoadErrorMessage = getStockApiErrorMessage(error);
           if (foreground) {
             stockApiStatus = "error";
             stockApiErrorMessage = getStockApiErrorMessage(error);
@@ -5029,7 +4973,6 @@
         if (activeFeature === "stocks") renderStockPage();
         return;
       }
-      scheduleStockUniversePrefetch();
       if (activeFeature !== "stocks") return;
       await loadRealStockHistory(getActiveDailyStock());
       scheduleStockUniverseChartPreload();
@@ -5403,6 +5346,7 @@
       stockDailyViewportStart = -1;
       const nextStock = getActiveDailyStock();
       renderStockPage();
+      scheduleStockUniverseChartPreload();
       requestAnimationFrame(() => {
         const input = document.getElementById("stockDailySearchInput");
         if (input) {
@@ -5411,8 +5355,8 @@
         }
       });
       if (nextStock) {
-        loadRealStockHistory(nextStock).then(loaded => {
-          if (loaded && activeDailyStockId === nextStock.id) updateStockDailyChart();
+        loadRealStockHistory(nextStock).then(() => {
+          if (activeDailyStockId === nextStock.id) updateStockDailyChart();
         });
       }
     }
@@ -5423,8 +5367,8 @@
       activeDailyStockId = id;
       stockDailyViewportStart = -1;
       updateStockDailyChart();
-      loadRealStockHistory(stock, { force: true }).then(loaded => {
-        if (loaded && activeDailyStockId === id) updateStockDailyChart();
+      loadRealStockHistory(stock).then(() => {
+        if (activeDailyStockId === id) updateStockDailyChart();
       });
     }
 
@@ -5433,8 +5377,8 @@
       activeStockDailyRange = id;
       stockDailyViewportStart = -1;
       updateStockDailyChart();
-      loadRealStockHistory(getActiveDailyStock()).then(loaded => {
-        if (loaded) updateStockDailyChart();
+      loadRealStockHistory(getActiveDailyStock()).then(() => {
+        updateStockDailyChart();
       });
     }
 
@@ -5452,8 +5396,8 @@
       activeStockDailyPeriod = id;
       stockDailyViewportStart = -1;
       updateStockDailyChart();
-      loadRealStockHistory(getActiveDailyStock()).then(loaded => {
-        if (loaded) updateStockDailyChart();
+      loadRealStockHistory(getActiveDailyStock()).then(() => {
+        updateStockDailyChart();
       });
     }
 
@@ -5474,6 +5418,7 @@
       stockDailyListScrollTop = 0;
       const list = document.querySelector(".stock-daily-list");
       if (list) list.innerHTML = renderStockDailyList();
+      scheduleStockUniverseChartPreload();
     }
 
     function handleStockDailyListScroll(list) {
@@ -5483,6 +5428,7 @@
       stockDailyVirtualStart = nextStart;
       list.innerHTML = renderStockDailyList();
       list.scrollTop = stockDailyListScrollTop;
+      scheduleStockUniverseChartPreload();
     }
 
     function createCustomStockStrategy() {
@@ -5533,36 +5479,6 @@
       if (action === "next") stockResultPage += 1;
       stockResultPage = Math.max(1, Math.min(stockResultPage, maxPage));
       renderStockPage();
-    }
-
-    function setStockUniversePage(action) {
-      const maxPage = getStockUniverseMaxPage();
-      let nextPage = Number(action);
-      if (action === "prev") nextPage = activeStockUniversePage - 1;
-      if (action === "next") nextPage = activeStockUniversePage + 1;
-      nextPage = Math.max(1, Math.min(Number(nextPage) || 1, maxPage));
-      if (nextPage === activeStockUniversePage && stockUniversePages.has(nextPage)) return;
-      activeStockUniversePage = nextPage;
-      stockDailyVirtualStart = 0;
-      stockDailyListScrollTop = 0;
-      stockDailyViewportStart = -1;
-      if (stockUniversePages.has(nextPage)) {
-        applyStockUniversePage(nextPage);
-        renderStockPage();
-        loadRealStockHistory(getActiveDailyStock()).then(loaded => {
-          if (loaded && activeFeature === "stocks") updateStockDailyChart();
-        });
-        return;
-      }
-      stockApiStatus = "loading";
-      renderStockPage();
-      loadRealStockUniverse(nextPage).then(loaded => {
-        if (!loaded || activeFeature !== "stocks") return;
-        renderStockPage();
-        loadRealStockHistory(getActiveDailyStock()).then(historyLoaded => {
-          if (historyLoaded && activeFeature === "stocks") updateStockDailyChart();
-        });
-      });
     }
 
     function getStockDetailChartMode() {
@@ -5801,7 +5717,7 @@
     function getDailyFilteredStocks() {
       const tags = activeStockDailyTags.map(getDailyFilterTag).filter(Boolean);
       const keyword = stockDailySearchTerm.trim();
-      const source = stockUniversePages.size ? getCurrentStockUniversePageItems() : stockUniverse;
+      const source = stockUniverse;
       if (!tags.length && !keyword) return source;
       return source.filter(stock => {
         const matchesSearch = !keyword || stockMatchesSearchText(stock, keyword);
@@ -5820,9 +5736,10 @@
       stockDailyViewportStart = -1;
       const nextStock = getActiveDailyStock();
       renderStockPage();
+      scheduleStockUniverseChartPreload();
       if (nextStock) {
-        loadRealStockHistory(nextStock).then(loaded => {
-          if (loaded && activeDailyStockId === nextStock.id) updateStockDailyChart();
+        loadRealStockHistory(nextStock).then(() => {
+          if (activeDailyStockId === nextStock.id) updateStockDailyChart();
         });
       }
     }
@@ -6098,25 +6015,6 @@
       `;
     }
 
-    function renderStockUniversePagination() {
-      const maxPage = getStockUniverseMaxPage();
-      const currentPage = getCurrentStockUniversePage();
-      const total = stockUniverseTotal || stockUniverse.length || getCurrentStockUniversePageItems().length;
-      return `
-        <div class="stock-pagination stock-daily-pagination" data-stock-daily-pagination>
-          <span class="stock-refresh-note">第 ${currentPage}/${maxPage} 页 · 已载入 ${stockUniverse.length}/${total} 只</span>
-          <div class="stock-section-tools">
-            <button class="stock-action" type="button" data-stock-daily-page="prev" ${currentPage <= 1 || stockApiStatus === "loading" ? "disabled" : ""}>上一页</button>
-            <label class="stock-daily-page-control">
-              <span class="stock-refresh-note">跳到</span>
-              <input class="stock-input" data-stock-daily-page-input type="number" min="1" max="${maxPage}" value="${currentPage}" aria-label="股票池页码" />
-            </label>
-            <button class="stock-action" type="button" data-stock-daily-page="next" ${currentPage >= maxPage || stockApiStatus === "loading" ? "disabled" : ""}>下一页</button>
-          </div>
-        </div>
-      `;
-    }
-
     function renderStockDailyRanges() {
       return stockDailyRanges.map(range => `
         <button class="stock-action ${range.id === activeStockDailyRange ? "primary active" : ""}" type="button" data-stock-daily-range="${escapeHTML(range.id)}" aria-pressed="${range.id === activeStockDailyRange}">
@@ -6194,12 +6092,10 @@
     function renderStockDailyView() {
       const stock = getActiveDailyStock();
       const dailyStockCount = getDailyFilteredStocks().length;
-      const currentPageItems = getCurrentStockUniversePageItems();
-      const currentPageLabel = `第 ${getCurrentStockUniversePage()}/${getStockUniverseMaxPage()} 页`;
-      const total = stockUniverseTotal || stockUniverse.length || currentPageItems.length;
+      const total = stockUniverseTotal || stockUniverse.length;
       const dailyStockCountLabel = activeStockDailyTags.length || stockDailySearchTerm
-        ? `${dailyStockCount}/${currentPageItems.length} 只 · ${currentPageLabel}`
-        : `${currentPageLabel} · ${currentPageItems.length}/${total} 只`;
+        ? `${dailyStockCount}/${stockUniverse.length} 只`
+        : `${stockUniverse.length}/${total} 只`;
       if (!stock && stockApiStatus === "loading") {
         return `
           <div class="stock-daily-layout">
@@ -6218,7 +6114,6 @@
                 </select>
               </div>
               <div class="stock-daily-list" data-stock-daily-list aria-label="股票选择列表">${renderStockDailyList()}</div>
-              ${renderStockUniversePagination()}
             </aside>
 
             <section class="stock-card stock-daily-chart-card">
@@ -6245,7 +6140,6 @@
                 </select>
               </div>
               <div class="stock-daily-list" data-stock-daily-list aria-label="股票选择列表">${renderStockDailyList()}</div>
-              ${renderStockUniversePagination()}
             </aside>
 
             <section class="stock-card stock-daily-chart-card">
@@ -6274,7 +6168,6 @@
               </select>
             </div>
             <div class="stock-daily-list" data-stock-daily-list aria-label="股票选择列表">${renderStockDailyList()}</div>
-            ${renderStockUniversePagination()}
           </aside>
 
           <section class="stock-card stock-daily-chart-card">
@@ -7127,6 +7020,17 @@
       canvas._dailyKMeta = null;
     }
 
+    function getStockDailyEmptyMessage(stock) {
+      const loadKey = getStockHistoryLoadKey(stock);
+      if (stock?.historyLoadErrorKey === loadKey) {
+        return stock.historyLoadErrorMessage || "历史K线加载失败";
+      }
+      if (stock?.historyLoadEmptyKey === loadKey) {
+        return "当前行情源未返回历史K线数据";
+      }
+      return "图表加载中";
+    }
+
     function drawStockDailyCanvas() {
       const period = getStockDailyPeriod();
       if (isStockMinutePeriod(period)) {
@@ -7146,7 +7050,7 @@
       const viewport = getStockDailyViewport(fullData);
       const data = fullData.slice(viewport.start, viewport.end);
       if (!data.length) {
-        drawStockDailyEmptyState(canvas, "图表加载中");
+        drawStockDailyEmptyState(canvas, getStockDailyEmptyMessage(stock));
         return;
       }
 
@@ -7257,7 +7161,7 @@
       const viewport = getStockDailyViewport(fullData);
       const data = fullData.slice(viewport.start, viewport.end);
       if (!data.length) {
-        drawStockDailyEmptyState(canvas, "图表加载中");
+        drawStockDailyEmptyState(canvas, getStockDailyEmptyMessage(stock));
         return;
       }
 
@@ -7653,12 +7557,6 @@
       const pageButton = event.target.closest("[data-stock-page]");
       if (pageButton && !pageButton.disabled) {
         setStockResultPage(pageButton.dataset.stockPage);
-        return;
-      }
-
-      const dailyPageButton = event.target.closest("[data-stock-daily-page]");
-      if (dailyPageButton && !dailyPageButton.disabled) {
-        setStockUniversePage(dailyPageButton.dataset.stockDailyPage);
         return;
       }
 
@@ -9008,11 +8906,6 @@
       const dailySort = event.target.closest("[data-stock-daily-sort]");
       if (dailySort) {
         setStockDailySort(dailySort.value);
-        return;
-      }
-      const dailyPageInput = event.target.closest("[data-stock-daily-page-input]");
-      if (dailyPageInput) {
-        setStockUniversePage(dailyPageInput.value);
         return;
       }
       if (!event.target.closest("[data-stock-filter]")) return;

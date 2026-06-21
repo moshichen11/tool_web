@@ -175,6 +175,53 @@ test("eastmoney provider fetches the requested stock universe page directly", as
   assert.equal(listCalls[0].parsed.searchParams.get("pz"), "100");
 });
 
+test("eastmoney provider searches the full stock universe for BJ codes outside the seed catalog", async () => {
+  const { createEastmoneyProvider } = await import("../server/eastmoney-provider.js");
+  const fetchImpl = createFakeEastmoneyFetch({
+    universeRows: [
+      {
+        f2: 656,
+        f3: 0.61,
+        f4: 4,
+        f5: 1000,
+        f6: 10000,
+        f9: 18,
+        f12: "920639",
+        f13: 0,
+        f14: "晨光电缆",
+        f23: 1.5,
+        f100: "电力设备",
+      },
+      {
+        f2: 129020,
+        f3: -1.59,
+        f4: -2080,
+        f5: 49157,
+        f6: 6372389482,
+        f9: 24,
+        f12: "600519",
+        f13: 1,
+        f14: "贵州茅台",
+        f23: 8,
+        f100: "白酒",
+      },
+    ],
+  });
+  const provider = createEastmoneyProvider({ fetchImpl });
+
+  const search = await provider.searchStocks({ q: "920639", market: "BJ", limit: 5 });
+  const spacedSearch = await provider.searchStocks({ q: "BJ 920639", limit: 5 });
+  const listCalls = fetchImpl.calls.filter(call => call.parsed.pathname.includes("/api/qt/clist/get"));
+
+  assert.equal(search.items.length, 1);
+  assert.equal(search.items[0].id, "BJ:920639");
+  assert.equal(search.items[0].name, "晨光电缆");
+  assert.equal(search.items[0].source, "eastmoney");
+  assert.equal(spacedSearch.items.length, 1);
+  assert.equal(spacedSearch.items[0].id, "BJ:920639");
+  assert.equal(listCalls.length, 2);
+});
+
 test("eastmoney provider marks ST names in stock universe summaries", async () => {
   const { createEastmoneyProvider } = await import("../server/eastmoney-provider.js");
   const fetchImpl = createFakeEastmoneyFetch({
