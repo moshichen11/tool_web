@@ -42,14 +42,24 @@ function extractFunction(name) {
 
 function loadStockConditionMatcher() {
   return new Function(`
+    ${extractFunction("getStockDailyK")}
     ${extractFunction("getStockExchange")}
     ${extractFunction("getStockBoardCategory")}
     ${extractFunction("getStockBoardType")}
     ${extractFunction("getStockStatus")}
     ${extractFunction("getStockTrend")}
+    ${extractFunction("getStockKLineSeries")}
+    ${extractFunction("getStockMaValue")}
+    ${extractFunction("getStockVolumeRatio")}
+    ${extractFunction("getStockLimitThreshold")}
+    ${extractFunction("isStockLimitUpBar")}
+    ${extractFunction("isStockOneLineLimitUpBar")}
+    ${extractFunction("getStockConsecutiveLimitCount")}
+    ${extractFunction("getStockTechnicalSignals")}
+    ${extractFunction("stockMatchesTechnicalPattern")}
     ${extractFunction("getStockConditionNumber")}
     ${extractFunction("stockMatchesConditions")}
-    return { stockMatchesConditions };
+    return { stockMatchesConditions, getStockTechnicalSignals };
   `)();
 }
 
@@ -120,15 +130,29 @@ function loadStockFilterApplier() {
       maxPb: "",
       minRoe: "",
       maxRoe: "",
+      technicalPattern: "all",
+      minVolumeRatio: "",
+      maxVolumeRatio: "",
+      maPosition: "all",
       industry: "all",
       metric: "all",
       logic: "and"
     };
+    ${extractFunction("getStockDailyK")}
     ${extractFunction("getStockExchange")}
     ${extractFunction("getStockBoardCategory")}
     ${extractFunction("getStockBoardType")}
     ${extractFunction("getStockStatus")}
     ${extractFunction("getStockTrend")}
+    ${extractFunction("getStockKLineSeries")}
+    ${extractFunction("getStockMaValue")}
+    ${extractFunction("getStockVolumeRatio")}
+    ${extractFunction("getStockLimitThreshold")}
+    ${extractFunction("isStockLimitUpBar")}
+    ${extractFunction("isStockOneLineLimitUpBar")}
+    ${extractFunction("getStockConsecutiveLimitCount")}
+    ${extractFunction("getStockTechnicalSignals")}
+    ${extractFunction("stockMatchesTechnicalPattern")}
     ${extractFunction("getCombinedStockConditions")}
     ${extractFunction("hasStockConditions")}
     ${extractFunction("getStockConditionNumber")}
@@ -192,6 +216,7 @@ function loadStockHistoryLoader(fetchItems = []) {
     let stockApiReady = true;
     let stockApiStatus = "live";
     let stockApiErrorMessage = "";
+    let fetchCalls = 0;
     let activeStockDailyPeriod = "day";
     let activeStockDailyRange = "60";
     const stockHistoryLoads = new Map();
@@ -202,6 +227,7 @@ function loadStockHistoryLoader(fetchItems = []) {
       { id: "60", label: "60日", days: 60 }
     ];
     async function fetchStockApi() {
+      fetchCalls += 1;
       return { items: fetchItems, source: "xueqiu", updatedAt: "2026-06-09T02:44:47.566Z" };
     }
     function getStockApiErrorMessage(error) {
@@ -220,7 +246,7 @@ function loadStockHistoryLoader(fetchItems = []) {
       loadRealStockHistory,
       getStockDailyEmptyMessage,
       getStockHistoryLoadKey,
-      state() { return { stockApiStatus, stockApiErrorMessage }; },
+      state() { return { stockApiStatus, stockApiErrorMessage, fetchCalls }; },
     };
   `)(fetchItems);
 }
@@ -256,6 +282,7 @@ test("stocks tab is visible through the shared desktop and mobile feature lists"
 test("stocks page defaults to the minute/K chart and omits the market dashboard module", () => {
   assert.match(html, /function renderStockPage\(\)\s*\{/);
   assert.match(html, /let activeStockView = "daily"/);
+  assert.match(html, /const STOCK_DAILY_FAST_MODE = true;/);
   assert.match(html, /class="stock-page"/);
   assert.match(html, /class="stock-search-form"/);
   assert.match(html, /id="stockSearchInput"/);
@@ -264,7 +291,7 @@ test("stocks page defaults to the minute/K chart and omits the market dashboard 
   assert.match(html, /class="stock-mobile-tabs"/);
   const stockViewsBlock = extractBlock(
     /const stockViews = \[/,
-    /\n    \];\n    const stockDailyRanges/
+    /\n\s+\];\n\s+const STOCK_DAILY_FAST_MODE/
   );
   assert.match(stockViewsBlock, /id: "daily"/);
   assert.match(html, /id: "watchlist"/);
@@ -421,7 +448,9 @@ test("stock daily list uses the unified loaded universe instead of paged univers
 });
 
 test("stock universe background preload prepares chart history from the unified universe", () => {
-  assert.match(html, /const STOCK_UNIVERSE_CHART_PREFETCH_LIMIT = 30/);
+  assert.match(html, /const STOCK_UNIVERSE_CHART_PRELOAD_PAGE_SIZE = STOCK_DAILY_VIRTUAL_COUNT/);
+  assert.match(html, /const STOCK_UNIVERSE_CHART_PRELOAD_PAGE_RADIUS = 5/);
+  assert.match(html, /const STOCK_UNIVERSE_CHART_PRELOAD_LIMIT = STOCK_UNIVERSE_CHART_PRELOAD_PAGE_SIZE \* \(STOCK_UNIVERSE_CHART_PRELOAD_PAGE_RADIUS \* 2 \+ 1\) \+ 1/);
   assert.match(html, /const stockHistoryLoads = new Map\(\)/);
   assert.match(html, /let stockUniverseChartPreloadRunning = false/);
   assert.match(html, /function getStockHistoryLoadKey\(stock\)/);
@@ -453,13 +482,17 @@ test("stock universe chart preload prioritizes the active and visible daily stoc
   assert.match(candidatesBlock, /addStock\(getActiveDailyStock\(\)\)/);
   assert.match(candidatesBlock, /const sortedStocks = getSortedDailyStocks\(\)/);
   assert.match(candidatesBlock, /stockDailyVirtualStart/);
-  assert.match(candidatesBlock, /STOCK_DAILY_VIRTUAL_COUNT/);
-  assert.match(candidatesBlock, /STOCK_DAILY_VIRTUAL_BUFFER/);
-  assert.match(candidatesBlock, /STOCK_UNIVERSE_CHART_PREFETCH_LIMIT/);
+  assert.match(candidatesBlock, /const currentPage = Math\.max\(0, Math\.min\(maxPage, Math\.floor\(start \/ pageSize\)\)\)/);
+  assert.match(candidatesBlock, /const pageOffsets = \[0\]/);
+  assert.match(candidatesBlock, /offset <= STOCK_UNIVERSE_CHART_PRELOAD_PAGE_RADIUS/);
+  assert.match(candidatesBlock, /pageOffsets\.push\(-offset, offset\)/);
+  assert.match(candidatesBlock, /const pageStart = pageIndex \* pageSize/);
+  assert.match(candidatesBlock, /sortedStocks\.slice\(pageStart, pageEnd\)\.forEach\(addStock\)/);
+  assert.match(candidatesBlock, /return candidates\.slice\(0, STOCK_UNIVERSE_CHART_PRELOAD_LIMIT\)/);
   assert.doesNotMatch(candidatesBlock, /sortedStocks\.forEach\(addStock\)/);
 });
 
-test("stock daily list changes reschedule chart preload for newly visible rows", () => {
+test("stock daily list changes do not schedule chart preload in fast daily mode", () => {
   const searchBlock = extractBlock(
     /function setStockDailySearch\(value\) \{/,
     /\n    \}\n\n    function setActiveDailyStock/
@@ -478,8 +511,8 @@ test("stock daily list changes reschedule chart preload for newly visible rows",
   );
 
   assert.match(searchBlock, /scheduleStockUniverseChartPreload\(\)/);
-  assert.match(filterBlock, /scheduleStockUniverseChartPreload\(\)/);
-  assert.match(sortBlock, /scheduleStockUniverseChartPreload\(\)/);
+  assert.doesNotMatch(filterBlock, /scheduleStockUniverseChartPreload\(\)/);
+  assert.doesNotMatch(sortBlock, /scheduleStockUniverseChartPreload\(\)/);
   assert.match(scrollBlock, /scheduleStockUniverseChartPreload\(\)/);
 });
 
@@ -603,6 +636,24 @@ test("stock daily chart marks an empty history response instead of staying in lo
   assert.equal(stock.historyLoadEmptyKey, "SZ000535:day:60d");
   assert.deepEqual(stock.dailyK, []);
   assert.deepEqual(stock.history, []);
+  assert.equal(module.getStockDailyEmptyMessage(stock), "当前行情源未返回历史K线数据");
+});
+
+test("stock daily chart does not repeatedly request a known empty history response", async () => {
+  const module = loadStockHistoryLoader([]);
+  const stock = {
+    market: "SH",
+    code: "600669",
+    dailyK: [{ date: "2024-01-18", open: 0.38, high: 0.38, low: 0.38, close: 0.38, volume: 0 }],
+    history: [{ open: 0.38, high: 0.38, low: 0.38, close: 0.38 }],
+  };
+
+  const firstLoaded = await module.loadRealStockHistory(stock);
+  const secondLoaded = await module.loadRealStockHistory(stock);
+
+  assert.equal(firstLoaded, false);
+  assert.equal(secondLoaded, false);
+  assert.equal(module.state().fetchCalls, 1);
   assert.equal(module.getStockDailyEmptyMessage(stock), "当前行情源未返回历史K线数据");
 });
 
@@ -778,6 +829,16 @@ test("stock filter workspace is a vertical screener without market cards", () =>
 test("stock filter tags, guru strategies, sorting, and pagination are wired", () => {
   const requiredFunctions = [
     "getStockTrend",
+    "getStockKLineSeries",
+    "getStockMaValue",
+    "getStockVolumeRatio",
+    "getStockLimitThreshold",
+    "isStockLimitUpBar",
+    "isStockOneLineLimitUpBar",
+    "getStockConsecutiveLimitCount",
+    "getStockTechnicalSignals",
+    "stockMatchesTechnicalPattern",
+    "getStockTechnicalSignalLabel",
     "getStockExchange",
     "getStockBoardType",
     "getStockStatus",
@@ -817,15 +878,21 @@ test("stock filter tags, guru strategies, sorting, and pagination are wired", ()
   assert.match(html, /15日趋势上行/);
   assert.match(html, /15日趋势下降/);
   assert.match(html, /30日趋势下降/);
-  assert.match(html, /高ROE 2/);
-  assert.match(html, /低市盈率 2/);
+  assert.match(html, /放量活跃/);
+  assert.match(html, /5日线之上/);
   assert.match(html, /data-stock-filter="minPb"/);
   assert.match(html, /data-stock-filter="maxPb"/);
+  assert.match(html, /data-stock-filter="technicalPattern"/);
+  assert.match(html, /data-stock-filter="minVolumeRatio"/);
+  assert.match(html, /data-stock-filter="maPosition"/);
   assert.match(html, /const defaultStockStrategies = \[/);
-  assert.match(html, /退学炒股/);
-  assert.match(html, /XX游资精选/);
-  assert.match(html, /巴菲特精选/);
-  assert.match(html, /彼得林奇/);
+  assert.match(html, /首板打板/);
+  assert.match(html, /一字板排板/);
+  assert.match(html, /反包板/);
+  assert.match(html, /超跌首板/);
+  assert.match(html, /主升浪放量/);
+  assert.match(html, /游资短线模式/);
+  assert.match(html, /短线信号/);
   assert.match(html, /let activeStockTags = \[\]/);
   assert.match(html, /activeStockTags\.includes\(tag\.id\)/);
   assert.match(html, /data-stock-tag="\$\{escapeHTML\(tag\.id\)\}"/);
@@ -1040,6 +1107,75 @@ test("stock condition matcher ignores omitted numeric fields for daily tag filte
   assert.equal(stockMatchesConditions({ ...mainBoardStock, name: "*ST艾艾", status: "normal" }, { status: "非ST", logic: "and" }), false);
   assert.equal(stockMatchesConditions({ ...mainBoardStock, market: "SH" }, { exchange: "深交所", logic: "and" }), false);
   assert.equal(stockMatchesConditions({ ...mainBoardStock, market: "SZ" }, { exchange: "深交所", logic: "and" }), true);
+});
+
+test("stock condition matcher supports hot-money short-term technical patterns", () => {
+  const { stockMatchesConditions, getStockTechnicalSignals } = loadStockConditionMatcher();
+  const firstBoardStock = {
+    id: "SH600001",
+    market: "SH",
+    code: "600001",
+    name: "短线首板",
+    boardType: "main",
+    status: "normal",
+    price: 11.44,
+    changePercent: 10,
+    volume: 420000,
+    pe: 18,
+    pb: 2,
+    roe: 9,
+    dailyK: [
+      { open: 10, high: 10.2, low: 9.8, close: 10, volume: 100000 },
+      { open: 10, high: 10.3, low: 9.9, close: 10.1, volume: 110000 },
+      { open: 10.1, high: 10.35, low: 10, close: 10.2, volume: 120000 },
+      { open: 10.2, high: 10.5, low: 10.1, close: 10.35, volume: 130000 },
+      { open: 10.35, high: 10.5, low: 10.2, close: 10.4, volume: 140000 },
+      { open: 10.4, high: 11.44, low: 10.3, close: 11.44, volume: 420000 },
+    ],
+  };
+
+  const firstBoardSignals = getStockTechnicalSignals(firstBoardStock);
+  assert.equal(firstBoardSignals.limitUp, true);
+  assert.equal(firstBoardSignals.firstBoard, true);
+  assert.equal(firstBoardSignals.aboveMa5, true);
+  assert.ok(firstBoardSignals.volumeRatio >= 3);
+  assert.equal(
+    stockMatchesConditions(firstBoardStock, {
+      technicalPattern: "first-board",
+      minVolumeRatio: "2",
+      maPosition: "above-ma5",
+      logic: "and",
+    }),
+    true,
+  );
+  assert.equal(stockMatchesConditions(firstBoardStock, { technicalPattern: "one-line-board", logic: "and" }), false);
+
+  const reversalStock = {
+    ...firstBoardStock,
+    name: "反包测试",
+    changePercent: 10,
+    dailyK: [
+      { open: 10, high: 10.2, low: 9.8, close: 10, volume: 100000 },
+      { open: 10, high: 11, low: 9.9, close: 11, volume: 260000 },
+      { open: 10.9, high: 11.05, low: 10.1, close: 10.3, volume: 150000 },
+      { open: 10.35, high: 11.33, low: 10.3, close: 11.33, volume: 360000 },
+    ],
+  };
+  assert.equal(stockMatchesConditions(reversalStock, { technicalPattern: "reversal-board", logic: "and" }), true);
+
+  const thirdOneLineStock = {
+    ...firstBoardStock,
+    name: "三板一字",
+    changePercent: 10,
+    dailyK: [
+      { open: 10, high: 10, low: 10, close: 10, volume: 90000 },
+      { open: 11, high: 11, low: 11, close: 11, volume: 100000 },
+      { open: 12.1, high: 12.1, low: 12.1, close: 12.1, volume: 105000 },
+      { open: 13.31, high: 13.31, low: 13.31, close: 13.31, volume: 98000 },
+    ],
+  };
+  assert.equal(stockMatchesConditions(thirdOneLineStock, { technicalPattern: "third-one-line-board", logic: "and" }), true);
+  assert.equal(stockMatchesConditions(thirdOneLineStock, { technicalPattern: "first-board", logic: "and" }), false);
 });
 
 test("stock daily technical chart exposes quote metrics, MA, volume, MACD, periods and scrolling", () => {

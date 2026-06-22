@@ -3668,26 +3668,29 @@
     const STOCK_DEFAULT_API_BASE_URL = "https://tool-web-stock-api.onrender.com";
     const STOCK_LOCAL_API_BASE_URL = "http://127.0.0.1:8787";
     const STOCK_UNIVERSE_LOAD_LIMIT = 6000;
-    const STOCK_UNIVERSE_CHART_PREFETCH_LIMIT = 30;
     const defaultStockWatchCodes = ["600519", "300750", "000001", "601318"];
     const STOCK_FILTER_PAGE_SIZE = 8;
     const STOCK_DAILY_ROW_HEIGHT = 56;
     const STOCK_DAILY_VIRTUAL_BUFFER = 6;
     const STOCK_DAILY_VIRTUAL_COUNT = 18;
+    const STOCK_UNIVERSE_CHART_PRELOAD_PAGE_SIZE = STOCK_DAILY_VIRTUAL_COUNT;
+    const STOCK_UNIVERSE_CHART_PRELOAD_PAGE_RADIUS = 5;
+    const STOCK_UNIVERSE_CHART_PRELOAD_LIMIT = STOCK_UNIVERSE_CHART_PRELOAD_PAGE_SIZE * (STOCK_UNIVERSE_CHART_PRELOAD_PAGE_RADIUS * 2 + 1) + 1;
     const stockViews = [
       { id: "daily", icon: "📈", name: "股票分时/日K图", desc: "分时、K线与盘口分布" },
       { id: "watchlist", icon: "⭐", name: "自选股", desc: "添加、排序、刷新自选" },
       { id: "filter", icon: "⚗️", name: "条件选股", desc: "多条件筛选自选股" }
     ];
-    const stockDailyRanges = [
-      { id: "15", label: "15日", days: 15 },
-      { id: "30", label: "30日", days: 30 },
-      { id: "60", label: "60日", days: 60 },
-      { id: "half", label: "半年", days: 120 },
-      { id: "1y", label: "1年", days: 250 },
-      { id: "2y", label: "2年", days: 500 }
-    ];
-    const stockDailyPeriods = [
+      const stockDailyRanges = [
+        { id: "15", label: "15日", days: 15 },
+        { id: "30", label: "30日", days: 30 },
+        { id: "60", label: "60日", days: 60 },
+        { id: "half", label: "半年", days: 120 },
+        { id: "1y", label: "1年", days: 250 },
+        { id: "2y", label: "2年", days: 500 }
+      ];
+      const STOCK_DAILY_FAST_MODE = true;
+      const stockDailyPeriods = [
       { id: "minute", label: "分时", mode: "minute", days: 1, visibleCount: 242 },
       { id: "three", label: "3日", mode: "minute", days: 3, visibleCount: 242 },
       { id: "five", label: "5日", mode: "minute", days: 5, visibleCount: 242 },
@@ -3712,6 +3715,10 @@
       { id: "trend-down-15", name: "15日趋势下降", desc: "收盘价相对 15 日前走低", conditions: { trend: "down" } },
       { id: "trend-up-30", name: "30日趋势上行", desc: "近 30 日趋势转强", conditions: { trend: "up", trendDays: "30" } },
       { id: "trend-down-30", name: "30日趋势下降", desc: "近 30 日趋势转弱", conditions: { trend: "down", trendDays: "30" } },
+      { id: "above-ma5", name: "5日线之上", desc: "收盘价站上 MA5", conditions: { maPosition: "above-ma5" } },
+      { id: "volume-expansion", name: "放量活跃", desc: "量比不低于 1.5", conditions: { minVolumeRatio: "1.5" } },
+      { id: "first-board", name: "首板", desc: "当日涨停且前一日未涨停", conditions: { technicalPattern: "first-board" } },
+      { id: "reversal-board", name: "反包板", desc: "调整后涨停反包前高", conditions: { technicalPattern: "reversal-board" } },
       { id: "high-roe-2", name: "高ROE 2", desc: "ROE 不低于 15%", conditions: { minRoe: "15" } },
       { id: "low-pe-2", name: "低市盈率 2", desc: "PE 低于 20", conditions: { maxPe: "20" } },
       { id: "volume-active", name: "成交活跃", desc: "成交量高于 12 万", conditions: { minVolume: "120000" } },
@@ -3726,10 +3733,12 @@
       { id: "exchange-sz", name: "深交所", desc: "仅深交所", conditions: { exchange: "深交所" } }
     ];
     const defaultStockStrategies = [
-      { id: "dropout-trader", name: "退学炒股", desc: "短期趋势上行，成交量放大", conditions: { trend: "up", minVolume: "120000", minChange: "0" }, builtin: true },
-      { id: "hot-money", name: "XX游资精选", desc: "趋势走强、量能活跃、涨幅靠前", conditions: { trend: "up", minVolume: "150000", minChange: "1" }, builtin: true },
-      { id: "buffett", name: "巴菲特精选", desc: "高ROE，高市盈率低估值", conditions: { metric: "high-roe", maxPe: "30", minRoe: "15" }, builtin: true },
-      { id: "lynch", name: "彼得林奇", desc: "短期趋势上升，成交量放大", conditions: { trend: "up", minVolume: "90000" }, builtin: true }
+      { id: "hot-first-board", name: "首板打板", desc: "首板涨停、放量、站上 MA5", conditions: { technicalPattern: "first-board", minVolumeRatio: "1.5", maPosition: "above-ma5" }, builtin: true },
+      { id: "one-line-board", name: "一字板排板", desc: "一字涨停或连续一字第三板", conditions: { technicalPattern: "one-line-board" }, builtin: true },
+      { id: "reversal-board", name: "反包板", desc: "调整后涨停反包前高，偏强分歧回流", conditions: { technicalPattern: "reversal-board", minVolumeRatio: "1.2" }, builtin: true },
+      { id: "oversold-first-board", name: "超跌首板", desc: "短期下跌后首板涨停，适合观察情绪修复", conditions: { technicalPattern: "oversold-first-board" }, builtin: true },
+      { id: "trend-volume", name: "主升浪放量", desc: "5日线上、趋势上行、量能放大", conditions: { technicalPattern: "trend-volume", maPosition: "above-ma5", minVolumeRatio: "1.3", trend: "up", trendDays: "5" }, builtin: true },
+      { id: "third-one-line", name: "三板一字", desc: "连续一字第三板，强调排板节奏", conditions: { technicalPattern: "third-one-line-board" }, builtin: true }
     ];
 
     const marketIndices = [];
@@ -3974,6 +3983,10 @@
       maxPb: "",
       minRoe: "",
       maxRoe: "",
+      technicalPattern: "all",
+      minVolumeRatio: "",
+      maxVolumeRatio: "",
+      maPosition: "all",
       industry: "all",
       metric: "all",
       logic: "and"
@@ -4642,7 +4655,6 @@
         storeStockUniverse(response);
         stockApiReady = true;
         stockApiStatus = "live";
-        if (foreground) await refreshRealStockQuotes();
         if (stockUniverse.length) {
           stockApiReady = true;
           stockApiStatus = "live";
@@ -4666,7 +4678,7 @@
       const candidates = [];
       const seen = new Set();
       const addStock = stock => {
-        if (!stock || candidates.length >= STOCK_UNIVERSE_CHART_PREFETCH_LIMIT) return;
+        if (!stock || candidates.length >= STOCK_UNIVERSE_CHART_PRELOAD_LIMIT) return;
         const identity = getStockIdentity(stock);
         if (seen.has(identity)) return;
         seen.add(identity);
@@ -4675,13 +4687,24 @@
 
       addStock(getActiveDailyStock());
       const sortedStocks = getSortedDailyStocks();
+      const pageSize = Math.max(1, STOCK_UNIVERSE_CHART_PRELOAD_PAGE_SIZE);
+      const maxPage = Math.max(0, Math.ceil(sortedStocks.length / pageSize) - 1);
       const maxStart = Math.max(0, sortedStocks.length - STOCK_DAILY_VIRTUAL_COUNT);
       const start = Math.max(0, Math.min(maxStart, stockDailyVirtualStart));
-      const windowStart = Math.max(0, start - STOCK_DAILY_VIRTUAL_BUFFER);
-      const windowEnd = Math.min(sortedStocks.length, start + STOCK_DAILY_VIRTUAL_COUNT + STOCK_DAILY_VIRTUAL_BUFFER);
-      sortedStocks.slice(windowStart, windowEnd).forEach(addStock);
+      const currentPage = Math.max(0, Math.min(maxPage, Math.floor(start / pageSize)));
+      const pageOffsets = [0];
+      for (let offset = 1; offset <= STOCK_UNIVERSE_CHART_PRELOAD_PAGE_RADIUS; offset += 1) {
+        pageOffsets.push(-offset, offset);
+      }
+      pageOffsets.forEach(offset => {
+        const pageIndex = currentPage + offset;
+        if (pageIndex < 0 || pageIndex > maxPage) return;
+        const pageStart = pageIndex * pageSize;
+        const pageEnd = Math.min(sortedStocks.length, pageStart + pageSize);
+        sortedStocks.slice(pageStart, pageEnd).forEach(addStock);
+      });
 
-      return candidates;
+      return candidates.slice(0, STOCK_UNIVERSE_CHART_PRELOAD_LIMIT);
     }
 
     async function preloadStockUniverseCharts() {
@@ -4720,6 +4743,7 @@
     }
 
     async function refreshRealStockQuotes() {
+      if (STOCK_DAILY_FAST_MODE) return false;
       const symbols = [];
       const seen = new Set();
       [...stockWatchlist, ...stockUniverse.slice(0, 100)].forEach(stock => {
@@ -4782,6 +4806,8 @@
       const range = getStockHistoryRangeParam();
       const loadKey = getStockHistoryLoadKey(stock);
       if (!force && stock.historyLoadKey === loadKey && getStockDailyK(stock).length) return true;
+      if (!force && stock.historyLoadEmptyKey === loadKey) return false;
+      if (!force && !foreground && stock.historyLoadErrorKey === loadKey) return false;
       if (!force && stockHistoryLoads.has(loadKey)) return stockHistoryLoads.get(loadKey);
       const request = fetchStockApi(`/v1/stocks/${stock.market}/${stock.code}/history?period=${encodeURIComponent(period)}&range=${encodeURIComponent(range)}`)
         .then(response => {
@@ -4962,6 +4988,7 @@
     }
 
     function scheduleStockRefresh() {
+      if (STOCK_DAILY_FAST_MODE) return;
       if (activeFeature !== "stocks") return;
       refreshStockPrices();
       stockRefreshTimer = setTimeout(scheduleStockRefresh, getStockRefreshDelay());
@@ -4975,10 +5002,10 @@
       }
       if (activeFeature !== "stocks") return;
       await loadRealStockHistory(getActiveDailyStock());
-      scheduleStockUniverseChartPreload();
       renderStockSideList();
       renderStockPage();
       updateStockDynamicData();
+      scheduleStockUniverseChartPreload();
     }
 
     function getStockChangeClass(value) {
@@ -5152,13 +5179,139 @@
     }
 
     function getStockTrend(stock, days = 15) {
-      const history = stock.history || [];
+      const history = getStockKLineSeries(stock);
       if (history.length < 2) return "flat";
       const end = history[history.length - 1]?.close || stock.price;
       const start = history[Math.max(0, history.length - days)]?.close || end;
       if (end > start * 1.01) return "up";
       if (end < start * 0.99) return "down";
       return "flat";
+    }
+
+    function getStockKLineSeries(stock) {
+      const dailyK = getStockDailyK(stock).filter(item => Number(item?.close) > 0);
+      if (dailyK.length) return dailyK;
+      return (Array.isArray(stock?.history) ? stock.history : []).filter(item => Number(item?.close) > 0);
+    }
+
+    function getStockMaValue(stock, days = 5, offset = 0) {
+      const series = getStockKLineSeries(stock);
+      const length = Number(days) || 5;
+      const end = series.length - Math.max(0, Number(offset) || 0);
+      if (end <= 0) return 0;
+      const items = series.slice(Math.max(0, end - length), end);
+      if (!items.length) return 0;
+      return items.reduce((sum, item) => sum + (Number(item.close) || 0), 0) / items.length;
+    }
+
+    function getStockVolumeRatio(stock, days = 5) {
+      const series = getStockKLineSeries(stock);
+      if (series.length < 2) return 0;
+      const latest = series[series.length - 1];
+      const latestVolume = Number(latest.volume || stock.volume || 0);
+      const previous = series.slice(Math.max(0, series.length - 1 - (Number(days) || 5)), series.length - 1)
+        .map(item => Number(item.volume) || 0)
+        .filter(value => value > 0);
+      if (!latestVolume || !previous.length) return 0;
+      const average = previous.reduce((sum, value) => sum + value, 0) / previous.length;
+      return average > 0 ? latestVolume / average : 0;
+    }
+
+    function getStockLimitThreshold(stock) {
+      const status = getStockStatus(stock);
+      if (status === "ST" || status === "退市风险") return 4.5;
+      const board = getStockBoardCategory(stock);
+      if (board === "北交所") return 29;
+      if (board === "科创板" || board === "创业板") return 19;
+      return 9;
+    }
+
+    function isStockLimitUpBar(stock, bar, previous) {
+      if (!bar) return false;
+      const close = Number(bar.close) || 0;
+      const high = Number(bar.high || bar.close) || 0;
+      const previousClose = Number(previous?.close) || 0;
+      const series = getStockKLineSeries(stock);
+      const fallbackChange = bar === series[series.length - 1] ? Number(stock.changePercent) || 0 : 0;
+      const change = previousClose > 0 ? ((close - previousClose) / previousClose) * 100 : fallbackChange;
+      return close > 0 && high > 0 && close >= high * 0.995 && change >= getStockLimitThreshold(stock);
+    }
+
+    function isStockOneLineLimitUpBar(stock, bar, previous) {
+      if (!isStockLimitUpBar(stock, bar, previous)) return false;
+      const open = Number(bar.open) || 0;
+      const high = Number(bar.high || bar.close) || 0;
+      const low = Number(bar.low || bar.close) || 0;
+      const close = Number(bar.close) || 0;
+      if (!open || !high || !low || !close) return false;
+      const spread = Math.max(open, high, low, close) - Math.min(open, high, low, close);
+      return spread <= close * 0.003;
+    }
+
+    function getStockConsecutiveLimitCount(stock) {
+      const series = getStockKLineSeries(stock);
+      let count = 0;
+      for (let index = series.length - 1; index > 0; index -= 1) {
+        if (!isStockLimitUpBar(stock, series[index], series[index - 1])) break;
+        count += 1;
+      }
+      return count;
+    }
+
+    function getStockTechnicalSignals(stock) {
+      const series = getStockKLineSeries(stock);
+      const latest = series[series.length - 1];
+      const previous = series[series.length - 2];
+      const latestClose = Number(latest?.close || stock.price || 0);
+      const previousClose = Number(previous?.close || 0);
+      const ma5 = getStockMaValue(stock, 5);
+      const previousMa5 = getStockMaValue(stock, 5, 1);
+      const volumeRatio = getStockVolumeRatio(stock, 5);
+      const limitUp = isStockLimitUpBar(stock, latest, previous);
+      const previousLimitUp = isStockLimitUpBar(stock, previous, series[series.length - 3]);
+      const firstBoard = limitUp && !previousLimitUp;
+      const oneLineBoard = isStockOneLineLimitUpBar(stock, latest, previous);
+      const consecutiveLimitCount = getStockConsecutiveLimitCount(stock);
+      const recentHigh = series.slice(Math.max(0, series.length - 6), Math.max(0, series.length - 1))
+        .reduce((max, item) => Math.max(max, Number(item.high || item.close) || 0), 0);
+      const hadRecentLimit = series.slice(Math.max(0, series.length - 6), Math.max(0, series.length - 1))
+        .some((item, index, items) => {
+          const realIndex = series.length - 6 + index;
+          const previousItem = series[Math.max(0, realIndex - 1)] || items[index - 1];
+          return isStockLimitUpBar(stock, item, previousItem);
+        });
+      const startClose = Number(series[Math.max(0, series.length - 6)]?.close) || previousClose || latestClose;
+      const previousSwing = startClose > 0 && previousClose > 0 ? ((previousClose - startClose) / startClose) * 100 : 0;
+      return {
+        ma5,
+        previousMa5,
+        volumeRatio,
+        aboveMa5: Boolean(ma5 && latestClose >= ma5),
+        belowMa5: Boolean(ma5 && latestClose < ma5),
+        limitUp,
+        previousLimitUp,
+        firstBoard,
+        oneLineBoard,
+        consecutiveLimitCount,
+        thirdOneLineBoard: consecutiveLimitCount >= 3 && oneLineBoard,
+        reversalBoard: Boolean(limitUp && !previousLimitUp && hadRecentLimit && recentHigh > 0 && latestClose >= recentHigh * 0.995),
+        oversoldFirstBoard: Boolean(firstBoard && previousSwing <= -8),
+        trendVolume: Boolean(ma5 && previousMa5 && latestClose >= ma5 && ma5 >= previousMa5 && volumeRatio >= 1.3),
+      };
+    }
+
+    function stockMatchesTechnicalPattern(stock, pattern) {
+      const value = String(pattern || "all");
+      if (!value || value === "all") return true;
+      const signals = getStockTechnicalSignals(stock);
+      if (value === "limit-up") return signals.limitUp;
+      if (value === "first-board") return signals.firstBoard;
+      if (value === "one-line-board") return signals.oneLineBoard;
+      if (value === "third-one-line-board") return signals.thirdOneLineBoard;
+      if (value === "reversal-board") return signals.reversalBoard;
+      if (value === "oversold-first-board") return signals.oversoldFirstBoard;
+      if (value === "trend-volume") return signals.trendVolume;
+      return true;
     }
 
     function getCombinedStockConditions() {
@@ -5181,10 +5334,14 @@
         "maxPb",
         "minRoe",
         "maxRoe",
-        "trend"
+        "trend",
+        "minVolumeRatio",
+        "maxVolumeRatio"
       ].some(key => conditions[key] !== undefined && conditions[key] !== "") ||
         (conditions.industry && conditions.industry !== "all") ||
         (conditions.metric && conditions.metric !== "all") ||
+        (conditions.technicalPattern && conditions.technicalPattern !== "all") ||
+        (conditions.maPosition && conditions.maPosition !== "all") ||
         Boolean(conditions.exchange || conditions.excludeExchange || conditions.boardType || conditions.excludeBoardType || conditions.status);
     }
 
@@ -5210,6 +5367,9 @@
       const maxPb = getStockConditionNumber(conditions, "maxPb");
       const minRoe = getStockConditionNumber(conditions, "minRoe");
       const maxRoe = getStockConditionNumber(conditions, "maxRoe");
+      const minVolumeRatio = getStockConditionNumber(conditions, "minVolumeRatio");
+      const maxVolumeRatio = getStockConditionNumber(conditions, "maxVolumeRatio");
+      const signals = getStockTechnicalSignals(stock);
 
       addCheck(minChange !== null, stock.changePercent >= minChange);
       addCheck(maxChange !== null, stock.changePercent <= maxChange);
@@ -5221,6 +5381,8 @@
       addCheck(maxPb !== null, stock.pb <= maxPb);
       addCheck(minRoe !== null, stock.roe >= minRoe);
       addCheck(maxRoe !== null, stock.roe <= maxRoe);
+      addCheck(minVolumeRatio !== null, signals.volumeRatio >= minVolumeRatio);
+      addCheck(maxVolumeRatio !== null, signals.volumeRatio <= maxVolumeRatio);
       addCheck(Boolean(conditions.exchange), getStockExchange(stock) === conditions.exchange);
       addCheck(Boolean(conditions.excludeExchange), getStockExchange(stock) !== conditions.excludeExchange);
       addCheck(Boolean(conditions.boardType), getStockBoardType(stock) === conditions.boardType);
@@ -5234,6 +5396,9 @@
       const trendDays = Number(conditions.trendDays) || 15;
       addCheck(conditions.trend === "up", getStockTrend(stock, trendDays) === "up");
       addCheck(conditions.trend === "down", getStockTrend(stock, trendDays) === "down");
+      addCheck(conditions.technicalPattern && conditions.technicalPattern !== "all", stockMatchesTechnicalPattern(stock, conditions.technicalPattern));
+      addCheck(conditions.maPosition === "above-ma5", signals.aboveMa5);
+      addCheck(conditions.maPosition === "below-ma5", signals.belowMa5);
 
       if (!checks.length) return true;
       return conditions.logic === "or" ? checks.some(Boolean) : checks.every(Boolean);
@@ -5418,7 +5583,6 @@
       stockDailyListScrollTop = 0;
       const list = document.querySelector(".stock-daily-list");
       if (list) list.innerHTML = renderStockDailyList();
-      scheduleStockUniverseChartPreload();
     }
 
     function handleStockDailyListScroll(list) {
@@ -5736,7 +5900,6 @@
       stockDailyViewportStart = -1;
       const nextStock = getActiveDailyStock();
       renderStockPage();
-      scheduleStockUniverseChartPreload();
       if (nextStock) {
         loadRealStockHistory(nextStock).then(() => {
           if (activeDailyStockId === nextStock.id) updateStockDailyChart();
@@ -6254,7 +6417,21 @@
       return `<button class="stock-sort-button ${active ? "active" : ""}" type="button" data-stock-sort="${field}">${escapeHTML(label)}${arrow}</button>`;
     }
 
+    function getStockTechnicalSignalLabel(stock) {
+      const signals = getStockTechnicalSignals(stock);
+      if (signals.thirdOneLineBoard) return "三板一字";
+      if (signals.oneLineBoard) return "一字板";
+      if (signals.reversalBoard) return "反包板";
+      if (signals.oversoldFirstBoard) return "超跌首板";
+      if (signals.firstBoard) return "首板";
+      if (signals.trendVolume) return "主升浪放量";
+      if (signals.limitUp) return "涨停强度";
+      if (signals.aboveMa5) return "5日线之上";
+      return "待观察";
+    }
+
     function renderStockFilterDetailRow(stock) {
+      const signals = getStockTechnicalSignals(stock);
       return `
         <tr class="stock-detail-row" data-stock-filter-detail-row>
           <td colspan="8">
@@ -6270,6 +6447,10 @@
               <div class="stock-detail-stat">
                 <span>板块/状态</span>
                 <strong>${escapeHTML(getStockBoardType(stock))} · ${escapeHTML(getStockStatus(stock))}</strong>
+              </div>
+              <div class="stock-detail-stat">
+                <span>短线信号</span>
+                <strong>${escapeHTML(getStockTechnicalSignalLabel(stock))} · 量比 ${signals.volumeRatio.toFixed(1)}</strong>
               </div>
               <div class="stock-detail-stat">
                 <span>PB / ROE</span>
@@ -6386,11 +6567,39 @@
                   <div class="stock-filter-tag-row">${renderStockFilterTags()}</div>
                 </div>
                 <div class="stock-filter-group">
-                  <div class="stock-filter-group-title">投资大佬选股方案</div>
+                  <div class="stock-filter-group-title">游资短线模式</div>
                   <div class="stock-strategy-list">${renderStockStrategies()}</div>
                 </div>
               </div>
               <div class="stock-filter-fields">
+                <div class="stock-field">
+                  <label>短线形态</label>
+                  <select class="stock-select" data-stock-filter="technicalPattern">
+                    <option value="all" ${stockFilters.technicalPattern === "all" ? "selected" : ""}>全部形态</option>
+                    <option value="limit-up" ${stockFilters.technicalPattern === "limit-up" ? "selected" : ""}>涨停强度</option>
+                    <option value="first-board" ${stockFilters.technicalPattern === "first-board" ? "selected" : ""}>首板</option>
+                    <option value="one-line-board" ${stockFilters.technicalPattern === "one-line-board" ? "selected" : ""}>一字板</option>
+                    <option value="third-one-line-board" ${stockFilters.technicalPattern === "third-one-line-board" ? "selected" : ""}>连续一字第三板</option>
+                    <option value="reversal-board" ${stockFilters.technicalPattern === "reversal-board" ? "selected" : ""}>反包板</option>
+                    <option value="oversold-first-board" ${stockFilters.technicalPattern === "oversold-first-board" ? "selected" : ""}>超跌首板</option>
+                    <option value="trend-volume" ${stockFilters.technicalPattern === "trend-volume" ? "selected" : ""}>主升浪放量</option>
+                  </select>
+                </div>
+                <div class="stock-field">
+                  <label>量比区间</label>
+                  <div class="stock-field-row">
+                    <input class="stock-input" data-stock-filter="minVolumeRatio" type="number" step="0.1" value="${escapeHTML(stockFilters.minVolumeRatio)}" placeholder="最低 倍" />
+                    <input class="stock-input" data-stock-filter="maxVolumeRatio" type="number" step="0.1" value="${escapeHTML(stockFilters.maxVolumeRatio)}" placeholder="最高 倍" />
+                  </div>
+                </div>
+                <div class="stock-field">
+                  <label>5日线位置</label>
+                  <select class="stock-select" data-stock-filter="maPosition">
+                    <option value="all" ${stockFilters.maPosition === "all" ? "selected" : ""}>全部位置</option>
+                    <option value="above-ma5" ${stockFilters.maPosition === "above-ma5" ? "selected" : ""}>5日线之上</option>
+                    <option value="below-ma5" ${stockFilters.maPosition === "below-ma5" ? "selected" : ""}>5日线之下</option>
+                  </select>
+                </div>
                 <div class="stock-field">
                   <label>涨跌幅区间</label>
                   <div class="stock-field-row">
@@ -6529,12 +6738,6 @@
       renderStockSideList();
       renderStockPage();
       showToast(`已添加 ${stock.name}`);
-      refreshRealStockQuotes().then(refreshed => {
-        if (refreshed && activeFeature === "stocks") {
-          renderStockSideList();
-          renderStockPage();
-        }
-      });
       return true;
     }
 
@@ -6583,6 +6786,10 @@
         maxPb: "",
         minRoe: "",
         maxRoe: "",
+        technicalPattern: "all",
+        minVolumeRatio: "",
+        maxVolumeRatio: "",
+        maPosition: "all",
         industry: "all",
         metric: "all",
         logic: "and"

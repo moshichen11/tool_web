@@ -13,6 +13,42 @@ export function makeStockDataError(status, code, message, details) {
   return error;
 }
 
+function hasHistoryItems(history) {
+  return Array.isArray(history?.items) && history.items.length > 0;
+}
+
+function shouldContinueHistoryFallback(error) {
+  if (!error) return true;
+  if (error.code === "AUTH_REQUIRED") return true;
+  if (error.code?.startsWith?.("MARKET_DATA")) return true;
+  return error.status === 429 || (Number(error.status) >= 500 && Number(error.status) < 600);
+}
+
+function isEnabled(value) {
+  return ["1", "true", "yes", "on"].includes(String(value || "").trim().toLowerCase());
+}
+
+async function loadHistoryWithFallback(providers, params) {
+  let fallbackHistory = null;
+  let lastError = null;
+
+  for (const provider of providers) {
+    if (!provider?.getHistory) continue;
+    try {
+      const history = await provider.getHistory(params);
+      if (hasHistoryItems(history)) return history;
+      if (!fallbackHistory && history) fallbackHistory = history;
+    } catch (error) {
+      lastError = error;
+      if (!shouldContinueHistoryFallback(error)) throw error;
+    }
+  }
+
+  if (fallbackHistory) return fallbackHistory;
+  if (lastError) throw lastError;
+  return null;
+}
+
 function direction(changePercent) {
   if (changePercent > 0) return "up";
   if (changePercent < 0) return "down";
@@ -141,6 +177,17 @@ function createDisabledMockProvider() {
 
 export function createStockDataProvider(options = {}) {
   const dataSource = String(options.dataSource || process.env.STOCK_DATA_SOURCE || DEFAULT_STOCK_DATA_SOURCE).toLowerCase();
+  const hasTushareToken = Boolean(options.tushareToken || process.env.TUSHARE_TOKEN);
+  const useTushareHistoryFallback = hasTushareToken && (
+    Boolean(options.tushareToken) ||
+    isEnabled(options.tushareHistoryFallback ?? process.env.STOCK_TUSHARE_HISTORY_FALLBACK)
+  );
+  const tushareProvider = createTushareProvider({
+    token: options.tushareToken,
+    endpoint: options.tushareApiUrl,
+    fetchImpl: options.fetchImpl,
+    now: options.now,
+  });
 
   if (dataSource === "xueqiu") {
     const provider = createXueqiuStockDataProvider({
@@ -167,30 +214,47 @@ export function createStockDataProvider(options = {}) {
       ...provider,
       getStockUniverse: eastmoneyProvider.getStockUniverse,
       async getHistory(params) {
-        const history = await provider.getHistory(params);
-        if (Array.isArray(history?.items) && history.items.length) return history;
-        const fallback = await eastmoneyProvider.getHistory(params);
-        return Array.isArray(fallback?.items) && fallback.items.length ? fallback : history;
+        const providers = useTushareHistoryFallback
+          ? [provider, eastmoneyProvider, tushareProvider]
+          : [provider, eastmoneyProvider];
+        return loadHistoryWithFallback(providers, params);
       },
     };
   }
 
   if (dataSource === "tushare") {
-    return createTushareProvider({
-      token: options.tushareToken,
-      endpoint: options.tushareApiUrl,
-      fetchImpl: options.fetchImpl,
-      now: options.now,
-    });
-  }
-
-  if (dataSource === "eastmoney") {
-    return createEastmoneyProvider({
+    const eastmoneyProvider = createEastmoneyProvider({
       fetchImpl: options.fetchImpl,
       quoteEndpoint: options.eastmoneyQuoteUrl,
       klineEndpoint: options.eastmoneyKlineUrl,
       listEndpoint: options.eastmoneyListUrl,
     });
+    if (!hasTushareToken) return eastmoneyProvider;
+    const provider = tushareProvider;
+    return {
+      ...provider,
+      async getHistory(params) {
+        return loadHistoryWithFallback([provider, eastmoneyProvider], params);
+      },
+    };
+  }
+
+  if (dataSource === "eastmoney") {
+    const provider = createEastmoneyProvider({
+      fetchImpl: options.fetchImpl,
+      quoteEndpoint: options.eastmoneyQuoteUrl,
+      klineEndpoint: options.eastmoneyKlineUrl,
+      listEndpoint: options.eastmoneyListUrl,
+    });
+    return {
+      ...provider,
+      async getHistory(params) {
+        const providers = useTushareHistoryFallback
+          ? [provider, tushareProvider]
+          : [provider];
+        return loadHistoryWithFallback(providers, params);
+      },
+    };
   }
 
   if (dataSource === "mock-a-share") {

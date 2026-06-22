@@ -137,6 +137,156 @@ function createFakeXueqiuEmptyHistoryWithEastmoneyFetch() {
   return fakeFetch;
 }
 
+function createFakeHistoryFallbackFetch() {
+  const calls = [];
+
+  async function fakeFetch(url, options = {}) {
+    const parsed = new URL(url);
+    calls.push({ url, parsed, options });
+
+    if (parsed.pathname.includes("/chart/kline.json")) {
+      return jsonResponse({
+        data: {
+          symbol: "SZ000535",
+          column: ["timestamp", "volume", "open", "high", "low", "close", "chg", "percent", "turnoverrate", "amount"],
+          item: [],
+        },
+      });
+    }
+
+    if (parsed.hostname === "push2his.eastmoney.com" && parsed.pathname.includes("/api/qt/stock/kline/get")) {
+      return jsonResponse({
+        rc: 0,
+        data: {
+          code: "000535",
+          market: 0,
+          name: "*ST猴王",
+          klines: [],
+        },
+      });
+    }
+
+    if (parsed.hostname === "api.tushare.pro") {
+      const payload = JSON.parse(options.body);
+      if (payload.token !== "test-token") {
+        return jsonResponse({ code: 2002, msg: "permission denied", data: null });
+      }
+      if (payload.api_name === "stock_basic") {
+        return jsonResponse({
+          code: 0,
+          msg: null,
+          data: {
+            fields: ["ts_code", "symbol", "name", "area", "industry", "market", "exchange", "list_date"],
+            items: [
+              ["000535.SZ", "000535", "*ST猴王", "深圳", "综合", "主板", "SZSE", "1993-12-13"],
+            ],
+          },
+        });
+      }
+      if (payload.api_name === "daily") {
+        return jsonResponse({
+          code: 0,
+          msg: null,
+          data: {
+            fields: ["ts_code", "trade_date", "open", "high", "low", "close", "pre_close", "change", "pct_chg", "vol", "amount"],
+            items: [
+              ["000535.SZ", "20050920", 0.5, 0.51, 0.49, 0.5, 0.48, 0.02, 4.17, 1000, 50000],
+              ["000535.SZ", "20050921", 0.5, 0.5, 0.5, 0.5, 0.5, 0, 0, 0, 0],
+            ],
+          },
+        });
+      }
+    }
+
+    return jsonResponse({ error_code: 404, error_description: "not found" }, { status: 404 });
+  }
+
+  fakeFetch.calls = calls;
+  return fakeFetch;
+}
+
+function createFakeUnavailableHistoryFetch() {
+  const calls = [];
+
+  async function fakeFetch(url, options = {}) {
+    const parsed = new URL(url);
+    calls.push({ url, parsed, options });
+
+    if (parsed.pathname.includes("/chart/kline.json")) {
+      return jsonResponse({ error_code: "503", error_description: "xueqiu unavailable" }, { status: 503 });
+    }
+
+    if (parsed.hostname === "push2his.eastmoney.com" && parsed.pathname.includes("/api/qt/stock/kline/get")) {
+      return jsonResponse({ rc: -1, message: "eastmoney unavailable" }, { status: 503 });
+    }
+
+    if (parsed.hostname === "api.tushare.pro") {
+      return jsonResponse({ code: 0, msg: null, data: { fields: [], items: [] } });
+    }
+
+    return jsonResponse({ error_code: 404, error_description: "not found" }, { status: 404 });
+  }
+
+  fakeFetch.calls = calls;
+  return fakeFetch;
+}
+
+function createFakeEastmoneyOnlyFetch() {
+  const calls = [];
+
+  async function fakeFetch(url, options = {}) {
+    const parsed = new URL(url);
+    calls.push({ url, parsed, options });
+
+    if (parsed.hostname === "api.tushare.pro") {
+      throw new Error("Tushare should not be called without a token");
+    }
+
+    if (parsed.hostname === "push2delay.eastmoney.com" && parsed.pathname.includes("/api/qt/clist/get")) {
+      return jsonResponse({
+        rc: 0,
+        data: {
+          total: 1,
+          diff: [
+            {
+              f2: 100,
+              f3: 0,
+              f4: 0,
+              f5: 1000,
+              f6: 100000,
+              f9: 12,
+              f12: "000535",
+              f13: 0,
+              f14: "*ST猴王",
+              f23: 1,
+              f100: "测试行业",
+            },
+          ],
+        },
+      });
+    }
+
+    if (parsed.hostname === "push2his.eastmoney.com" && parsed.pathname.includes("/api/qt/stock/kline/get")) {
+      return jsonResponse({
+        rc: 0,
+        data: {
+          code: "000535",
+          market: 0,
+          name: "*ST猴王",
+          klines: [
+            "2005-09-20,0.50,0.50,0.51,0.49,1000,50000,4.00,4.17,0.02,1.00",
+          ],
+        },
+      });
+    }
+
+    return jsonResponse({ error_code: 404, error_description: "not found" }, { status: 404 });
+  }
+
+  fakeFetch.calls = calls;
+  return fakeFetch;
+}
+
 async function requestJson(baseUrl, path, options = {}) {
   const response = await fetch(`${baseUrl}${path}`, {
     ...options,
@@ -209,6 +359,113 @@ test("stock data provider falls back to eastmoney history when xueqiu returns no
   assert.equal(history.items[1].close, 0.5);
   assert.equal(fetchImpl.calls.some(call => call.parsed.hostname === "stock.xueqiu.com"), true);
   assert.equal(fetchImpl.calls.some(call => call.parsed.hostname === "push2his.eastmoney.com"), true);
+});
+
+test("stock data provider falls back to tushare history when xueqiu and eastmoney return no klines", async () => {
+  const { createStockDataProvider } = await import("../server/stock-data-provider.js");
+  const fetchImpl = createFakeHistoryFallbackFetch();
+  const provider = createStockDataProvider({
+    dataSource: "xueqiu",
+    xueqiuCookie: "test-session-cookie",
+    tushareToken: "test-token",
+    fetchImpl,
+  });
+
+  const history = await provider.getHistory({ market: "SZ", code: "000535", period: "day", range: "60d" });
+
+  assert.equal(history.source, "tushare");
+  assert.equal(history.stock.id, "SZ:000535");
+  assert.equal(history.items.length, 2);
+  assert.equal(history.items[0].time, "2005-09-20");
+  assert.equal(history.items[1].close, 0.5);
+  assert.equal(fetchImpl.calls.some(call => call.parsed.hostname === "stock.xueqiu.com"), true);
+  assert.equal(fetchImpl.calls.some(call => call.parsed.hostname === "push2his.eastmoney.com"), true);
+  assert.equal(fetchImpl.calls.some(call => call.parsed.hostname === "api.tushare.pro"), true);
+});
+
+test("stock data provider skips tushare history fallback when token is missing", async () => {
+  const previousToken = process.env.TUSHARE_TOKEN;
+  delete process.env.TUSHARE_TOKEN;
+  const { createStockDataProvider } = await import("../server/stock-data-provider.js");
+  const fetchImpl = createFakeUnavailableHistoryFetch();
+  try {
+    const provider = createStockDataProvider({
+      dataSource: "xueqiu",
+      xueqiuCookie: "test-session-cookie",
+      providerRetryAttempts: 1,
+      fetchImpl,
+    });
+
+    await assert.rejects(
+      () => provider.getHistory({ market: "SZ", code: "000535", period: "day", range: "60d" }),
+      error => {
+        assert.equal(error.code, "MARKET_DATA_UNAVAILABLE");
+        assert.doesNotMatch(error.message, /TUSHARE_TOKEN/);
+        return true;
+      }
+    );
+
+    assert.equal(fetchImpl.calls.some(call => call.parsed.hostname === "stock.xueqiu.com"), true);
+    assert.equal(fetchImpl.calls.some(call => call.parsed.hostname === "push2his.eastmoney.com"), true);
+    assert.equal(fetchImpl.calls.some(call => call.parsed.hostname === "api.tushare.pro"), false);
+  } finally {
+    if (previousToken === undefined) delete process.env.TUSHARE_TOKEN;
+    else process.env.TUSHARE_TOKEN = previousToken;
+  }
+});
+
+test("stock data provider does not enable tushare history fallback from ambient env token", async () => {
+  const previousToken = process.env.TUSHARE_TOKEN;
+  process.env.TUSHARE_TOKEN = "ambient-token-without-daily-permission";
+  const { createStockDataProvider } = await import("../server/stock-data-provider.js");
+  const fetchImpl = createFakeUnavailableHistoryFetch();
+  try {
+    const provider = createStockDataProvider({
+      dataSource: "xueqiu",
+      xueqiuCookie: "test-session-cookie",
+      providerRetryAttempts: 1,
+      fetchImpl,
+    });
+
+    await assert.rejects(
+      () => provider.getHistory({ market: "SZ", code: "000535", period: "day", range: "60d" }),
+      error => {
+        assert.equal(error.code, "MARKET_DATA_UNAVAILABLE");
+        assert.doesNotMatch(error.message, /TUSHARE_TOKEN|Tushare/);
+        return true;
+      }
+    );
+    assert.equal(fetchImpl.calls.some(call => call.parsed.hostname === "api.tushare.pro"), false);
+  } finally {
+    if (previousToken === undefined) delete process.env.TUSHARE_TOKEN;
+    else process.env.TUSHARE_TOKEN = previousToken;
+  }
+});
+
+test("stock data provider downgrades tushare source to eastmoney when token is missing", async () => {
+  const previousToken = process.env.TUSHARE_TOKEN;
+  delete process.env.TUSHARE_TOKEN;
+  const { createStockDataProvider } = await import("../server/stock-data-provider.js");
+  const fetchImpl = createFakeEastmoneyOnlyFetch();
+  try {
+    const provider = createStockDataProvider({
+      dataSource: "tushare",
+      fetchImpl,
+    });
+
+    const universe = await provider.getStockUniverse({ limit: 1 });
+    const history = await provider.getHistory({ market: "SZ", code: "000535", period: "day", range: "60d" });
+
+    assert.equal(provider.id, "eastmoney");
+    assert.equal(universe.source, "eastmoney");
+    assert.equal(universe.items[0].id, "SZ:000535");
+    assert.equal(history.source, "eastmoney");
+    assert.equal(history.items.length, 1);
+    assert.equal(fetchImpl.calls.some(call => call.parsed.hostname === "api.tushare.pro"), false);
+  } finally {
+    if (previousToken === undefined) delete process.env.TUSHARE_TOKEN;
+    else process.env.TUSHARE_TOKEN = previousToken;
+  }
 });
 
 test("xueqiu provider requires credentials and never calls upstream without them", async () => {

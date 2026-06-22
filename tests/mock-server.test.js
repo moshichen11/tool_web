@@ -72,8 +72,13 @@ test("mock server exposes health, auth, market data, cacheable quote routes, and
     assert.equal(quote.body.id, "SH:600519");
 
     const history = await requestJson(server.url, "/v1/stocks/SH/600519/history?period=day&range=30d");
+    assert.equal(history.response.headers.get("x-cache"), "MISS");
     assert.equal(history.body.period, "day");
     assert.equal(history.body.items.length, 30);
+
+    const cachedHistory = await requestJson(server.url, "/v1/stocks/SH/600519/history?period=day&range=30d");
+    assert.equal(cachedHistory.response.headers.get("x-cache"), "HIT");
+    assert.equal(cachedHistory.body.items.length, 30);
 
     const depth = await requestJson(server.url, "/v1/stocks/SH/600519/depth");
     assert.equal(depth.body.orderBook.bids.length, 5);

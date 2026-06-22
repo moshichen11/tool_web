@@ -160,13 +160,18 @@ export async function route(req, res, context) {
       if (method === "GET" && action === "history") {
         const period = url.searchParams.get("period");
         const range = url.searchParams.get("range");
-        const history = await provider.getHistory({ market, code, period, range });
+        const key = `history:${market}:${code}:${period || ""}:${range || ""}`;
+        const cached = await withCache(state, key, async () => provider.getHistory({ market, code, period, range }), context.historyCacheTtlMs);
+        const history = cached.value;
         if (!history) {
           const result = error(404, "NOT_FOUND", `Stock ${market}:${code} not found`, traceId);
           return json(res, result.status, result.body);
         }
         audit.record("history.read", { traceId, target: `${market}:${code}` });
-        return json(res, 200, history, { "x-data-source": provider.id });
+        return json(res, 200, history, {
+          "x-cache": cached.hit ? "HIT" : "MISS",
+          "x-data-source": history.source || provider.id,
+        });
       }
       if (method === "GET" && action === "depth" && provider.getDepth) {
         const depth = await provider.getDepth({ market, code });
