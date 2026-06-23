@@ -1738,6 +1738,13 @@
 
     .stock-select {
       padding: 0 9px;
+      color-scheme: dark;
+      background: rgba(31,31,53,0.92);
+    }
+
+    .stock-select option {
+      background: #1f1f35;
+      color: #fff;
     }
 
     .stock-input:focus,
@@ -1769,13 +1776,18 @@
       font-weight: 720;
     }
 
-    .stock-filter-tag-row,
-    .stock-strategy-list {
+    .stock-filter-tag-row {
       display: flex;
       gap: 8px;
       overflow-x: auto;
       padding-bottom: 2px;
       scrollbar-width: none;
+    }
+
+    .stock-strategy-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 8px;
     }
 
     .stock-filter-tag-row::-webkit-scrollbar,
@@ -1802,7 +1814,8 @@
     }
 
     .stock-strategy-card {
-      width: 220px;
+      width: 100%;
+      min-width: 0;
       padding: 10px;
       display: grid;
       gap: 6px;
@@ -1861,6 +1874,64 @@
       border-radius: 7px;
       background: rgba(255,255,255,0.08);
       cursor: pointer;
+    }
+
+    .stock-strategy-summary {
+      padding: 10px 12px;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 10px;
+      background: rgba(0,0,0,0.16);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .stock-strategy-summary-main {
+      min-width: min(100%, 260px);
+      display: grid;
+      gap: 3px;
+    }
+
+    .stock-strategy-summary-main strong {
+      font-size: 13px;
+    }
+
+    .stock-strategy-summary-main span {
+      color: rgba(255,255,255,0.58);
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .stock-advanced-filter-panel {
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 10px;
+      background: rgba(255,255,255,0.05);
+    }
+
+    .stock-advanced-filter-panel summary {
+      min-height: 36px;
+      padding: 0 12px;
+      color: rgba(255,255,255,0.72);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 720;
+      list-style: none;
+    }
+
+    .stock-advanced-filter-panel summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .stock-advanced-filter-body {
+      padding: 0 12px 12px;
+      display: grid;
+      gap: 10px;
     }
 
     .stock-filter-toolbar,
@@ -1975,7 +2046,7 @@
       border-radius: 8px;
       background: rgba(255,255,255,0.055);
       display: grid;
-      grid-template-columns: 28px minmax(0, 1fr) auto;
+      grid-template-columns: 28px minmax(0, 1fr) auto 30px;
       gap: 8px;
       align-items: center;
       text-align: left;
@@ -2024,6 +2095,96 @@
       font-weight: 760;
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
+    }
+
+    .stock-daily-add {
+      width: 28px;
+      height: 28px;
+      color: #fff;
+      border: 1px solid rgba(131,195,65,0.42);
+      border-radius: 8px;
+      background: rgba(131,195,65,0.2);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 780;
+      line-height: 1;
+    }
+
+    .stock-daily-add:hover,
+    .stock-daily-add:focus-visible {
+      border-color: rgba(131,195,65,0.7);
+      background: rgba(131,195,65,0.34);
+      outline: 0;
+    }
+
+    .stock-daily-add.is-added {
+      color: rgba(255,255,255,0.72);
+      border-color: rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.08);
+    }
+
+    .stock-watch-group-bar {
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .stock-watch-group-list {
+      min-width: min(100%, 360px);
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .stock-watch-group {
+      min-height: 32px;
+      padding: 0 10px;
+      color: rgba(255,255,255,0.76);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.07);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 720;
+    }
+
+    .stock-watch-group:hover,
+    .stock-watch-group:focus-visible,
+    .stock-watch-group.active {
+      color: #fff;
+      border-color: rgba(131,195,65,0.5);
+      background: var(--green-active);
+      outline: 0;
+    }
+
+    .stock-watch-group-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .stock-watch-group-choice-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .stock-watch-group-choice {
+      min-height: 42px;
+      padding: 8px 10px;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.06);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      cursor: pointer;
     }
 
     .stock-daily-quote {
@@ -3672,11 +3833,14 @@
     ];
 
     const STOCK_WATCHLIST_KEY = "glass_nav_stock_watchlist";
+    const STOCK_WATCHLIST_GROUPS_KEY = "glass_nav_stock_watchlist_groups";
+    const DEFAULT_STOCK_WATCH_GROUP_ID = "default";
     const STOCK_STRATEGY_KEY = "glass_nav_stock_strategies";
     const STOCK_FILTER_STATE_KEY = "glass_nav_stock_filter_state";
     const STOCK_API_BASE_URL_KEY = "glass_nav_stock_api_base_url";
     const STOCK_DEFAULT_API_BASE_URL = "https://tool-web-stock-api.onrender.com";
     const STOCK_LOCAL_API_BASE_URL = "http://127.0.0.1:8787";
+    const STOCK_SELECTION_CONFIG_URL = "src/stocks/selection-config.json";
     const STOCK_UNIVERSE_LOAD_LIMIT = 6000;
     const defaultStockWatchCodes = ["600519", "300750", "000001", "601318"];
     const STOCK_FILTER_PAGE_SIZE = 8;
@@ -3686,6 +3850,7 @@
     const STOCK_UNIVERSE_CHART_PRELOAD_PAGE_SIZE = STOCK_DAILY_VIRTUAL_COUNT;
     const STOCK_UNIVERSE_CHART_PRELOAD_PAGE_RADIUS = 5;
     const STOCK_UNIVERSE_CHART_PRELOAD_LIMIT = STOCK_UNIVERSE_CHART_PRELOAD_PAGE_SIZE * (STOCK_UNIVERSE_CHART_PRELOAD_PAGE_RADIUS * 2 + 1) + 1;
+    const STOCK_STRATEGY_HISTORY_BATCH_SIZE = 24;
     const stockViews = [
       { id: "daily", icon: "📈", name: "股票分时/日K图", desc: "分时、K线与盘口分布" },
       { id: "watchlist", icon: "⭐", name: "自选股", desc: "添加、排序、刷新自选" },
@@ -3743,14 +3908,20 @@
       { id: "exchange-sz", name: "深交所", desc: "仅深交所", conditions: { exchange: "深交所" } }
     ];
     const defaultStockStrategies = [
-      { id: "pdf-first-board", name: "赵老哥首板", desc: "首板涨停、放量、站上MA5，偏T+1超短", risk: "进攻", source: "PDF: 赵老哥交易系统总结", conditions: { technicalPattern: "first-board", minVolumeRatio: "1.3", maPosition: "above-ma5", status: "非ST", excludeExchange: "北交所" }, builtin: true },
-      { id: "pdf-oversold-first-board", name: "作手新一超跌一板", desc: "短期超跌后的首板修复，先观察持续性", risk: "观察", source: "PDF: 作手新一超跌一板", conditions: { technicalPattern: "oversold-first-board", minVolumeRatio: "1.2", status: "非ST", excludeExchange: "北交所" }, builtin: true },
-      { id: "pdf-reversal-board", name: "反包板", desc: "前涨停调整后再涨停反包，偏强分歧回流", risk: "进攻", source: "PDF: 作手新一反包板", conditions: { technicalPattern: "reversal-board", minVolumeRatio: "1.2", status: "非ST", excludeExchange: "北交所" }, builtin: true },
-      { id: "pdf-dragon-first-negative", name: "龙头首阴", desc: "连板后首个弱分歧，当前仅按量价结构观察", risk: "观察", source: "PDF: 林疯狂 / 乔帮主首阴", conditions: { technicalPattern: "dragon-first-negative", status: "非ST", excludeExchange: "北交所" }, builtin: true },
-      { id: "pdf-dragon-pullback", name: "林疯狂龙回头", desc: "连板强势股回踩后放量转强", risk: "进攻", source: "PDF: 林疯狂总结", conditions: { technicalPattern: "dragon-pullback", minVolumeRatio: "1.2", status: "非ST", excludeExchange: "北交所" }, builtin: true },
-      { id: "pdf-third-one-line", name: "作手新一三板一字", desc: "连续一字第三板，强调排板节奏", risk: "高风险", source: "PDF: 作手新一三板一字", conditions: { technicalPattern: "third-one-line-board", status: "非ST", excludeExchange: "北交所" }, builtin: true },
-      { id: "pdf-multi-board-relay", name: "连板接力", desc: "2板以上连续涨停，按高度与量能观察", risk: "高风险", source: "PDF: 作手新一连板战法", conditions: { technicalPattern: "multi-board-relay", status: "非ST", excludeExchange: "北交所" }, builtin: true },
-      { id: "pdf-strong-trend-breakout", name: "强势趋势突破", desc: "多头均线、放量突破近高", risk: "观察", source: "PDF: 强势股趋势突破案例", conditions: { technicalPattern: "strong-trend-breakout", minVolumeRatio: "1.3", maPosition: "above-ma5", status: "非ST", excludeExchange: "北交所" }, builtin: true }
+      { id: "all_automated", name: "全部策略", desc: "按自动选股规格合并所有已启用策略，只输出命中明确模板的股票", risk: "综合", source: "自动选股规格: candidate formula", selectionStrategyId: "all", builtin: true },
+      { id: "trend_volume_leader", name: "热点龙头放量", desc: "热门板块前排，放量站上五日线并突破或涨停", risk: "进攻", source: "自动选股规格: trend_volume_leader", selectionStrategyId: "trend_volume_leader", builtin: true },
+      { id: "true_breakout", name: "真突破", desc: "放量突破20日高点，先输出突破试探阶段", risk: "观察", source: "自动选股规格: true_breakout", selectionStrategyId: "true_breakout", builtin: true },
+      { id: "platform_breakout", name: "平台突破", desc: "窄平台整理后放量突破平台高点", risk: "进攻", source: "自动选股规格: platform_breakout", selectionStrategyId: "platform_breakout", builtin: true },
+      { id: "first_limit_up", name: "首板", desc: "热门板块前排首次涨停，一字板只进观察", risk: "进攻", source: "自动选股规格: first_limit_up", selectionStrategyId: "first_limit_up", builtin: true },
+      { id: "first_negative_after_board", name: "强势首阴", desc: "强势连板或多涨停后的首根明显阴线，仅观察", risk: "观察", source: "自动选股规格: first_negative_after_board", selectionStrategyId: "first_negative_after_board", builtin: true },
+      { id: "upper_shadow_reversal", name: "上影反包", desc: "长上影冲高回落后次日放量反包", risk: "进攻", source: "自动选股规格: upper_shadow_reversal", selectionStrategyId: "upper_shadow_reversal", builtin: true },
+      { id: "dragon_return", name: "龙回头", desc: "强势股缩量回调后重新转强", risk: "进攻", source: "自动选股规格: dragon_return", selectionStrategyId: "dragon_return", builtin: true },
+      { id: "trend_pullback", name: "趋势低吸", desc: "上升趋势回踩支撑并缩量", risk: "观察", source: "自动选股规格: trend_pullback", selectionStrategyId: "trend_pullback", builtin: true },
+      { id: "panic_reversal", name: "恐慌反转", desc: "风险释放后的强势股低位反弹确认", risk: "高风险", source: "自动选股规格: panic_reversal", selectionStrategyId: "panic_reversal", builtin: true },
+      { id: "sector_catchup", name: "板块补涨", desc: "热门板块龙头带动下的前排补涨突破", risk: "观察", source: "自动选股规格: sector_catchup", selectionStrategyId: "sector_catchup", builtin: true },
+      { id: "board_reseal", name: "炸板回封", desc: "缺少封板/炸板分钟数据，暂不输出", risk: "未启用", source: "自动选股规格: board_reseal", selectionStrategyId: "board_reseal", builtin: true },
+      { id: "ipo_first_negative", name: "次新首阴", desc: "缺少上市日期，暂不输出", risk: "未启用", source: "自动选股规格: ipo_first_negative", selectionStrategyId: "ipo_first_negative", builtin: true },
+      { id: "gap_up_momentum", name: "跳空高开追强", desc: "缺少开盘30分钟量能和VWAP确认，暂不输出", risk: "未启用", source: "自动选股规格: gap_up_momentum", selectionStrategyId: "gap_up_momentum", builtin: true }
     ];
 
     const marketIndices = [];
@@ -3947,12 +4118,14 @@
     };
 
     let stockWatchlist = [];
+    let stockWatchGroups = [];
+    let activeStockWatchGroupId = DEFAULT_STOCK_WATCH_GROUP_ID;
     let stockSearchTerm = "";
     let stockFilterOpen = true;
     let activeStockView = "daily";
     let activeQuickStockFilter = "";
     let activeStockTags = [];
-    let activeStockStrategy = "";
+    let activeStockStrategy = defaultStockStrategies[0]?.id || "";
     let stockFilterSearchTerm = "";
     let customStockStrategies = [];
     let stockResultPage = 1;
@@ -3970,6 +4143,17 @@
     let stockUniverseTotal = 0;
     let stockUniverseChartPreloadRunning = false;
     let stockUniverseChartPreloadScheduled = false;
+    let stockStrategyHistoryLoading = false;
+    let stockStrategyHistoryLoadToken = 0;
+    let stockStrategyHistoryLoaded = 0;
+    let stockStrategyHistoryTarget = 0;
+    let stockStrategyHistoryStrategyId = "";
+    let stockSelectionConfig = null;
+    let stockSelectionConfigStatus = "loading";
+    let stockSelectionConfigError = "";
+    let stockSelectionDataVersion = 0;
+    let stockSelectionContextCache = null;
+    let stockSelectionContextCacheVersion = -1;
     let stockDailyVirtualStart = 0;
     let stockDailyListScrollTop = 0;
     let stockDailyViewportStart = -1;
@@ -4541,6 +4725,48 @@
       return { ...body, headers: response.headers };
     }
 
+    function getStockSelectionConfig() {
+      return stockSelectionConfig || { version: "", default_parameters: {}, windows: {}, score_model: { weights: {}, risk_penalty: {} }, strategies: [], reason_code_labels: {} };
+    }
+
+    function getStockSelectionParameter(key, fallback = 0) {
+      const value = getStockSelectionConfig().default_parameters?.[key];
+      const number = Number(value);
+      return Number.isFinite(number) ? number : fallback;
+    }
+
+    function getStockSelectionWindow(key, fallback = 1) {
+      const value = getStockSelectionConfig().windows?.[key];
+      const number = Number(value);
+      return Number.isFinite(number) && number > 0 ? Math.floor(number) : fallback;
+    }
+
+    function getStockSelectionStrategyConfig(id) {
+      const value = String(id || "");
+      return getStockSelectionConfig().strategies?.find(strategy => strategy.id === value) || null;
+    }
+
+    function getStockSelectionEnabledStrategies() {
+      return (getStockSelectionConfig().strategies || []).filter(strategy => strategy.enabled !== false);
+    }
+
+    async function initializeStockSelectionConfig() {
+      stockSelectionConfigStatus = "loading";
+      try {
+        const response = await fetch(STOCK_SELECTION_CONFIG_URL, { cache: "no-store" });
+        if (!response.ok) throw new Error(`selection config ${response.status}`);
+        stockSelectionConfig = await response.json();
+        stockSelectionConfigStatus = "ready";
+        stockSelectionConfigError = "";
+        stockSelectionDataVersion += 1;
+        stockSelectionContextCache = null;
+      } catch (error) {
+        stockSelectionConfigStatus = "error";
+        stockSelectionConfigError = error?.message || "选股配置加载失败";
+      }
+      if (activeFeature === "stocks") renderStockPage();
+    }
+
     function getStockByCode(code, market = "") {
       const value = String(code || "").trim();
       const targetMarket = String(market || "").toUpperCase();
@@ -4633,6 +4859,8 @@
       else stockUniverse.push(stock);
       const watchIndex = stockWatchlist.findIndex(item => getStockIdentity(item) === identity);
       if (watchIndex >= 0) stockWatchlist.splice(watchIndex, 1, cloneStock(stock));
+      stockSelectionDataVersion += 1;
+      stockSelectionContextCache = null;
       return stock;
     }
 
@@ -4643,9 +4871,12 @@
       stockDataSource = response.source || response.headers.get("x-data-source") || stockDataSource;
       stockUniverse.splice(0, stockUniverse.length, ...mapped);
       stockWatchlist = stockWatchlist.map(stock => getStockByCode(stock.code, stock.market) || stock).map(cloneStock);
+      repairStockWatchGroups(stockWatchGroups, stockWatchlist);
       if (!stockUniverse.some(stock => stock.id === activeDailyStockId)) {
         activeDailyStockId = stockUniverse[0]?.id || "";
       }
+      stockSelectionDataVersion += 1;
+      stockSelectionContextCache = null;
       return mapped;
     }
 
@@ -4826,12 +5057,14 @@
           if (!Array.isArray(response.items) || !response.items.length) {
             stock.dailyK = [];
             stock.history = [];
-            stock.historyLoadKey = loadKey;
-            stock.historyLoadEmptyKey = loadKey;
-            stock.historyLoadErrorKey = "";
-            stock.historyLoadErrorMessage = "";
-            return false;
-          }
+          stock.historyLoadKey = loadKey;
+          stock.historyLoadEmptyKey = loadKey;
+          stock.historyLoadErrorKey = "";
+          stock.historyLoadErrorMessage = "";
+          stockSelectionDataVersion += 1;
+          stockSelectionContextCache = null;
+          return false;
+        }
           stock.dailyK = response.items.map(mergeStockHistory);
           stock.history = stock.dailyK.slice(-18).map(item => ({
             open: item.open,
@@ -4843,6 +5076,8 @@
           stock.historyLoadEmptyKey = "";
           stock.historyLoadErrorKey = "";
           stock.historyLoadErrorMessage = "";
+          stockSelectionDataVersion += 1;
+          stockSelectionContextCache = null;
           return true;
         })
         .catch(error => {
@@ -4859,6 +5094,109 @@
         });
       stockHistoryLoads.set(loadKey, request);
       return request;
+    }
+
+    function stockStrategyNeedsHistory(strategy) {
+      if (strategy?.selectionStrategyId) return true;
+      const conditions = strategy?.conditions || {};
+      const pattern = String(conditions.technicalPattern || "all");
+      return (pattern && pattern !== "all") ||
+        conditions.minVolumeRatio !== undefined ||
+        conditions.maxVolumeRatio !== undefined ||
+        conditions.maPosition === "above-ma5" ||
+        conditions.maPosition === "below-ma5";
+    }
+
+    function getStockStrategyRequiredBars(strategy) {
+      if (strategy?.selectionStrategyId) return getStockSelectionWindow("previous_high", 20) + 1;
+      const pattern = String(strategy?.conditions?.technicalPattern || "all");
+      if (pattern === "strong-trend-breakout") return 11;
+      if (["reversal-board", "dragon-first-negative", "dragon-pullback"].includes(pattern)) return 4;
+      if (["third-one-line-board", "multi-board-relay"].includes(pattern)) return 3;
+      return 2;
+    }
+
+    function getStockStrategyHistoryPrefilter(strategy) {
+      if (strategy?.selectionStrategyId) return { logic: "and" };
+      const conditions = { ...(strategy?.conditions || {}) };
+      delete conditions.technicalPattern;
+      delete conditions.minVolumeRatio;
+      delete conditions.maxVolumeRatio;
+      delete conditions.maPosition;
+      return { ...conditions, logic: "and" };
+    }
+
+    function hasStockStrategyHistoryReady(stock, strategy) {
+      const dailyK = getStockDailyK(stock);
+      const loadKey = getStockHistoryLoadKey(stock);
+      return dailyK.length >= getStockStrategyRequiredBars(strategy) ||
+        Boolean(stock.historyLoadKey === loadKey && dailyK.length) ||
+        stock.historyLoadEmptyKey === loadKey ||
+        stock.historyLoadErrorKey === loadKey;
+    }
+
+    function getStockFilterSearchSource() {
+      const keyword = stockFilterSearchTerm.trim();
+      return keyword
+        ? stockUniverse.filter(stock => stockMatchesSearchText(stock, keyword))
+        : stockUniverse;
+    }
+
+    function getStockStrategyHistoryCandidates(strategy = getStockStrategyById(activeStockStrategy)) {
+      if (!stockApiReady || !strategy || !stockStrategyNeedsHistory(strategy)) return [];
+      const prefilter = getStockStrategyHistoryPrefilter(strategy);
+      return getStockFilterSearchSource()
+        .filter(stock => stockMatchesConditions(stock, prefilter))
+        .filter(stock => !hasStockStrategyHistoryReady(stock, strategy));
+    }
+
+    function getStockStrategyHistoryStatus(strategy = getStockStrategyById(activeStockStrategy)) {
+      if (!strategy || !stockStrategyNeedsHistory(strategy)) return "";
+      if (!stockApiReady) return "等待行情接口";
+      if (stockStrategyHistoryLoading && stockStrategyHistoryStrategyId === strategy.id) {
+        const done = Math.min(stockStrategyHistoryLoaded, stockStrategyHistoryTarget);
+        return `K线补齐中 ${done}/${stockStrategyHistoryTarget}`;
+      }
+      const pending = getStockStrategyHistoryCandidates(strategy).length;
+      if (pending) return `待补K线 ${pending}只`;
+      return "K线已就绪";
+    }
+
+    async function loadStockStrategyHistories(strategy, token) {
+      try {
+        while (token === stockStrategyHistoryLoadToken) {
+          const batch = getStockStrategyHistoryCandidates(strategy).slice(0, STOCK_STRATEGY_HISTORY_BATCH_SIZE);
+          if (!batch.length) break;
+          await Promise.all(batch.map(stock => loadRealStockHistory(stock, { foreground: false })));
+          stockStrategyHistoryLoaded += batch.length;
+          if (activeFeature === "stocks" && activeStockView === "filter" && activeStockStrategy === strategy.id) {
+            updateStockFilterResults({ results: false });
+          }
+          await new Promise(resolve => setTimeout(resolve, 0));
+        }
+      } finally {
+        if (token === stockStrategyHistoryLoadToken) {
+          stockStrategyHistoryLoading = false;
+          stockStrategyHistoryStrategyId = "";
+          stockStrategyHistoryLoaded = 0;
+          stockStrategyHistoryTarget = 0;
+          if (activeFeature === "stocks" && activeStockView === "filter") updateStockFilterResults();
+        }
+      }
+    }
+
+    function scheduleStockStrategyHistoryLoad() {
+      const strategy = getStockStrategyById(activeStockStrategy);
+      if (!strategy || !stockStrategyNeedsHistory(strategy) || !stockApiReady) return;
+      if (stockStrategyHistoryLoading && stockStrategyHistoryStrategyId === strategy.id) return;
+      const candidates = getStockStrategyHistoryCandidates(strategy);
+      if (!candidates.length) return;
+      stockStrategyHistoryLoadToken += 1;
+      stockStrategyHistoryLoading = true;
+      stockStrategyHistoryStrategyId = strategy.id;
+      stockStrategyHistoryLoaded = 0;
+      stockStrategyHistoryTarget = candidates.length;
+      loadStockStrategyHistories(strategy, stockStrategyHistoryLoadToken);
     }
 
     function normalizeStock(raw) {
@@ -4923,6 +5261,161 @@
       }
     }
 
+    function getDefaultStockWatchGroup() {
+      let group = stockWatchGroups.find(item => item.id === DEFAULT_STOCK_WATCH_GROUP_ID);
+      if (!group) {
+        group = { id: DEFAULT_STOCK_WATCH_GROUP_ID, name: "默认分组", stockIds: [] };
+        stockWatchGroups.unshift(group);
+      }
+      group.name = group.name || "默认分组";
+      group.stockIds = Array.isArray(group.stockIds) ? group.stockIds : [];
+      return group;
+    }
+
+    function repairStockWatchGroups(groups = stockWatchGroups, watchlist = stockWatchlist) {
+      const known = new Set(watchlist.map(getStockIdentity));
+      const repaired = [];
+      const seenGroups = new Set();
+      groups.forEach(raw => {
+        const id = String(raw?.id || "").trim();
+        if (!id || seenGroups.has(id)) return;
+        seenGroups.add(id);
+        const stockIds = [];
+        const seenStocks = new Set();
+        (Array.isArray(raw.stockIds) ? raw.stockIds : []).forEach(value => {
+          const identity = String(value || "").trim().toUpperCase();
+          if (!identity || seenStocks.has(identity)) return;
+          if (known.size && !known.has(identity)) return;
+          seenStocks.add(identity);
+          stockIds.push(identity);
+        });
+        repaired.push({
+          id,
+          name: String(raw.name || (id === DEFAULT_STOCK_WATCH_GROUP_ID ? "默认分组" : "未命名分组")).trim() || "未命名分组",
+          stockIds
+        });
+      });
+
+      let defaultGroup = repaired.find(group => group.id === DEFAULT_STOCK_WATCH_GROUP_ID);
+      if (!defaultGroup) {
+        defaultGroup = { id: DEFAULT_STOCK_WATCH_GROUP_ID, name: "默认分组", stockIds: [] };
+        repaired.unshift(defaultGroup);
+      }
+      defaultGroup.name = defaultGroup.name || "默认分组";
+
+      const assigned = new Set(repaired.flatMap(group => group.stockIds));
+      watchlist.map(getStockIdentity).forEach(identity => {
+        if (!assigned.has(identity)) defaultGroup.stockIds.push(identity);
+      });
+
+      stockWatchGroups = repaired;
+      if (!stockWatchGroups.some(group => group.id === activeStockWatchGroupId)) {
+        activeStockWatchGroupId = DEFAULT_STOCK_WATCH_GROUP_ID;
+      }
+      return stockWatchGroups;
+    }
+
+    function loadStockWatchGroups(watchlist = stockWatchlist) {
+      try {
+        const raw = localStorage.getItem(STOCK_WATCHLIST_GROUPS_KEY);
+        const parsed = raw ? JSON.parse(raw) : null;
+        if (Array.isArray(parsed) && parsed.length) {
+          return repairStockWatchGroups(parsed, watchlist);
+        }
+      } catch (error) {
+        localStorage.removeItem(STOCK_WATCHLIST_GROUPS_KEY);
+      }
+      return repairStockWatchGroups([
+        {
+          id: DEFAULT_STOCK_WATCH_GROUP_ID,
+          name: "默认分组",
+          stockIds: watchlist.map(getStockIdentity)
+        }
+      ], watchlist);
+    }
+
+    function saveStockWatchGroups() {
+      try {
+        repairStockWatchGroups(stockWatchGroups, stockWatchlist);
+        localStorage.setItem(STOCK_WATCHLIST_GROUPS_KEY, JSON.stringify(stockWatchGroups));
+      } catch (error) {
+        showToast("自选股分组保存失败", "error");
+      }
+    }
+
+    function getStockWatchGroupById(id = activeStockWatchGroupId) {
+      return stockWatchGroups.find(group => group.id === id) || getDefaultStockWatchGroup();
+    }
+
+    function getStockWatchGroupStockIds(id = activeStockWatchGroupId) {
+      return getStockWatchGroupById(id).stockIds || [];
+    }
+
+    function getStockWatchGroupCount(id = activeStockWatchGroupId) {
+      return getStockWatchGroupStockIds(id).length;
+    }
+
+    function getStockWatchlistForGroup(id = activeStockWatchGroupId) {
+      const identities = new Set(getStockWatchGroupStockIds(id));
+      return stockWatchlist.filter(stock => identities.has(getStockIdentity(stock)));
+    }
+
+    function renderStockWatchGroupBar() {
+      repairStockWatchGroups(stockWatchGroups, stockWatchlist);
+      return `
+        <div class="stock-watch-group-bar">
+          <div class="stock-watch-group-list" aria-label="自选股分组">
+            ${stockWatchGroups.map(group => `
+              <button class="stock-watch-group ${group.id === activeStockWatchGroupId ? "active" : ""}" type="button" data-stock-watch-group="${escapeHTML(group.id)}" aria-pressed="${group.id === activeStockWatchGroupId}">
+                ${escapeHTML(group.name)} · ${getStockWatchGroupCount(group.id)}
+              </button>
+            `).join("")}
+          </div>
+          <div class="stock-watch-group-actions">
+            <button class="stock-action" type="button" data-stock-watch-group-add>新建分组</button>
+            <button class="stock-action" type="button" data-stock-watch-group-rename="${escapeHTML(activeStockWatchGroupId)}">重命名</button>
+            <button class="stock-action danger" type="button" data-stock-watch-group-delete="${escapeHTML(activeStockWatchGroupId)}" ${activeStockWatchGroupId === DEFAULT_STOCK_WATCH_GROUP_ID ? "disabled" : ""}>删除</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function addStockWatchGroup(name) {
+      const value = String(name || "").trim();
+      if (!value) return null;
+      const group = { id: makeId(), name: value, stockIds: [] };
+      stockWatchGroups.push(group);
+      activeStockWatchGroupId = group.id;
+      saveStockWatchGroups();
+      return group;
+    }
+
+    function renameStockWatchGroup(id, name) {
+      const group = getStockWatchGroupById(id);
+      const value = String(name || "").trim();
+      if (!group || !value) return false;
+      group.name = value;
+      saveStockWatchGroups();
+      return true;
+    }
+
+    function deleteStockWatchGroup(id) {
+      if (!id || id === DEFAULT_STOCK_WATCH_GROUP_ID) return false;
+      const index = stockWatchGroups.findIndex(group => group.id === id);
+      if (index < 0) return false;
+      const [removed] = stockWatchGroups.splice(index, 1);
+      const defaultGroup = getDefaultStockWatchGroup();
+      const remaining = new Set(stockWatchGroups.flatMap(group => group.stockIds));
+      (removed.stockIds || []).forEach(identity => {
+        if (!remaining.has(identity) && !defaultGroup.stockIds.includes(identity)) {
+          defaultGroup.stockIds.push(identity);
+        }
+      });
+      if (activeStockWatchGroupId === id) activeStockWatchGroupId = DEFAULT_STOCK_WATCH_GROUP_ID;
+      saveStockWatchGroups();
+      return true;
+    }
+
     function loadCustomStockStrategies() {
       try {
         const raw = localStorage.getItem(STOCK_STRATEGY_KEY);
@@ -4979,12 +5472,39 @@
       }
     }
 
+    function resetStockAuxiliaryFilters() {
+      Object.assign(stockFilters, {
+        minChange: "",
+        maxChange: "",
+        minVolume: "",
+        maxVolume: "",
+        minPe: "",
+        maxPe: "",
+        minPb: "",
+        maxPb: "",
+        minRoe: "",
+        maxRoe: "",
+        technicalPattern: "all",
+        minVolumeRatio: "",
+        maxVolumeRatio: "",
+        maPosition: "all",
+        industry: "all",
+        metric: "all",
+        logic: "and"
+      });
+    }
+
+    function getStockStrategyById(id) {
+      const value = String(id || "");
+      if (!value) return null;
+      return [...defaultStockStrategies, ...customStockStrategies].find(item => item.id === value) || null;
+    }
+
     function restoreStockFilterState() {
       const state = loadStockFilterState();
-      const validTags = new Set(stockFilterTags.map(tag => tag.id));
       const validStrategies = new Set([...defaultStockStrategies, ...customStockStrategies].map(strategy => strategy.id));
-      activeStockTags = (state.activeStockTags || []).filter(id => validTags.has(id));
-      activeStockStrategy = validStrategies.has(state.activeStockStrategy) ? state.activeStockStrategy : "";
+      activeStockTags = [];
+      activeStockStrategy = validStrategies.has(state.activeStockStrategy) ? state.activeStockStrategy : defaultStockStrategies[0]?.id || "";
       stockFilterSearchTerm = state.stockFilterSearchTerm || "";
     }
 
@@ -5231,11 +5751,11 @@
 
     function getStockLimitThreshold(stock) {
       const status = getStockStatus(stock);
-      if (status === "ST" || status === "退市风险") return 4.5;
+      if (status === "ST" || status === "退市风险") return getStockSelectionParameter("limit_up_threshold_st", 0.045) * 100;
       const board = getStockBoardCategory(stock);
-      if (board === "北交所") return 29;
-      if (board === "科创板" || board === "创业板") return 19;
-      return 9;
+      if (board === "北交所") return getStockSelectionParameter("limit_up_threshold_bj", 0.29) * 100;
+      if (board === "科创板" || board === "创业板") return getStockSelectionParameter("limit_up_threshold_growth", 0.19) * 100;
+      return getStockSelectionParameter("limit_up_threshold_main", 0.09) * 100;
     }
 
     function isStockLimitUpBar(stock, bar, previous) {
@@ -5419,6 +5939,429 @@
       };
     }
 
+    function getStockSelectionClosePosition(bar) {
+      const high = Number(bar?.high || bar?.close || 0);
+      const low = Number(bar?.low || bar?.close || 0);
+      const close = Number(bar?.close || 0);
+      const tickSize = getStockSelectionParameter("tick_size", 0.01);
+      return close > 0 ? (close - low) / Math.max(high - low, tickSize) : 0;
+    }
+
+    function getStockSelectionReturn(series, days) {
+      if (!series.length) return 0;
+      const end = Number(series[series.length - 1]?.close) || 0;
+      const start = Number(series[Math.max(0, series.length - 1 - days)]?.close) || 0;
+      return start > 0 ? end / start - 1 : 0;
+    }
+
+    function getStockSelectionPreviousHigh(series, days) {
+      const end = Math.max(0, series.length - 1);
+      const start = Math.max(0, end - days);
+      return series.slice(start, end).reduce((max, item) => Math.max(max, Number(item.high || item.close) || 0), 0);
+    }
+
+    function getStockSelectionAverageAmount(stock, days = getStockSelectionWindow("avg_amount", 5)) {
+      const series = getStockKLineSeries(stock);
+      const items = series.slice(Math.max(0, series.length - days));
+      const values = items.map(item => Number(item.amount) || 0).filter(value => value > 0);
+      if (values.length) return values.reduce((sum, value) => sum + value, 0) / values.length;
+      return Number(stock.amount) || 0;
+    }
+
+    function getStockSelectionAmountRatio(stock, days = getStockSelectionWindow("avg_amount", 5)) {
+      const series = getStockKLineSeries(stock);
+      if (series.length < 2) return 0;
+      const latest = Number(series[series.length - 1]?.amount || stock.amount || 0);
+      const previous = series.slice(Math.max(0, series.length - 1 - days), series.length - 1)
+        .map(item => Number(item.amount) || 0)
+        .filter(value => value > 0);
+      if (!latest || !previous.length) return 0;
+      const average = previous.reduce((sum, value) => sum + value, 0) / previous.length;
+      return average > 0 ? latest / average : 0;
+    }
+
+    function getStockSelectionLimitUpCount(stock, lookback = getStockSelectionWindow("recent_limit", 10)) {
+      const series = getStockKLineSeries(stock);
+      let count = 0;
+      const start = Math.max(1, series.length - lookback);
+      for (let index = start; index < series.length; index += 1) {
+        if (isStockLimitUpBar(stock, series[index], series[index - 1])) count += 1;
+      }
+      return count;
+    }
+
+    function getStockSelectionIndicators(stock) {
+      const series = getStockKLineSeries(stock);
+      const latest = series[series.length - 1] || {};
+      const previous = series[series.length - 2] || {};
+      const ma5 = getStockMaValue(stock, getStockSelectionWindow("ma5", 5));
+      const ma10 = getStockMaValue(stock, getStockSelectionWindow("ma10", 10));
+      const ma20 = getStockMaValue(stock, getStockSelectionWindow("ma20", 20));
+      const ma60 = getStockMaValue(stock, getStockSelectionWindow("ma60", 60));
+      const previousMa5 = getStockMaValue(stock, getStockSelectionWindow("ma5", 5), 1);
+      const previousMa10 = getStockMaValue(stock, getStockSelectionWindow("ma10", 10), 1);
+      const previousMa20 = getStockMaValue(stock, getStockSelectionWindow("ma20", 20), 5);
+      const close = Number(latest.close || stock.price || 0);
+      const open = Number(latest.open || close);
+      const low = Number(latest.low || close);
+      const high = Number(latest.high || close);
+      const preClose = Number(previous.close || stock.previousClose || 0);
+      const volumeRatio = getStockVolumeRatio(stock, getStockSelectionWindow("avg_volume_prev", 5));
+      const amountRatio = getStockSelectionAmountRatio(stock);
+      const previousHigh20 = getStockSelectionPreviousHigh(series, getStockSelectionWindow("previous_high", 20));
+      const previousHigh10 = getStockSelectionPreviousHigh(series, getStockSelectionWindow("platform", 10));
+      const recentHigh10 = getStockRecentHigh(stock, getStockSelectionWindow("recent_high", 10));
+      const limitUp = isStockLimitUpBar(stock, latest, previous);
+      const previousLimitUp = isStockLimitUpBar(stock, previous, series[series.length - 3]);
+      const oneWordLimitUp = isStockOneLineLimitUpBar(stock, latest, previous);
+      const recentLimitCount = getStockSelectionLimitUpCount(stock, getStockSelectionWindow("recent_limit", 10));
+      const consecutiveLimitUpDays = getStockConsecutiveLimitCount(stock);
+      const closePosition = getStockSelectionClosePosition(latest);
+      const upperShadow = high - Math.max(open, close);
+      const candleBody = Math.abs(close - open);
+      const platformSeries = series.slice(Math.max(0, series.length - getStockSelectionWindow("platform", 10)));
+      const platformHigh = platformSeries.reduce((max, item) => Math.max(max, Number(item.high || item.close) || 0), 0);
+      const platformLow = platformSeries.reduce((min, item) => {
+        const value = Number(item.low || item.close) || 0;
+        return value > 0 ? Math.min(min, value) : min;
+      }, Number.POSITIVE_INFINITY);
+      const drawdownFrom10dHigh = recentHigh10 > 0 ? 1 - close / recentHigh10 : 0;
+      const return1d = preClose > 0 ? close / preClose - 1 : (Number(stock.changePercent) || 0) / 100;
+      const return3d = getStockSelectionReturn(series, getStockSelectionWindow("return_3d", 3));
+      const return5d = getStockSelectionReturn(series, getStockSelectionWindow("return_5d", 5));
+      const return20d = getStockSelectionReturn(series, getStockSelectionWindow("return_20d", 20));
+      const bullishMa = Boolean(close > ma5 && ma5 > ma10 && ma10 > ma20 && ma5 > previousMa5 && ma10 >= previousMa10);
+      return {
+        series,
+        latest,
+        previous,
+        close,
+        open,
+        high,
+        low,
+        preClose,
+        ma5,
+        ma10,
+        ma20,
+        ma60,
+        previousMa5,
+        previousMa10,
+        previousMa20,
+        avgAmount5: getStockSelectionAverageAmount(stock),
+        volumeRatio,
+        amountRatio,
+        return1d,
+        return3d,
+        return5d,
+        return20d,
+        previousHigh20,
+        previousHigh10,
+        closePosition,
+        upperShadow,
+        candleBody,
+        drawdownFrom10dHigh,
+        limitUp,
+        touchedLimitUp: high > 0 && high >= close * 0.995 && limitUp,
+        oneWordLimitUp,
+        consecutiveLimitUpDays,
+        firstLimitUpToday: Boolean(limitUp && !previousLimitUp),
+        bullishMa,
+        recentLimitCount,
+        recentHigh10,
+        platformWidth: platformHigh > 0 && Number.isFinite(platformLow) ? platformHigh / platformLow - 1 : 0,
+        dayDropFromPreviousClose: preClose > 0 ? Math.max(0, 1 - low / preClose) : 0,
+        reboundFromLow: low > 0 ? close / low - 1 : 0
+      };
+    }
+
+    function getPercentileRank(values, value) {
+      const clean = values.map(Number).filter(Number.isFinite).sort((a, b) => a - b);
+      const target = Number(value);
+      if (!clean.length || !Number.isFinite(target)) return 0;
+      const belowOrEqual = clean.filter(item => item <= target).length;
+      return belowOrEqual / clean.length;
+    }
+
+    function buildStockSelectionContext() {
+      const sectorItems = new Map();
+      const stockIndicators = new Map();
+      stockUniverse.forEach(stock => {
+        const indicators = getStockSelectionIndicators(stock);
+        stockIndicators.set(getStockIdentity(stock), indicators);
+        const sector = stock.industry || "unknown";
+        if (!sectorItems.has(sector)) sectorItems.set(sector, []);
+        sectorItems.get(sector).push({ stock, indicators });
+      });
+
+      const sectorStats = new Map();
+      const rawSectorStats = [];
+      sectorItems.forEach((items, sector) => {
+        const totalAmount = items.reduce((sum, item) => sum + item.indicators.avgAmount5, 0);
+        const return1d = items.reduce((sum, item) => sum + item.indicators.return1d, 0) / Math.max(1, items.length);
+        const return3d = items.reduce((sum, item) => sum + item.indicators.return3d, 0) / Math.max(1, items.length);
+        const return5d = items.reduce((sum, item) => sum + item.indicators.return5d, 0) / Math.max(1, items.length);
+        const limitUpCount = items.filter(item => item.indicators.limitUp).length;
+        const upRatio = items.filter(item => item.indicators.return1d > 0).length / Math.max(1, items.length);
+        rawSectorStats.push({ sector, items, totalAmount, return1d, return3d, return5d, limitUpCount, upRatio });
+      });
+
+      const sectorReturn3dValues = rawSectorStats.map(item => item.return3d);
+      const sectorReturn5dValues = rawSectorStats.map(item => item.return5d);
+      const sectorLimitValues = rawSectorStats.map(item => item.limitUpCount);
+      const sectorAmountValues = rawSectorStats.map(item => item.totalAmount);
+      const sectorUpRatioValues = rawSectorStats.map(item => item.upRatio);
+      rawSectorStats.forEach(stat => {
+        const weights = getStockSelectionConfig().score_model?.sector_heat_weights || {};
+        const heatScore =
+          Number(weights.return_3d || 0) * getPercentileRank(sectorReturn3dValues, stat.return3d) +
+          Number(weights.limit_up_count || 0) * getPercentileRank(sectorLimitValues, stat.limitUpCount) +
+          Number(weights.amount || 0) * getPercentileRank(sectorAmountValues, stat.totalAmount) +
+          Number(weights.up_ratio || 0) * getPercentileRank(sectorUpRatioValues, stat.upRatio) +
+          Number(weights.return_5d || 0) * getPercentileRank(sectorReturn5dValues, stat.return5d);
+        sectorStats.set(stat.sector, { ...stat, heatScore });
+      });
+
+      const sortedSectorStats = [...sectorStats.values()].sort((a, b) => b.heatScore - a.heatScore);
+      const hotSectorCount = getStockSelectionParameter("top_hot_sector_count", 5);
+      const hotSectorMin = getStockSelectionParameter("hot_sector_score_min", 0.8);
+      const hotSectors = new Set(sortedSectorStats
+        .filter((item, index) => index < hotSectorCount || item.heatScore >= hotSectorMin)
+        .map(item => item.sector));
+
+      const leaderStats = new Map();
+      sectorItems.forEach((items, sector) => {
+        const sectorReturn5d = sectorStats.get(sector)?.return5d || 0;
+        const relativeValues = items.map(item => item.indicators.return5d - sectorReturn5d);
+        const limitValues = items.map(item => getStockSelectionLimitUpCount(item.stock));
+        const amountValues = items.map(item => item.indicators.avgAmount5);
+        const resilienceValues = items.map(item => item.indicators.return1d - (sectorStats.get(sector)?.return1d || 0));
+        const closePositionValues = items.map(item => item.indicators.closePosition);
+        const weights = getStockSelectionConfig().score_model?.leader_score_weights || {};
+        const scored = items.map(item => {
+          const identity = getStockIdentity(item.stock);
+          const relativeStrength5d = item.indicators.return5d - sectorReturn5d;
+          const limitUpCount10d = getStockSelectionLimitUpCount(item.stock);
+          const resilience = item.indicators.return1d - (sectorStats.get(sector)?.return1d || 0);
+          const leaderScore =
+            Number(weights.relative_strength_5d || 0) * getPercentileRank(relativeValues, relativeStrength5d) +
+            Number(weights.limit_up_count_10d || 0) * getPercentileRank(limitValues, limitUpCount10d) +
+            Number(weights.avg_amount_5 || 0) * getPercentileRank(amountValues, item.indicators.avgAmount5) +
+            Number(weights.resilience || 0) * getPercentileRank(resilienceValues, resilience) +
+            Number(weights.close_position || 0) * getPercentileRank(closePositionValues, item.indicators.closePosition);
+          return { identity, relativeStrength5d, limitUpCount10d, resilience, leaderScore };
+        }).sort((a, b) => b.leaderScore - a.leaderScore);
+        scored.forEach((item, index) => {
+          leaderStats.set(item.identity, { ...item, leaderRankInSector: index + 1 });
+        });
+      });
+
+      const limitDownCount = stockUniverse.filter(stock => {
+        const indicators = stockIndicators.get(getStockIdentity(stock));
+        return indicators?.return1d <= -getStockSelectionParameter("limit_up_threshold_main", 0.09);
+      }).length;
+      const averageReturn1d = stockUniverse.reduce((sum, stock) => sum + (stockIndicators.get(getStockIdentity(stock))?.return1d || 0), 0) / Math.max(1, stockUniverse.length);
+      const indexReturn2d = averageReturn1d * 2;
+      const riskOff = indexReturn2d <= getStockSelectionParameter("index_return_2d_risk_off", -0.04);
+
+      return { stockIndicators, sectorStats, hotSectors, leaderStats, market: { limitDownCount, averageReturn1d, indexReturn2d, riskOff } };
+    }
+
+    function getStockSelectionContext() {
+      if (stockSelectionContextCache && stockSelectionContextCacheVersion === stockSelectionDataVersion) return stockSelectionContextCache;
+      stockSelectionContextCache = buildStockSelectionContext();
+      stockSelectionContextCacheVersion = stockSelectionDataVersion;
+      return stockSelectionContextCache;
+    }
+
+    function stockPassesSelectionBaseFilter(stock, indicators = getStockSelectionIndicators(stock)) {
+      return getStockStatus(stock) === "非ST" &&
+        String(stock.status || "").toLowerCase() !== "suspended" &&
+        indicators.close > 0 &&
+        (Number(indicators.latest?.volume || stock.volume || 0) > 0) &&
+        indicators.avgAmount5 >= getStockSelectionParameter("min_avg_amount_5d", 0) &&
+        Boolean(stock.industry && stock.industry !== "unknown");
+    }
+
+    function matchAutomatedStockStrategy(stock, strategyId, context = getStockSelectionContext()) {
+      const config = getStockSelectionStrategyConfig(strategyId);
+      if (!config || config.enabled === false) return null;
+      const indicators = context.stockIndicators.get(getStockIdentity(stock)) || getStockSelectionIndicators(stock);
+      const sector = stock.industry || "unknown";
+      const sectorStat = context.sectorStats.get(sector) || {};
+      const leader = context.leaderStats.get(getStockIdentity(stock)) || { leaderRankInSector: Number.POSITIVE_INFINITY, leaderScore: 0 };
+      const hotSector = context.hotSectors.has(sector);
+      const riskOff = Boolean(context.market.riskOff);
+      const volumeExpanded = indicators.volumeRatio >= getStockSelectionParameter("volume_expand_ratio", 1.5) ||
+        indicators.amountRatio >= getStockSelectionParameter("volume_expand_ratio", 1.5);
+      const closeStrong = indicators.closePosition >= getStockSelectionParameter("close_position_min", 0.7);
+      const frontRow = leader.leaderRankInSector <= getStockSelectionParameter("leader_rank_front_row", 5);
+      const dragonFrontRow = leader.leaderRankInSector <= getStockSelectionParameter("leader_rank_dragon", 3);
+      const base = { strategyId, strategyStage: config.stage || "", reasonCodes: [], isTradable: true, patternScore: 1 };
+      const withCommon = (...codes) => ({ ...base, reasonCodes: [...new Set(codes)] });
+
+      if (strategyId === "trend_volume_leader" &&
+        !riskOff && hotSector && frontRow && indicators.close > indicators.ma5 && indicators.ma5 > indicators.ma10 &&
+        indicators.ma5 > indicators.previousMa5 && volumeExpanded && closeStrong &&
+        (indicators.close > indicators.previousHigh20 || indicators.limitUp)) {
+        return withCommon("HOT_SECTOR", "SECTOR_LEADER", "ABOVE_MA5", "BULLISH_MA", "VOLUME_EXPANSION", "BREAKOUT_20D");
+      }
+
+      if (strategyId === "true_breakout" &&
+        !riskOff && indicators.close > indicators.previousHigh20 && volumeExpanded && closeStrong && indicators.close > indicators.ma5) {
+        return withCommon("BREAKOUT_20D", "VOLUME_EXPANSION", "ABOVE_MA5");
+      }
+
+      if (strategyId === "platform_breakout" &&
+        hotSector && indicators.platformWidth > 0 && indicators.platformWidth <= getStockSelectionParameter("platform_width_max", 0.15) &&
+        indicators.close > indicators.previousHigh10 && volumeExpanded && closeStrong) {
+        return withCommon("HOT_SECTOR", "BREAKOUT_20D", "VOLUME_EXPANSION");
+      }
+
+      if (strategyId === "first_limit_up" &&
+        !riskOff && indicators.firstLimitUpToday && hotSector && frontRow) {
+        const reasons = ["FIRST_LIMIT_UP", "HOT_SECTOR", "SECTOR_LEADER", "LIQUIDITY_OK"];
+        if (indicators.oneWordLimitUp) reasons.push("ONE_WORD_UNTRADABLE");
+        return { ...withCommon(...reasons), isTradable: !indicators.oneWordLimitUp, strategyStage: indicators.oneWordLimitUp ? "WATCH_ONLY" : base.strategyStage };
+      }
+
+      if (strategyId === "first_negative_after_board" &&
+        hotSector && indicators.recentLimitCount >= 2 && !indicators.limitUp && indicators.close < indicators.open &&
+        (indicators.close >= indicators.ma5 || indicators.close >= indicators.previousHigh20 * (1 - getStockSelectionParameter("breakout_tolerance_pct", 0.02))) &&
+        indicators.volumeRatio <= getStockSelectionParameter("first_negative_max_volume_ratio", 1.5)) {
+        return { ...withCommon("FIRST_NEGATIVE_AFTER_BOARD", "HOT_SECTOR", "VOLUME_CONTRACTION"), isTradable: false };
+      }
+
+      if (strategyId === "upper_shadow_reversal") {
+        const previousOpen = Number(indicators.previous?.open || indicators.previous?.close || 0);
+        const previousClose = Number(indicators.previous?.close || 0);
+        const previousHigh = Number(indicators.previous?.high || previousClose || 0);
+        const previousUpperShadow = previousHigh - Math.max(previousOpen, previousClose);
+        const previousBody = Math.abs(previousClose - previousOpen);
+        if (hotSector && previousBody > 0 &&
+          previousUpperShadow >= getStockSelectionParameter("upper_shadow_body_ratio", 1.5) * previousBody &&
+          indicators.close > previousHigh &&
+          indicators.volumeRatio >= getStockSelectionParameter("upper_shadow_volume_ratio", 1.3) &&
+          closeStrong) {
+          return withCommon("UPPER_SHADOW_REVERSAL", "HOT_SECTOR", "VOLUME_EXPANSION");
+        }
+      }
+
+      if (strategyId === "dragon_return" &&
+        hotSector && dragonFrontRow &&
+        (indicators.recentLimitCount >= 2 || indicators.return20d >= 0.20) &&
+        indicators.drawdownFrom10dHigh >= getStockSelectionParameter("dragon_pullback_min", 0.05) &&
+        indicators.drawdownFrom10dHigh <= getStockSelectionParameter("dragon_pullback_max", 0.25) &&
+        indicators.volumeRatio <= getStockSelectionParameter("volume_contract_ratio", 0.8) * getStockSelectionParameter("volume_expand_ratio", 1.5) &&
+        indicators.close >= indicators.ma5 &&
+        indicators.closePosition >= 0.65) {
+        return withCommon("DRAGON_RETURN", "HOT_SECTOR", "SECTOR_LEADER", "VOLUME_CONTRACTION");
+      }
+
+      if (strategyId === "trend_pullback") {
+        const nearSupport = [indicators.ma5, indicators.ma10, indicators.previousHigh10].some(level => level > 0 && Math.abs(indicators.low / level - 1) <= getStockSelectionParameter("near_support_pct", 0.03));
+        if (indicators.return20d > getStockSelectionParameter("trend_pullback_return_20d_min", 0) &&
+          indicators.ma20 > indicators.previousMa20 &&
+          (indicators.bullishMa || indicators.close > indicators.ma20) &&
+          nearSupport &&
+          indicators.volumeRatio <= getStockSelectionParameter("volume_contract_ratio", 0.8) &&
+          indicators.close >= indicators.ma20) {
+          return withCommon("TREND_PULLBACK", "NEAR_SUPPORT", "VOLUME_CONTRACTION", indicators.bullishMa ? "BULLISH_MA" : "ABOVE_MA5");
+        }
+      }
+
+      if (strategyId === "panic_reversal" &&
+        (riskOff || context.market.indexReturn2d <= getStockSelectionParameter("panic_index_return_2d", -0.03)) &&
+        (hotSector || leader.leaderScore >= 0.8) &&
+        indicators.dayDropFromPreviousClose >= getStockSelectionParameter("panic_drop_min", 0.05) &&
+        indicators.reboundFromLow >= getStockSelectionParameter("intraday_rebound_min", 0.03) &&
+        indicators.closePosition >= 0.55) {
+        return withCommon("PANIC_REVERSAL", "MARKET_RISK_OFF", "SECTOR_LEADER");
+      }
+
+      if (strategyId === "sector_catchup" &&
+        hotSector && leader.leaderRankInSector > 1 && leader.leaderRankInSector <= getStockSelectionParameter("top_leader_count_per_sector", 5) &&
+        indicators.return5d < (sectorStat.items?.[0]?.indicators?.return5d || Number.POSITIVE_INFINITY) &&
+        indicators.close > indicators.previousHigh10 &&
+        indicators.volumeRatio >= getStockSelectionParameter("sector_catchup_volume_ratio", 1.3) &&
+        closeStrong) {
+        return withCommon("SECTOR_CATCHUP", "HOT_SECTOR", "VOLUME_EXPANSION");
+      }
+
+      return null;
+    }
+
+    function getAutomatedStockSelection(stock) {
+      const context = getStockSelectionContext();
+      const indicators = context.stockIndicators.get(getStockIdentity(stock)) || getStockSelectionIndicators(stock);
+      const sector = stock.industry || "unknown";
+      const sectorStat = context.sectorStats.get(sector) || { heatScore: 0 };
+      const leader = context.leaderStats.get(getStockIdentity(stock)) || { leaderScore: 0, leaderRankInSector: 0 };
+      const result = {
+        tradeDate: indicators.latest?.time || indicators.latest?.date || "",
+        code: stock.code,
+        name: stock.name,
+        sector,
+        strategyIds: [],
+        strategyStage: "",
+        totalScore: 0,
+        sectorHeatScore: Number(sectorStat.heatScore || 0),
+        leaderScore: Number(leader.leaderScore || 0),
+        leaderRankInSector: Number(leader.leaderRankInSector || 0),
+        close: indicators.close,
+        ma5: indicators.ma5,
+        ma10: indicators.ma10,
+        ma20: indicators.ma20,
+        volumeRatio: indicators.volumeRatio,
+        amountRatio: indicators.amountRatio,
+        triggerPrice: indicators.close,
+        breakoutLevel: indicators.previousHigh20,
+        supportLevel: Math.max(indicators.ma5 || 0, indicators.ma10 || 0, indicators.previousHigh10 || 0),
+        invalidationLevel: indicators.ma20 || indicators.low,
+        isTradable: true,
+        reasonCodes: [],
+        isCandidate: false
+      };
+
+      if (stockSelectionConfigStatus !== "ready" || !stockPassesSelectionBaseFilter(stock, indicators)) {
+        result.reasonCodes = ["NO_STRATEGY_MATCH"];
+        return result;
+      }
+
+      getStockSelectionEnabledStrategies().forEach(strategy => {
+        const match = matchAutomatedStockStrategy(stock, strategy.id, context);
+        if (!match) return;
+        result.strategyIds.push(strategy.id);
+        if (!result.strategyStage) result.strategyStage = match.strategyStage || strategy.stage || "";
+        result.reasonCodes.push(...match.reasonCodes);
+        if (!match.isTradable) result.isTradable = false;
+      });
+
+      result.reasonCodes = [...new Set(result.reasonCodes)];
+      result.isCandidate = result.strategyIds.length > 0;
+      if (!result.isCandidate) {
+        result.reasonCodes = ["NO_STRATEGY_MATCH"];
+        return result;
+      }
+
+      const weights = getStockSelectionConfig().score_model?.weights || {};
+      const penalties = getStockSelectionConfig().score_model?.risk_penalty || {};
+      const volumeScore = Math.min(1, Math.max(indicators.volumeRatio, indicators.amountRatio) / Math.max(getStockSelectionParameter("volume_expand_ratio", 1.5), 0.01));
+      const liquidityScore = Math.min(1, indicators.avgAmount5 / Math.max(getStockSelectionParameter("min_avg_amount_5d", 1), 1));
+      let score =
+        Number(weights.sector_heat_score || 0) * result.sectorHeatScore +
+        Number(weights.leader_score || 0) * result.leaderScore +
+        Number(weights.pattern_score || 0) +
+        Number(weights.volume_score || 0) * volumeScore +
+        Number(weights.liquidity_score || 0) * liquidityScore +
+        Number(weights.close_strength_score || 0) * indicators.closePosition;
+      if (context.market.riskOff) score -= Number(penalties.market_risk_off || 0);
+      if (!result.isTradable) score -= Number(penalties.one_word_untradable || 0);
+      if (indicators.ma20 && indicators.close < indicators.ma20) score -= Number(penalties.close_below_ma20 || 0);
+      if (!context.hotSectors.has(sector)) score -= Number(penalties.sector_not_hot || 0);
+      result.totalScore = Math.max(0, Number(score.toFixed(2)));
+      return result;
+    }
+
     function stockMatchesTechnicalPattern(stock, pattern) {
       const value = String(pattern || "all");
       if (!value || value === "all") return true;
@@ -5466,7 +6409,7 @@
     }
 
     function getCombinedStockConditions() {
-      const strategy = [...defaultStockStrategies, ...customStockStrategies].find(item => item.id === activeStockStrategy);
+      const strategy = getStockStrategyById(activeStockStrategy);
       return {
         ...stockFilters,
         ...(strategy?.conditions || {})
@@ -5555,9 +6498,10 @@
       return conditions.logic === "or" ? checks.some(Boolean) : checks.every(Boolean);
     }
 
-    function applyStockFilters(list = stockWatchlist) {
+    function applyStockFilters(list = stockWatchlist, { includeStrategy = true } = {}) {
       if (activeQuickStockFilter) return getQuickFilterStocks(activeQuickStockFilter, list);
       const conditions = getCombinedStockConditions();
+      const strategy = includeStrategy ? getStockStrategyById(activeStockStrategy) : null;
       const tagConditions = activeStockTags
         .map(id => stockFilterTags.find(tag => tag.id === id)?.conditions)
         .filter(Boolean);
@@ -5565,7 +6509,14 @@
       if (hasStockConditions(conditions)) conditionGroups.push(conditions);
       tagConditions.forEach(item => conditionGroups.push(item));
       const filtered = list.filter(stock => {
-        if (!conditionGroups.length) return true;
+        if (strategy?.selectionStrategyId) {
+          const automated = getAutomatedStockSelection(stock);
+          const strategyMatch = strategy.selectionStrategyId === "all"
+            ? automated.isCandidate
+            : automated.strategyIds.includes(strategy.selectionStrategyId);
+          if (!strategyMatch) return false;
+        }
+        if (!conditionGroups.length) return Boolean(strategy?.selectionStrategyId) || true;
         const matches = conditionGroups.map(item => stockMatchesConditions(stock, { ...item, logic: "and" }));
         return stockFilters.logic === "or" ? matches.some(Boolean) : matches.every(Boolean);
       });
@@ -5584,11 +6535,7 @@
     }
 
     function getStockFilterResults() {
-      const keyword = stockFilterSearchTerm.trim();
-      const searched = keyword
-        ? stockUniverse.filter(stock => stockMatchesSearchText(stock, keyword))
-        : stockUniverse;
-      return sortStockResults(applyStockFilters(searched));
+      return sortStockResults(applyStockFilters(getStockFilterSearchSource()));
     }
 
     function getQuickFilterStocks(type, list = stockWatchlist) {
@@ -5634,11 +6581,33 @@
     }
 
     function applyStockStrategy(id) {
-      activeStockStrategy = activeStockStrategy === id ? "" : id;
+      activeStockStrategy = activeStockStrategy === id ? "all_automated" : id;
       activeStockTags = [];
+      activeQuickStockFilter = "";
+      resetStockAuxiliaryFilters();
       stockResultPage = 1;
       saveStockFilterState();
+      scheduleStockStrategyHistoryLoad();
       renderStockPage();
+    }
+
+    function addStockFromDailyListToWatchlist(code, market = "") {
+      repairStockWatchGroups(stockWatchGroups, stockWatchlist);
+      if (stockWatchGroups.length <= 1) {
+        addStockToWatchlist(code, market, [DEFAULT_STOCK_WATCH_GROUP_ID]);
+        return;
+      }
+      const stock = getStockByCode(code, market) || makeStockIdentityPlaceholder(code, market);
+      const identity = getStockIdentity(stock);
+      const existingGroupIds = stockWatchGroups
+        .filter(group => (group.stockIds || []).includes(identity))
+        .map(group => group.id);
+      openModal({
+        type: "stock-watch-group-select",
+        code,
+        market,
+        selectedGroupIds: existingGroupIds.length ? existingGroupIds : [DEFAULT_STOCK_WATCH_GROUP_ID]
+      });
     }
 
     function setStockFilterSearch(value) {
@@ -5937,15 +6906,19 @@
       `;
     }
 
-    function renderStockWatchlist(list = applyStockFilters(stockWatchlist)) {
+    function renderStockWatchlist(list = applyStockFilters(stockWatchlist), sourceList = stockWatchlist) {
       if (!stockWatchlist.length) {
         return `<div class="stock-empty">还没有自选股，使用上方搜索添加第一只股票。</div>`;
+      }
+
+      if (!sourceList.length) {
+        return `<div class="stock-empty">当前分组还没有股票，可从日K列表末尾的 + 添加。</div>`;
       }
 
       if (!list.length) {
         return `
           <div class="stock-empty">
-            <span>当前快速观察或筛选条件下暂无股票，右上角 ${list.length}/${stockWatchlist.length} 表示筛选结果/自选总数。</span>
+            <span>当前快速观察或筛选条件下暂无股票，右上角 ${list.length}/${sourceList.length} 表示筛选结果/当前分组总数。</span>
             <button class="stock-action" type="button" data-stock-filter-reset>清除筛选</button>
           </div>
         `;
@@ -6000,11 +6973,11 @@
       `;
     }
 
-    function renderQuickStockCards() {
-      const topUp = getQuickFilterStocks("top-up").map(stock => stock.name).join("、") || "暂无匹配";
-      const topDown = getQuickFilterStocks("top-down").map(stock => stock.name).join("、") || "暂无匹配";
-      const highRoe = getQuickFilterStocks("high-roe").map(stock => stock.name).join("、") || "暂无匹配";
-      const highPe = getQuickFilterStocks("high-pe").map(stock => stock.name).join("、") || "暂无匹配";
+    function renderQuickStockCards(list = stockWatchlist) {
+      const topUp = getQuickFilterStocks("top-up", list).map(stock => stock.name).join("、") || "暂无匹配";
+      const topDown = getQuickFilterStocks("top-down", list).map(stock => stock.name).join("、") || "暂无匹配";
+      const highRoe = getQuickFilterStocks("high-roe", list).map(stock => stock.name).join("、") || "暂无匹配";
+      const highPe = getQuickFilterStocks("high-pe", list).map(stock => stock.name).join("、") || "暂无匹配";
       return `
         <button class="stock-chip ${activeQuickStockFilter === "top-up" ? "active" : ""}" type="button" data-stock-quick-filter="top-up">
           <strong>上涨前2</strong>
@@ -6302,15 +7275,17 @@
       return stocks.slice(start, end).map((stock, offset) => {
         const index = start + offset;
         const changeClass = getStockChangeClass(stock.changePercent);
+        const exists = stockWatchlist.some(item => getStockIdentity(item) === getStockIdentity(stock));
         return `
-          <button class="stock-daily-row ${stock.id === activeDailyStockId ? "active" : ""}" style="height:${STOCK_DAILY_ROW_HEIGHT - 4}px" type="button" data-stock-daily-row="${escapeHTML(stock.id)}" aria-pressed="${stock.id === activeDailyStockId}">
+          <div class="stock-daily-row ${stock.id === activeDailyStockId ? "active" : ""}" style="height:${STOCK_DAILY_ROW_HEIGHT - 4}px" role="button" tabindex="0" data-stock-daily-row="${escapeHTML(stock.id)}" aria-pressed="${stock.id === activeDailyStockId}">
             <span class="stock-daily-index">${String(index + 1).padStart(3, "0")}</span>
             <span class="stock-daily-meta">
               <span class="stock-daily-name">${escapeHTML(stock.name)}</span>
               <span class="stock-daily-code">${escapeHTML(stock.market)} ${escapeHTML(stock.code)}</span>
             </span>
             <span class="stock-daily-row-change stock-change ${changeClass}" data-stock-daily-change>${formatStockPercent(stock.changePercent)}</span>
-          </button>
+            <button class="stock-daily-add ${exists ? "is-added" : ""}" type="button" data-stock-daily-add="${escapeHTML(stock.code)}" data-stock-market="${escapeHTML(stock.market)}" aria-label="${exists ? `已在自选股中` : `添加${escapeHTML(stock.name)}到自选股`}">${exists ? "✓" : "+"}</button>
+          </div>
         `;
       }).join("");
     }
@@ -6553,7 +7528,7 @@
               ${strategy.builtin ? "" : `<button class="stock-strategy-edit" type="button" data-stock-strategy-edit="${escapeHTML(strategy.id)}" aria-label="编辑${escapeHTML(strategy.name)}">✎</button>`}
             </span>
             <span class="stock-strategy-desc">${escapeHTML(strategy.desc)}</span>
-            ${strategy.risk ? `<span class="stock-strategy-meta" data-stock-risk="${escapeHTML(strategy.risk)}">${escapeHTML(strategy.risk)} · ${escapeHTML(strategy.source || "PDF策略")}</span>` : ""}
+            ${strategy.risk ? `<span class="stock-strategy-meta" data-stock-risk="${escapeHTML(strategy.risk)}">${escapeHTML(strategy.risk)} · ${escapeHTML(strategy.source || "策略模板")}</span>` : ""}
           </div>
         `).join("")}
         <button class="stock-strategy-card" type="button" data-stock-strategy-add>
@@ -6561,6 +7536,46 @@
           <span class="stock-strategy-desc">保存当前条件，之后一键复用。</span>
         </button>
       `;
+    }
+
+    function renderStockStrategySummary(filteredCount) {
+      const strategy = getStockStrategyById(activeStockStrategy);
+      const title = strategy?.name || "全部股票";
+      const source = strategy?.source || "未应用策略条件";
+      const status = getStockStrategyHistoryStatus(strategy);
+      return `
+        <div class="stock-strategy-summary" data-stock-strategy-summary>
+          <span class="stock-strategy-summary-main">
+            <strong>${escapeHTML(title)}</strong>
+            <span>${escapeHTML(source)}</span>
+          </span>
+          <span class="stock-refresh-note">${status ? `${escapeHTML(status)} · ` : ""}${filteredCount}/${stockUniverse.length} 只</span>
+        </div>
+      `;
+    }
+
+    function renderStockFilterResultsPanel(filteredStocks = getStockFilterResults()) {
+      return `
+        <section class="stock-card stock-filter-results" id="stockFilterResults">
+          <div class="stock-section-head">
+            <h2 class="stock-section-title">股票列表</h2>
+            <span class="stock-refresh-note" data-stock-filter-count>${filteredStocks.length}/${stockUniverse.length} 只</span>
+          </div>
+          ${renderStockFilterResultTable(filteredStocks)}
+        </section>
+      `;
+    }
+
+    function updateStockFilterResults({ results = true } = {}) {
+      if (activeFeature !== "stocks" || activeStockView !== "filter") return;
+      const filteredStocks = getStockFilterResults();
+      const summary = document.querySelector("[data-stock-strategy-summary]");
+      if (summary) summary.outerHTML = renderStockStrategySummary(filteredStocks.length);
+      const resultsPanel = document.getElementById("stockFilterResults");
+      if (results && resultsPanel) {
+        resultsPanel.outerHTML = renderStockFilterResultsPanel(filteredStocks);
+        requestAnimationFrame(() => drawStockCanvases());
+      }
     }
 
     function renderStockSortButton(field, label) {
@@ -6588,6 +7603,7 @@
 
     function renderStockFilterDetailRow(stock) {
       const signals = getStockTechnicalSignals(stock);
+      const automated = getAutomatedStockSelection(stock);
       return `
         <tr class="stock-detail-row" data-stock-filter-detail-row>
           <td colspan="8">
@@ -6609,6 +7625,10 @@
                 <strong>${escapeHTML(getStockTechnicalSignalLabel(stock))} · 量比 ${signals.volumeRatio.toFixed(1)}</strong>
               </div>
               <div class="stock-detail-stat">
+                <span>策略/评分</span>
+                <strong>${escapeHTML((automated.strategyIds || []).join(", ") || "未命中")} · ${Number(automated.totalScore || 0).toFixed(1)}</strong>
+              </div>
+              <div class="stock-detail-stat">
                 <span>PB / ROE</span>
                 <strong>${Number(stock.pb || 0).toFixed(2)} / ${Number(stock.roe || 0).toFixed(1)}%</strong>
               </div>
@@ -6616,6 +7636,24 @@
           </td>
         </tr>
       `;
+    }
+
+    function getStockSelectionReasonLabel(code) {
+      return getStockSelectionConfig().reason_code_labels?.[code] || code;
+    }
+
+    function getStockSelectionMatchReasons(stock) {
+      const strategy = getStockStrategyById(activeStockStrategy);
+      if (strategy?.selectionStrategyId) {
+        const automated = getAutomatedStockSelection(stock);
+        const labels = automated.reasonCodes
+          .filter(code => code !== "NO_STRATEGY_MATCH")
+          .map(getStockSelectionReasonLabel);
+        const score = automated.isCandidate ? `评分 ${Number(automated.totalScore || 0).toFixed(1)}` : "";
+        const strategyLabel = automated.strategyIds.length ? automated.strategyIds.join("/") : "";
+        return [strategyLabel, score, ...labels].filter(Boolean).slice(0, 6);
+      }
+      return getStockMatchReasons(stock, getCombinedStockConditions());
     }
 
     function renderStockFilterResultTable(list) {
@@ -6626,7 +7664,14 @@
       const pageItems = list.slice(start, start + STOCK_FILTER_PAGE_SIZE);
       const combinedConditions = getCombinedStockConditions();
       if (!pageItems.length) {
-        return `<div class="stock-empty">当前条件下暂无股票，试试切换为 OR 或放宽区间。</div>`;
+        const strategy = getStockStrategyById(activeStockStrategy);
+        const strategyStatus = getStockStrategyHistoryStatus(strategy);
+        const message = stockStrategyHistoryLoading && strategyStatus
+          ? `${strategyStatus}，结果会自动刷新。`
+          : strategy
+            ? "当前策略暂无匹配股票，等待K线补齐或切换策略。"
+            : "当前条件下暂无股票。";
+        return `<div class="stock-empty">${escapeHTML(message)}</div>`;
       }
 
       return `
@@ -6648,7 +7693,7 @@
               ${pageItems.map(stock => {
                 const exists = stockWatchlist.some(item => getStockIdentity(item) === getStockIdentity(stock));
                 const expanded = expandedStockFilterIdentity === getStockIdentity(stock);
-                const matchReasons = getStockMatchReasons(stock, combinedConditions);
+                const matchReasons = getStockSelectionMatchReasons(stock);
                 const stockMeta = matchReasons.length ? matchReasons.join(" · ") : `${stock.industry} · ${formatStockDataMeta(stock)}`;
                 return `
                   <tr class="stock-watch-row ${expanded ? "is-expanded" : ""}" tabindex="0" aria-expanded="${expanded}" data-stock-filter-row data-stock-code="${escapeHTML(stock.code)}" data-stock-market="${escapeHTML(stock.market)}">
@@ -6688,33 +7733,33 @@
     }
 
     function renderStockWatchlistView() {
-      const filteredStocks = applyStockFilters(stockWatchlist);
+      const groupStocks = getStockWatchlistForGroup(activeStockWatchGroupId);
+      const filteredStocks = applyStockFilters(groupStocks, { includeStrategy: false });
       return `
         <section class="stock-card" id="stockWatchlist">
           <div class="stock-section-head">
             <h2 class="stock-section-title">自选股列表</h2>
             <div class="stock-section-tools">
-              <span class="stock-refresh-note" data-stock-watch-count>${filteredStocks.length}/${stockWatchlist.length} 只</span>
+              <span class="stock-refresh-note" data-stock-watch-count>${filteredStocks.length}/${groupStocks.length} 只</span>
               <button class="stock-action primary" type="button" data-stock-refresh>刷新</button>
             </div>
           </div>
-          ${renderStockWatchlist(filteredStocks)}
+          ${renderStockWatchGroupBar()}
+          ${renderStockWatchlist(filteredStocks, groupStocks)}
         </section>
       `;
     }
 
     function renderStockFilterView() {
       const filteredStocks = getStockFilterResults();
+      scheduleStockStrategyHistoryLoad();
       return `
         <div class="stock-filter-layout">
           <section class="stock-filter-panel stock-card ${stockFilterOpen ? "" : "is-collapsed"}" id="stockFilters">
             <div class="stock-section-head">
-              <h2 class="stock-section-title">条件选股</h2>
+              <h2 class="stock-section-title">策略选股</h2>
               <div class="stock-section-tools">
-                <select class="stock-select" data-stock-filter="logic" aria-label="筛选逻辑">
-                  <option value="and" ${stockFilters.logic === "and" ? "selected" : ""}>AND</option>
-                  <option value="or" ${stockFilters.logic === "or" ? "selected" : ""}>OR</option>
-                </select>
+                <button class="stock-action" type="button" data-stock-filter-reset>重置</button>
                 <button class="stock-action" type="button" data-stock-filter-toggle>${stockFilterOpen ? "收起" : "展开"}</button>
               </div>
             </div>
@@ -6722,114 +7767,102 @@
               ${renderStockFilterSearch()}
               <div class="stock-filter-groups">
                 <div class="stock-filter-group">
-                  <div class="stock-filter-group-title">筛选标签</div>
-                  <div class="stock-filter-tag-row">${renderStockFilterTags()}</div>
-                </div>
-                <div class="stock-filter-group">
-                  <div class="stock-filter-group-title">PDF策略</div>
+                  <div class="stock-filter-group-title">策略模板 · ${defaultStockStrategies.length + customStockStrategies.length} 个</div>
                   <div class="stock-strategy-list">${renderStockStrategies()}</div>
                 </div>
               </div>
-              <div class="stock-filter-fields">
-                <div class="stock-field">
-                  <label>短线形态</label>
-                  <select class="stock-select" data-stock-filter="technicalPattern">
-                    <option value="all" ${stockFilters.technicalPattern === "all" ? "selected" : ""}>全部形态</option>
-                    <option value="limit-up" ${stockFilters.technicalPattern === "limit-up" ? "selected" : ""}>涨停强度</option>
-                    <option value="first-board" ${stockFilters.technicalPattern === "first-board" ? "selected" : ""}>首板</option>
-                    <option value="oversold-first-board" ${stockFilters.technicalPattern === "oversold-first-board" ? "selected" : ""}>超跌首板</option>
-                    <option value="reversal-board" ${stockFilters.technicalPattern === "reversal-board" ? "selected" : ""}>反包板</option>
-                    <option value="dragon-first-negative" ${stockFilters.technicalPattern === "dragon-first-negative" ? "selected" : ""}>龙头首阴</option>
-                    <option value="dragon-pullback" ${stockFilters.technicalPattern === "dragon-pullback" ? "selected" : ""}>龙回头</option>
-                    <option value="third-one-line-board" ${stockFilters.technicalPattern === "third-one-line-board" ? "selected" : ""}>连续一字第三板</option>
-                    <option value="multi-board-relay" ${stockFilters.technicalPattern === "multi-board-relay" ? "selected" : ""}>连板接力</option>
-                    <option value="strong-trend-breakout" ${stockFilters.technicalPattern === "strong-trend-breakout" ? "selected" : ""}>强势趋势突破</option>
-                    <option value="one-line-board" ${stockFilters.technicalPattern === "one-line-board" ? "selected" : ""}>一字板</option>
-                    <option value="trend-volume" ${stockFilters.technicalPattern === "trend-volume" ? "selected" : ""}>放量趋势</option>
-                  </select>
-                </div>
-                <div class="stock-field">
-                  <label>量比区间</label>
-                  <div class="stock-field-row">
-                    <input class="stock-input" data-stock-filter="minVolumeRatio" type="number" step="0.1" value="${escapeHTML(stockFilters.minVolumeRatio)}" placeholder="最低 倍" />
-                    <input class="stock-input" data-stock-filter="maxVolumeRatio" type="number" step="0.1" value="${escapeHTML(stockFilters.maxVolumeRatio)}" placeholder="最高 倍" />
+            ${renderStockStrategySummary(filteredStocks.length)}
+            <details class="stock-advanced-filter-panel">
+                <summary>
+                  <span>辅助过滤</span>
+                  <span class="stock-refresh-note">${stockFilters.logic.toUpperCase()}</span>
+                </summary>
+                <div class="stock-advanced-filter-body">
+                  <div class="stock-filter-fields">
+                    <div class="stock-field">
+                      <label>量比区间</label>
+                      <div class="stock-field-row">
+                        <input class="stock-input" data-stock-filter="minVolumeRatio" type="number" step="0.1" value="${escapeHTML(stockFilters.minVolumeRatio)}" placeholder="最低 倍" />
+                        <input class="stock-input" data-stock-filter="maxVolumeRatio" type="number" step="0.1" value="${escapeHTML(stockFilters.maxVolumeRatio)}" placeholder="最高 倍" />
+                      </div>
+                    </div>
+                    <div class="stock-field">
+                      <label>5日线位置</label>
+                      <select class="stock-select" data-stock-filter="maPosition">
+                        <option value="all" ${stockFilters.maPosition === "all" ? "selected" : ""}>全部位置</option>
+                        <option value="above-ma5" ${stockFilters.maPosition === "above-ma5" ? "selected" : ""}>5日线之上</option>
+                        <option value="below-ma5" ${stockFilters.maPosition === "below-ma5" ? "selected" : ""}>5日线之下</option>
+                      </select>
+                    </div>
+                    <div class="stock-field">
+                      <label>涨跌幅区间</label>
+                      <div class="stock-field-row">
+                        <input class="stock-input" data-stock-filter="minChange" type="number" step="0.1" value="${escapeHTML(stockFilters.minChange)}" placeholder="最低 %" />
+                        <input class="stock-input" data-stock-filter="maxChange" type="number" step="0.1" value="${escapeHTML(stockFilters.maxChange)}" placeholder="最高 %" />
+                      </div>
+                    </div>
+                    <div class="stock-field">
+                      <label>成交量区间</label>
+                      <div class="stock-field-row">
+                        <input class="stock-input" data-stock-filter="minVolume" type="number" step="1000" value="${escapeHTML(stockFilters.minVolume)}" placeholder="最低 万" />
+                        <input class="stock-input" data-stock-filter="maxVolume" type="number" step="1000" value="${escapeHTML(stockFilters.maxVolume)}" placeholder="最高 万" />
+                      </div>
+                    </div>
+                    <div class="stock-field">
+                      <label>市盈率（PE）</label>
+                      <div class="stock-field-row">
+                        <input class="stock-input" data-stock-filter="minPe" type="number" step="0.1" value="${escapeHTML(stockFilters.minPe)}" placeholder="最低 PE" />
+                        <input class="stock-input" data-stock-filter="maxPe" type="number" step="0.1" value="${escapeHTML(stockFilters.maxPe)}" placeholder="最高 PE" />
+                      </div>
+                    </div>
+                    <div class="stock-field">
+                      <label>市净率（PB）</label>
+                      <div class="stock-field-row">
+                        <input class="stock-input" data-stock-filter="minPb" type="number" step="0.1" value="${escapeHTML(stockFilters.minPb)}" placeholder="最低 PB" />
+                        <input class="stock-input" data-stock-filter="maxPb" type="number" step="0.1" value="${escapeHTML(stockFilters.maxPb)}" placeholder="最高 PB" />
+                      </div>
+                    </div>
+                    <div class="stock-field">
+                      <label>ROE 区间</label>
+                      <div class="stock-field-row">
+                        <input class="stock-input" data-stock-filter="minRoe" type="number" step="0.1" value="${escapeHTML(stockFilters.minRoe)}" placeholder="最低 ROE" />
+                        <input class="stock-input" data-stock-filter="maxRoe" type="number" step="0.1" value="${escapeHTML(stockFilters.maxRoe)}" placeholder="最高 ROE" />
+                      </div>
+                    </div>
+                    <div class="stock-field">
+                      <label>行业</label>
+                      <select class="stock-select" data-stock-filter="industry">
+                        <option value="all">全部行业</option>
+                        ${renderStockFilterOptions()}
+                      </select>
+                    </div>
+                    <div class="stock-field">
+                      <label>指标</label>
+                      <select class="stock-select" data-stock-filter="metric">
+                        <option value="all" ${stockFilters.metric === "all" ? "selected" : ""}>全部指标</option>
+                        <option value="low-pe" ${stockFilters.metric === "low-pe" ? "selected" : ""}>低 PE (&lt;20)</option>
+                        <option value="high-pe" ${stockFilters.metric === "high-pe" ? "selected" : ""}>高 PE (≥40)</option>
+                        <option value="high-roe" ${stockFilters.metric === "high-roe" ? "selected" : ""}>高 ROE (≥15)</option>
+                        <option value="active" ${stockFilters.metric === "active" ? "selected" : ""}>高活跃成交</option>
+                      </select>
+                    </div>
+                    <div class="stock-field">
+                      <label>筛选逻辑</label>
+                      <select class="stock-select" data-stock-filter="logic" aria-label="筛选逻辑">
+                        <option value="and" ${stockFilters.logic === "and" ? "selected" : ""}>AND</option>
+                        <option value="or" ${stockFilters.logic === "or" ? "selected" : ""}>OR</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="stock-filter-actions">
+                    <button class="stock-action primary" type="button" data-stock-filter-apply>应用</button>
                   </div>
                 </div>
-                <div class="stock-field">
-                  <label>5日线位置</label>
-                  <select class="stock-select" data-stock-filter="maPosition">
-                    <option value="all" ${stockFilters.maPosition === "all" ? "selected" : ""}>全部位置</option>
-                    <option value="above-ma5" ${stockFilters.maPosition === "above-ma5" ? "selected" : ""}>5日线之上</option>
-                    <option value="below-ma5" ${stockFilters.maPosition === "below-ma5" ? "selected" : ""}>5日线之下</option>
-                  </select>
-                </div>
-                <div class="stock-field">
-                  <label>涨跌幅区间</label>
-                  <div class="stock-field-row">
-                    <input class="stock-input" data-stock-filter="minChange" type="number" step="0.1" value="${escapeHTML(stockFilters.minChange)}" placeholder="最低 %" />
-                    <input class="stock-input" data-stock-filter="maxChange" type="number" step="0.1" value="${escapeHTML(stockFilters.maxChange)}" placeholder="最高 %" />
-                  </div>
-                </div>
-                <div class="stock-field">
-                  <label>成交量区间</label>
-                  <div class="stock-field-row">
-                    <input class="stock-input" data-stock-filter="minVolume" type="number" step="1000" value="${escapeHTML(stockFilters.minVolume)}" placeholder="最低 万" />
-                    <input class="stock-input" data-stock-filter="maxVolume" type="number" step="1000" value="${escapeHTML(stockFilters.maxVolume)}" placeholder="最高 万" />
-                  </div>
-                </div>
-                <div class="stock-field">
-                  <label>市盈率（PE）</label>
-                  <div class="stock-field-row">
-                    <input class="stock-input" data-stock-filter="minPe" type="number" step="0.1" value="${escapeHTML(stockFilters.minPe)}" placeholder="最低 PE" />
-                    <input class="stock-input" data-stock-filter="maxPe" type="number" step="0.1" value="${escapeHTML(stockFilters.maxPe)}" placeholder="最高 PE" />
-                  </div>
-                </div>
-                <div class="stock-field">
-                  <label>市净率（PB）</label>
-                  <div class="stock-field-row">
-                    <input class="stock-input" data-stock-filter="minPb" type="number" step="0.1" value="${escapeHTML(stockFilters.minPb)}" placeholder="最低 PB" />
-                    <input class="stock-input" data-stock-filter="maxPb" type="number" step="0.1" value="${escapeHTML(stockFilters.maxPb)}" placeholder="最高 PB" />
-                  </div>
-                </div>
-                <div class="stock-field">
-                  <label>ROE 区间</label>
-                  <div class="stock-field-row">
-                    <input class="stock-input" data-stock-filter="minRoe" type="number" step="0.1" value="${escapeHTML(stockFilters.minRoe)}" placeholder="最低 ROE" />
-                    <input class="stock-input" data-stock-filter="maxRoe" type="number" step="0.1" value="${escapeHTML(stockFilters.maxRoe)}" placeholder="最高 ROE" />
-                  </div>
-                </div>
-                <div class="stock-field">
-                  <label>行业</label>
-                  <select class="stock-select" data-stock-filter="industry">
-                    <option value="all">全部行业</option>
-                    ${renderStockFilterOptions()}
-                  </select>
-                </div>
-                <div class="stock-field">
-                  <label>指标</label>
-                  <select class="stock-select" data-stock-filter="metric">
-                    <option value="all" ${stockFilters.metric === "all" ? "selected" : ""}>全部指标</option>
-                    <option value="low-pe" ${stockFilters.metric === "low-pe" ? "selected" : ""}>低 PE (&lt;20)</option>
-                    <option value="high-pe" ${stockFilters.metric === "high-pe" ? "selected" : ""}>高 PE (≥40)</option>
-                    <option value="high-roe" ${stockFilters.metric === "high-roe" ? "selected" : ""}>高 ROE (≥15)</option>
-                    <option value="active" ${stockFilters.metric === "active" ? "selected" : ""}>高活跃成交</option>
-                  </select>
-                </div>
-              </div>
-              <div class="stock-filter-actions">
-                <button class="stock-action" type="button" data-stock-filter-reset>重置</button>
-                <button class="stock-action primary" type="button" data-stock-filter-apply>应用</button>
-              </div>
+              </details>
             </div>
           </section>
 
-          <section class="stock-card stock-filter-results" id="stockFilterResults">
-            <div class="stock-section-head">
-              <h2 class="stock-section-title">股票列表</h2>
-              <span class="stock-refresh-note" data-stock-filter-count>${filteredStocks.length}/${stockUniverse.length} 只</span>
-            </div>
-            ${renderStockFilterResultTable(filteredStocks)}
-          </section>
+          ${renderStockFilterResultsPanel(filteredStocks)}
         </div>
       `;
     }
@@ -6843,6 +7876,7 @@
     }
 
     function renderStockPage() {
+      const activeWatchGroupStocks = activeStockView === "watchlist" ? getStockWatchlistForGroup(activeStockWatchGroupId) : [];
       content.className = "content stock-content";
       content.innerHTML = `
         <section class="stock-page">
@@ -6870,7 +7904,7 @@
             <div class="stock-section-head">
               <h2 class="stock-section-title">快速观察</h2>
             </div>
-            <div class="stock-chip-list">${renderQuickStockCards()}</div>
+            <div class="stock-chip-list">${renderQuickStockCards(activeWatchGroupStocks)}</div>
           </section>` : ""}
 
           <div class="stock-view-panel">
@@ -6885,22 +7919,44 @@
       });
     }
 
-    function addStockToWatchlist(code, market = "") {
+    function addStockToWatchlist(code, market = "", groupIds = null) {
       const stock = getStockByCode(code, market) || makeStockIdentityPlaceholder(code, market);
       if (!stock.code) {
         showToast("未找到这只股票", "error");
         return false;
       }
-      const exists = stockWatchlist.some(item => getStockIdentity(item) === getStockIdentity(stock));
-      if (exists) {
-        showToast("这只股票已在自选中");
+      repairStockWatchGroups(stockWatchGroups, stockWatchlist);
+      const identity = getStockIdentity(stock);
+      const targetIds = (Array.isArray(groupIds) && groupIds.length ? groupIds : [DEFAULT_STOCK_WATCH_GROUP_ID])
+        .map(id => String(id || "").trim())
+        .filter(Boolean);
+      const validTargetIds = targetIds.filter(id => stockWatchGroups.some(group => group.id === id));
+      if (!validTargetIds.length) validTargetIds.push(DEFAULT_STOCK_WATCH_GROUP_ID);
+
+      const exists = stockWatchlist.some(item => getStockIdentity(item) === identity);
+      if (!exists) {
+        stockWatchlist.push(cloneStock(stock));
+      }
+      let membershipChanged = false;
+      validTargetIds.forEach(id => {
+        const group = getStockWatchGroupById(id);
+        if (!group.stockIds.includes(identity)) {
+          group.stockIds.push(identity);
+          membershipChanged = true;
+        }
+      });
+
+      if (exists && !membershipChanged) {
+        showToast("这只股票已在所选分组中");
         return false;
       }
-      stockWatchlist.push(cloneStock(stock));
-      saveStockWatchlist();
+      if (!exists) saveStockWatchlist();
+      if (membershipChanged) saveStockWatchGroups();
       renderStockSideList();
       renderStockPage();
-      showToast(`已添加 ${stock.name}`);
+      const groupNames = validTargetIds.map(id => getStockWatchGroupById(id).name).join("、");
+      const showGroupNames = validTargetIds.length > 1 || validTargetIds[0] !== DEFAULT_STOCK_WATCH_GROUP_ID;
+      showToast(`已添加 ${stock.name}${showGroupNames && groupNames ? ` 到 ${groupNames}` : ""}`);
       return true;
     }
 
@@ -6909,8 +7965,12 @@
       const index = stockWatchlist.findIndex(stock => getStockIdentity(stock) === identity);
       if (index < 0) return false;
       const [removed] = stockWatchlist.splice(index, 1);
+      stockWatchGroups.forEach(group => {
+        group.stockIds = (group.stockIds || []).filter(item => item !== identity);
+      });
       if (expandedStockIdentity === getStockIdentity(removed)) expandedStockIdentity = "";
       saveStockWatchlist();
+      saveStockWatchGroups();
       renderStockSideList();
       renderStockPage();
       showToast(`已删除 ${removed.name}`);
@@ -6938,31 +7998,14 @@
     }
 
     function resetStockFilters() {
-      Object.assign(stockFilters, {
-        minChange: "",
-        maxChange: "",
-        minVolume: "",
-        maxVolume: "",
-        minPe: "",
-        maxPe: "",
-        minPb: "",
-        maxPb: "",
-        minRoe: "",
-        maxRoe: "",
-        technicalPattern: "all",
-        minVolumeRatio: "",
-        maxVolumeRatio: "",
-        maPosition: "all",
-        industry: "all",
-        metric: "all",
-        logic: "and"
-      });
+      resetStockAuxiliaryFilters();
       activeQuickStockFilter = "";
       activeStockTags = [];
-      activeStockStrategy = "";
+      activeStockStrategy = defaultStockStrategies[0]?.id || "";
       stockFilterSearchTerm = "";
       stockResultPage = 1;
       saveStockFilterState();
+      scheduleStockStrategyHistoryLoad();
       renderStockPage();
     }
 
@@ -7007,9 +8050,10 @@
     }
 
     function updateStockWatchlistData() {
-      const filteredStocks = applyStockFilters(stockWatchlist);
+      const groupStocks = getStockWatchlistForGroup(activeStockWatchGroupId);
+      const filteredStocks = applyStockFilters(groupStocks, { includeStrategy: false });
       document.querySelectorAll("[data-stock-watch-count]").forEach(node => {
-        setStockNodeText(node, `${filteredStocks.length}/${stockWatchlist.length} 只`);
+        setStockNodeText(node, `${filteredStocks.length}/${groupStocks.length} 只`);
       });
 
       stockWatchlist.forEach(stock => {
@@ -7906,12 +8950,6 @@
         return;
       }
 
-      const tagButton = event.target.closest("[data-stock-tag]");
-      if (tagButton) {
-        applyStockTag(tagButton.dataset.stockTag);
-        return;
-      }
-
       const strategyButton = event.target.closest("[data-stock-strategy]");
       if (strategyButton) {
         applyStockStrategy(strategyButton.dataset.stockStrategy);
@@ -7927,6 +8965,14 @@
       const pageButton = event.target.closest("[data-stock-page]");
       if (pageButton && !pageButton.disabled) {
         setStockResultPage(pageButton.dataset.stockPage);
+        return;
+      }
+
+      const dailyAddButton = event.target.closest("[data-stock-daily-add]");
+      if (dailyAddButton) {
+        event.preventDefault();
+        event.stopPropagation();
+        addStockFromDailyListToWatchlist(dailyAddButton.dataset.stockDailyAdd, dailyAddButton.dataset.stockMarket);
         return;
       }
 
@@ -7990,6 +9036,31 @@
       const quickButton = event.target.closest("[data-stock-quick-filter]");
       if (quickButton) {
         setQuickStockFilter(quickButton.dataset.stockQuickFilter);
+        return;
+      }
+
+      const watchGroupButton = event.target.closest("[data-stock-watch-group]");
+      if (watchGroupButton) {
+        activeStockWatchGroupId = watchGroupButton.dataset.stockWatchGroup;
+        expandedStockIdentity = "";
+        renderStockPage();
+        return;
+      }
+
+      if (event.target.closest("[data-stock-watch-group-add]")) {
+        openModal({ type: "stock-watch-group-add" });
+        return;
+      }
+
+      const renameGroupButton = event.target.closest("[data-stock-watch-group-rename]");
+      if (renameGroupButton) {
+        openModal({ type: "stock-watch-group-rename", groupId: renameGroupButton.dataset.stockWatchGroupRename });
+        return;
+      }
+
+      const deleteGroupButton = event.target.closest("[data-stock-watch-group-delete]");
+      if (deleteGroupButton && !deleteGroupButton.disabled) {
+        openModal({ type: "stock-watch-group-delete", groupId: deleteGroupButton.dataset.stockWatchGroupDelete });
         return;
       }
 
@@ -8927,6 +9998,71 @@
         return;
       }
 
+      if (modalState.type === "stock-watch-group-select") {
+        const stock = getStockByCode(modalState.code, modalState.market) || makeStockIdentityPlaceholder(modalState.code, modalState.market);
+        const selected = new Set(modalState.selectedGroupIds || [DEFAULT_STOCK_WATCH_GROUP_ID]);
+        modalShell("选择自选分组", `
+          <p class="confirm-copy">${escapeHTML(stock.name)} 可加入多个分组。</p>
+          <div class="stock-watch-group-choice-list">
+            ${stockWatchGroups.map(group => `
+              <label class="stock-watch-group-choice">
+                <span>
+                  <strong>${escapeHTML(group.name)}</strong>
+                  <span class="stock-refresh-note">${getStockWatchGroupCount(group.id)} 只股票</span>
+                </span>
+                <input type="checkbox" data-stock-watch-group-choice value="${escapeHTML(group.id)}" ${selected.has(group.id) ? "checked" : ""}>
+              </label>
+            `).join("")}
+          </div>
+        `, `
+          <button class="modal-btn" type="button" data-modal-close>取消</button>
+          <button class="modal-btn primary" type="button" data-confirm-stock-watch-group-select>确认添加</button>
+        `);
+        return;
+      }
+
+      if (modalState.type === "stock-watch-group-add") {
+        modalShell("新建自选分组", `
+          <div class="field">
+            <label for="stockWatchGroupName">分组名称</label>
+            <input class="input" id="stockWatchGroupName" type="text" placeholder="例如：短线观察" />
+          </div>
+        `, `
+          <button class="modal-btn" type="button" data-modal-close>取消</button>
+          <button class="modal-btn primary" type="button" data-confirm-stock-watch-group-add>确认创建</button>
+        `);
+        document.getElementById("stockWatchGroupName")?.focus();
+        return;
+      }
+
+      if (modalState.type === "stock-watch-group-rename") {
+        const group = getStockWatchGroupById(modalState.groupId);
+        if (!group) return closeModal();
+        modalShell("重命名自选分组", `
+          <div class="field">
+            <label for="stockWatchGroupEditName">分组名称</label>
+            <input class="input" id="stockWatchGroupEditName" type="text" value="${escapeHTML(group.name)}" />
+          </div>
+        `, `
+          <button class="modal-btn" type="button" data-modal-close>取消</button>
+          <button class="modal-btn primary" type="button" data-confirm-stock-watch-group-rename>确认保存</button>
+        `);
+        document.getElementById("stockWatchGroupEditName")?.focus();
+        return;
+      }
+
+      if (modalState.type === "stock-watch-group-delete") {
+        const group = getStockWatchGroupById(modalState.groupId);
+        if (!group || group.id === DEFAULT_STOCK_WATCH_GROUP_ID) return closeModal();
+        modalShell("删除自选分组", `
+          <p class="confirm-copy">确定删除「${escapeHTML(group.name)}」吗？该分组里的股票不会从自选股中删除，未归属其他分组的股票会移到默认分组。</p>
+        `, `
+          <button class="modal-btn" type="button" data-modal-close>取消</button>
+          <button class="modal-btn danger" type="button" data-confirm-stock-watch-group-delete>确认删除</button>
+        `);
+        return;
+      }
+
       if (modalState.type === "confirm-import") {
         modalShell("导入配置", `
           <p class="confirm-copy">导入配置会覆盖当前分类和网站，是否继续？</p>
@@ -9346,6 +10482,12 @@
           toggleStockFilterRowExpand(filterRow.dataset.stockCode, filterRow.dataset.stockMarket);
           return;
         }
+        const dailyRow = event.target.closest("[data-stock-daily-row]");
+        if (dailyRow && ["Enter", " "].includes(event.key)) {
+          event.preventDefault();
+          setActiveDailyStock(dailyRow.dataset.stockDailyRow);
+          return;
+        }
         const row = event.target.closest("[data-stock-row]");
         if (row && ["Enter", " "].includes(event.key)) {
           event.preventDefault();
@@ -9448,6 +10590,50 @@
         return;
       }
 
+      if (event.target.closest("[data-confirm-stock-watch-group-select]")) {
+        const groupIds = Array.from(modalRoot.querySelectorAll("[data-stock-watch-group-choice]:checked"))
+          .map(input => input.value)
+          .filter(Boolean);
+        if (!groupIds.length) {
+          alert("请选择至少一个分组");
+          return;
+        }
+        addStockToWatchlist(modalState.code, modalState.market, groupIds);
+        closeModal();
+        return;
+      }
+
+      if (event.target.closest("[data-confirm-stock-watch-group-add]")) {
+        const name = document.getElementById("stockWatchGroupName")?.value.trim() || "";
+        if (!name) {
+          alert("请输入分组名称");
+          return;
+        }
+        addStockWatchGroup(name);
+        closeModal();
+        renderStockPage();
+        return;
+      }
+
+      if (event.target.closest("[data-confirm-stock-watch-group-rename]")) {
+        const name = document.getElementById("stockWatchGroupEditName")?.value.trim() || "";
+        if (!name) {
+          alert("请输入分组名称");
+          return;
+        }
+        renameStockWatchGroup(modalState.groupId, name);
+        closeModal();
+        renderStockPage();
+        return;
+      }
+
+      if (event.target.closest("[data-confirm-stock-watch-group-delete]")) {
+        deleteStockWatchGroup(modalState.groupId);
+        closeModal();
+        renderStockPage();
+        return;
+      }
+
       if (event.target.closest("[data-confirm-import-config]")) {
         if (modalState.file) importUserConfigFromFile(modalState.file);
         return;
@@ -9475,9 +10661,11 @@
     categories = initialConfig.categories;
     hydrateIds();
     stockWatchlist = loadStockWatchlist();
+    stockWatchGroups = loadStockWatchGroups(stockWatchlist);
     customStockStrategies = loadCustomStockStrategies();
     restoreStockFilterState();
     initSchulteGame(5);
+    initializeStockSelectionConfig();
     initializeRealStockData();
     renderAppShell();
   </script>

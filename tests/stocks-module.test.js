@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
+const selectionConfigPath = path.join(__dirname, "..", "src", "stocks", "selection-config.json");
 
 function extractBlock(startPattern, endPattern) {
   const start = html.search(startPattern);
@@ -42,7 +43,9 @@ function extractFunction(name) {
 
 function loadStockConditionMatcher() {
   return new Function(`
+    let stockSelectionConfig = ${JSON.stringify(JSON.parse(fs.readFileSync(selectionConfigPath, "utf8")))};
     ${extractFunction("getStockDailyK")}
+    ${extractFunction("getStockIdentity")}
     ${extractFunction("getStockExchange")}
     ${extractFunction("getStockBoardCategory")}
     ${extractFunction("getStockBoardType")}
@@ -51,6 +54,8 @@ function loadStockConditionMatcher() {
     ${extractFunction("getStockKLineSeries")}
     ${extractFunction("getStockMaValue")}
     ${extractFunction("getStockVolumeRatio")}
+    ${extractFunction("getStockSelectionConfig")}
+    ${extractFunction("getStockSelectionParameter")}
     ${extractFunction("getStockLimitThreshold")}
     ${extractFunction("isStockLimitUpBar")}
     ${extractFunction("isStockOneLineLimitUpBar")}
@@ -67,6 +72,59 @@ function loadStockConditionMatcher() {
     ${extractFunction("stockMatchesConditions")}
     return { stockMatchesConditions, stockMatchesTechnicalPattern, getStockTechnicalSignals, getStockMatchReasons };
   `)();
+}
+
+function loadAutomatedStockSelectionEngine(config) {
+  return new Function("config", `
+    let stockUniverse = [];
+    let stockSelectionConfig = config;
+    let stockSelectionConfigStatus = "ready";
+    let stockSelectionDataVersion = 1;
+    let stockSelectionContextCache = null;
+    let stockSelectionContextCacheVersion = -1;
+    ${extractFunction("getStockDailyK")}
+    ${extractFunction("getStockIdentity")}
+    ${extractFunction("getStockExchange")}
+    ${extractFunction("getStockBoardCategory")}
+    ${extractFunction("getStockBoardType")}
+    ${extractFunction("getStockStatus")}
+    ${extractFunction("getStockKLineSeries")}
+    ${extractFunction("getStockMaValue")}
+    ${extractFunction("getStockVolumeRatio")}
+    ${extractFunction("getStockLimitThreshold")}
+    ${extractFunction("isStockLimitUpBar")}
+    ${extractFunction("isStockOneLineLimitUpBar")}
+    ${extractFunction("getStockConsecutiveLimitCount")}
+    ${extractFunction("getStockLimitRunBeforeLatest")}
+    ${extractFunction("getStockRecentLimitStats")}
+    ${extractFunction("getStockRecentHigh")}
+    ${extractFunction("getStockSelectionConfig")}
+    ${extractFunction("getStockSelectionParameter")}
+    ${extractFunction("getStockSelectionWindow")}
+    ${extractFunction("getStockSelectionStrategyConfig")}
+    ${extractFunction("getStockSelectionEnabledStrategies")}
+    ${extractFunction("getStockSelectionClosePosition")}
+    ${extractFunction("getStockSelectionReturn")}
+    ${extractFunction("getStockSelectionPreviousHigh")}
+    ${extractFunction("getStockSelectionAverageAmount")}
+    ${extractFunction("getStockSelectionAmountRatio")}
+    ${extractFunction("getStockSelectionLimitUpCount")}
+    ${extractFunction("getStockSelectionIndicators")}
+    ${extractFunction("getPercentileRank")}
+    ${extractFunction("buildStockSelectionContext")}
+    ${extractFunction("getStockSelectionContext")}
+    ${extractFunction("stockPassesSelectionBaseFilter")}
+    ${extractFunction("matchAutomatedStockStrategy")}
+    ${extractFunction("getAutomatedStockSelection")}
+    return {
+      getAutomatedStockSelection,
+      setUniverse(items) {
+        stockUniverse = items;
+        stockSelectionDataVersion += 1;
+        stockSelectionContextCache = null;
+      },
+    };
+  `)(config);
 }
 
 function loadStockSearchMatcher() {
@@ -88,15 +146,20 @@ function loadStockChangeClass() {
 
 function loadStockWatchlistAdder() {
   return new Function(`
+    const DEFAULT_STOCK_WATCH_GROUP_ID = "default";
     let stockUniverse = [];
     let stockWatchlist = [];
+    let stockWatchGroups = [{ id: DEFAULT_STOCK_WATCH_GROUP_ID, name: "默认分组", stockIds: [] }];
+    let activeStockWatchGroupId = DEFAULT_STOCK_WATCH_GROUP_ID;
     let stockDataSource = "eastmoney";
     let activeFeature = "stocks";
     let saved = 0;
+    let savedGroups = 0;
     let rendered = 0;
     const messages = [];
     function showToast(message, type = "") { messages.push({ message, type }); }
     function saveStockWatchlist() { saved += 1; }
+    function saveStockWatchGroups() { savedGroups += 1; }
     function renderStockSideList() { rendered += 1; }
     function renderStockPage() { rendered += 1; }
     async function refreshRealStockQuotes() { return false; }
@@ -106,11 +169,14 @@ function loadStockWatchlistAdder() {
     ${extractFunction("getStockId")}
     ${extractFunction("inferStockMarket")}
     ${extractFunction("makeStockIdentityPlaceholder")}
+    ${extractFunction("getDefaultStockWatchGroup")}
+    ${extractFunction("repairStockWatchGroups")}
+    ${extractFunction("getStockWatchGroupById")}
     ${extractFunction("addStockToWatchlist")}
     return {
       addStockToWatchlist,
       setUniverse(items) { stockUniverse = items; },
-      state() { return { stockUniverse, stockWatchlist, saved, rendered, messages }; },
+      state() { return { stockUniverse, stockWatchlist, stockWatchGroups, saved, savedGroups, rendered, messages }; },
     };
   `)();
 }
@@ -121,7 +187,9 @@ function loadStockFilterApplier() {
     let activeStockTags = [];
     let activeStockStrategy = "";
     let customStockStrategies = [];
-    const defaultStockStrategies = [];
+    const defaultStockStrategies = [
+      { id: "all_automated", selectionStrategyId: "all" }
+    ];
     const stockFilterTags = [
       { id: "sz-only", conditions: { exchange: "深交所" } }
     ];
@@ -164,18 +232,157 @@ function loadStockFilterApplier() {
     ${extractFunction("getStockRecentHigh")}
     ${extractFunction("getStockTechnicalSignals")}
     ${extractFunction("stockMatchesTechnicalPattern")}
+    ${extractFunction("getStockStrategyById")}
     ${extractFunction("getCombinedStockConditions")}
     ${extractFunction("hasStockConditions")}
     ${extractFunction("getStockConditionNumber")}
     ${extractFunction("stockMatchesConditions")}
     ${extractFunction("getQuickFilterStocks")}
+    function getAutomatedStockSelection() {
+      return { isCandidate: false, strategyIds: [] };
+    }
     ${extractFunction("applyStockFilters")}
     return {
       applyStockFilters,
       setQuickFilter(value) { activeQuickStockFilter = value; },
       setActiveTags(value) { activeStockTags = value; },
+      setActiveStrategy(value) { activeStockStrategy = value; },
     };
   `)();
+}
+
+function loadStockStrategyController() {
+  return new Function(`
+    let activeQuickStockFilter = "top-up";
+    let activeStockTags = ["exchange-sh"];
+    let activeStockStrategy = "";
+    let stockResultPage = 3;
+    let saved = 0;
+    let rendered = 0;
+    let historyScheduled = 0;
+    const defaultStockStrategies = [
+      { id: "pdf-first-board", conditions: { technicalPattern: "first-board", minVolumeRatio: "1.3", maPosition: "above-ma5", status: "非ST", excludeExchange: "北交所" } }
+    ];
+    const customStockStrategies = [];
+    const stockFilters = {
+      minChange: "-5",
+      maxChange: "8",
+      minVolume: "10000",
+      maxVolume: "500000",
+      minPe: "10",
+      maxPe: "35",
+      minPb: "1",
+      maxPb: "5",
+      minRoe: "6",
+      maxRoe: "20",
+      technicalPattern: "dragon-pullback",
+      minVolumeRatio: "2.4",
+      maxVolumeRatio: "5",
+      maPosition: "below-ma5",
+      industry: "银行",
+      metric: "low-pe",
+      logic: "or"
+    };
+    function saveStockFilterState() { saved += 1; }
+    function renderStockPage() { rendered += 1; }
+    function scheduleStockStrategyHistoryLoad() { historyScheduled += 1; }
+    ${extractFunction("resetStockAuxiliaryFilters")}
+    ${extractFunction("getStockStrategyById")}
+    ${extractFunction("applyStockStrategy")}
+    return {
+      applyStockStrategy,
+      state() {
+        return {
+          activeQuickStockFilter,
+          activeStockTags,
+          activeStockStrategy,
+          stockResultPage,
+          stockFilters,
+          saved,
+          rendered,
+          historyScheduled,
+        };
+      },
+    };
+  `)();
+}
+
+function loadStockWatchlistGroupManager(initialStorage = {}) {
+  return new Function("initialStorage", `
+    const STOCK_WATCHLIST_KEY = "glass_nav_stock_watchlist";
+    const STOCK_WATCHLIST_GROUPS_KEY = "glass_nav_stock_watchlist_groups";
+    const DEFAULT_STOCK_WATCH_GROUP_ID = "default";
+    const defaultStockWatchCodes = [];
+    let stockUniverse = [];
+    let stockWatchlist = [];
+    let stockWatchGroups = [];
+    let activeStockWatchGroupId = DEFAULT_STOCK_WATCH_GROUP_ID;
+    let stockDataSource = "eastmoney";
+    let savedWatchlist = 0;
+    let savedGroups = 0;
+    let rendered = 0;
+    let sideRendered = 0;
+    let idSeq = 0;
+    const messages = [];
+    const storage = { ...initialStorage };
+    const localStorage = {
+      getItem(key) { return Object.prototype.hasOwnProperty.call(storage, key) ? storage[key] : null; },
+      setItem(key, value) { storage[key] = String(value); },
+      removeItem(key) { delete storage[key]; },
+    };
+    function makeId() { idSeq += 1; return "group-" + idSeq; }
+    function showToast(message, type = "") { messages.push({ message, type }); }
+    function renderStockSideList() { sideRendered += 1; }
+    function renderStockPage() { rendered += 1; }
+    ${extractFunction("getStockIdentity")}
+    ${extractFunction("cloneStock")}
+    ${extractFunction("getStockByCode")}
+    ${extractFunction("getStockId")}
+    ${extractFunction("inferStockMarket")}
+    ${extractFunction("makeStockIdentityPlaceholder")}
+    ${extractFunction("normalizeStock")}
+    ${extractFunction("loadStockWatchlist")}
+    ${extractFunction("saveStockWatchlist")}
+    ${extractFunction("loadStockWatchGroups")}
+    ${extractFunction("saveStockWatchGroups")}
+    ${extractFunction("getDefaultStockWatchGroup")}
+    ${extractFunction("getStockWatchGroupById")}
+    ${extractFunction("getStockWatchGroupStockIds")}
+    ${extractFunction("getStockWatchGroupCount")}
+    ${extractFunction("getStockWatchlistForGroup")}
+    ${extractFunction("repairStockWatchGroups")}
+    ${extractFunction("addStockWatchGroup")}
+    ${extractFunction("renameStockWatchGroup")}
+    ${extractFunction("deleteStockWatchGroup")}
+    ${extractFunction("addStockToWatchlist")}
+    return {
+      bootstrap() {
+        stockWatchlist = loadStockWatchlist();
+        stockWatchGroups = loadStockWatchGroups(stockWatchlist);
+        return this.state();
+      },
+      addStockToWatchlist,
+      addStockWatchGroup,
+      renameStockWatchGroup,
+      deleteStockWatchGroup,
+      setUniverse(items) { stockUniverse = items; },
+      state() {
+        return {
+          stockWatchlist,
+          stockWatchGroups,
+          activeStockWatchGroupId,
+          storage,
+          messages,
+          savedWatchlist,
+          savedGroups,
+          rendered,
+          sideRendered,
+        };
+      },
+      groupStocks(id) { return getStockWatchlistForGroup(id).map(stock => getStockIdentity(stock)); },
+      groupCount(id) { return getStockWatchGroupCount(id); },
+    };
+  `)(initialStorage);
 }
 
 function loadStockMiniChartDrawer() {
@@ -227,6 +434,8 @@ function loadStockHistoryLoader(fetchItems = []) {
     let stockApiReady = true;
     let stockApiStatus = "live";
     let stockApiErrorMessage = "";
+    let stockSelectionDataVersion = 0;
+    let stockSelectionContextCache = null;
     let fetchCalls = 0;
     let activeStockDailyPeriod = "day";
     let activeStockDailyRange = "60";
@@ -709,6 +918,69 @@ test("stock watchlist add falls back to a placeholder while universe is loading"
   assert.equal(module.addStockToWatchlist("603380", "SH"), false);
 });
 
+test("stock watchlist groups migrate legacy watchlist and support multi-group membership", () => {
+  const legacyStock = { market: "SH", code: "600519", name: "贵州茅台", industry: "白酒", price: 1500 };
+  const module = loadStockWatchlistGroupManager({
+    glass_nav_stock_watchlist: JSON.stringify([legacyStock]),
+  });
+
+  let state = module.bootstrap();
+  assert.equal(state.stockWatchGroups.length, 1);
+  assert.equal(state.stockWatchGroups[0].id, "default");
+  assert.equal(state.stockWatchGroups[0].name, "默认分组");
+  assert.deepEqual(state.stockWatchGroups[0].stockIds, ["SH600519"]);
+  assert.equal(module.groupCount("default"), 1);
+
+  const shortTerm = module.addStockWatchGroup("短线观察");
+  const trend = module.addStockWatchGroup("趋势池");
+  assert.equal(module.addStockToWatchlist("000001", "SZ", [shortTerm.id, trend.id]), true);
+  assert.deepEqual(module.groupStocks(shortTerm.id), ["SZ000001"]);
+  assert.deepEqual(module.groupStocks(trend.id), ["SZ000001"]);
+
+  assert.equal(module.addStockToWatchlist("000001", "SZ", [shortTerm.id, trend.id]), false);
+  assert.deepEqual(module.groupStocks(shortTerm.id), ["SZ000001"]);
+  assert.deepEqual(module.groupStocks(trend.id), ["SZ000001"]);
+
+  assert.equal(module.renameStockWatchGroup(shortTerm.id, "短线重点"), true);
+  state = module.state();
+  assert.equal(state.stockWatchGroups.find(group => group.id === shortTerm.id).name, "短线重点");
+
+  assert.equal(module.deleteStockWatchGroup(shortTerm.id), true);
+  state = module.state();
+  assert.equal(state.stockWatchGroups.some(group => group.id === shortTerm.id), false);
+  assert.equal(state.stockWatchGroups.some(group => group.id === "default"), true);
+});
+
+test("daily K list exposes trailing add buttons and watchlist group modal controls", () => {
+  const dailyRowsBlock = extractFunction("renderStockDailyVirtualRows");
+  const clickBlock = extractFunction("handleStockContentClick");
+  const modalBlock = extractBlock(
+    /function renderModal\(\) \{/,
+    /\n    \}\n\n    function readSiteFields/
+  );
+  const watchlistViewBlock = extractFunction("renderStockWatchlistView");
+  const watchGroupBarBlock = extractFunction("renderStockWatchGroupBar");
+
+  assert.match(dailyRowsBlock, /data-stock-daily-add/);
+  assert.match(dailyRowsBlock, /stock-daily-add/);
+  assert.doesNotMatch(dailyRowsBlock, /<button class="stock-daily-row/);
+  assert.ok(clickBlock.indexOf("data-stock-daily-add") < clickBlock.indexOf("data-stock-daily-row"));
+  assert.match(clickBlock, /addStockFromDailyListToWatchlist/);
+  assert.match(modalBlock, /stock-watch-group-select/);
+  assert.match(modalBlock, /data-stock-watch-group-choice/);
+  assert.match(modalBlock, /data-confirm-stock-watch-group-select/);
+  assert.match(watchlistViewBlock, /renderStockWatchGroupBar\(\)/);
+  assert.match(watchGroupBarBlock, /data-stock-watch-group-add/);
+});
+
+test("stock watchlist dynamic count uses the active group total", () => {
+  const updateBlock = extractFunction("updateStockWatchlistData");
+  assert.match(updateBlock, /getStockWatchlistForGroup\(activeStockWatchGroupId\)/);
+  assert.match(updateBlock, /applyStockFilters\(groupStocks, \{ includeStrategy: false \}\)/);
+  assert.match(updateBlock, /\$\{filteredStocks\.length\}\/\$\{groupStocks\.length\} 只/);
+  assert.doesNotMatch(updateBlock, /\$\{filteredStocks\.length\}\/\$\{stockWatchlist\.length\} 只/);
+});
+
 test("stock quick observation filters ignore stale advanced filters", () => {
   const module = loadStockFilterApplier();
   const watchlist = [
@@ -721,7 +993,38 @@ test("stock quick observation filters ignore stale advanced filters", () => {
 
   module.setQuickFilter("top-up");
   assert.deepEqual(module.applyStockFilters(watchlist).map(stock => stock.name), ["上交上涨"]);
-  assert.match(html, /筛选结果\/自选总数/);
+  assert.match(html, /筛选结果\/当前分组总数/);
+});
+
+test("watchlist group filtering ignores the active condition strategy", () => {
+  const module = loadStockFilterApplier();
+  const watchlist = [
+    { name: "默认自选", code: "600001", market: "SH", changePercent: 0.2, volume: 10000, pe: 10, pb: 1, roe: 8, industry: "电力", history: [] },
+  ];
+
+  module.setActiveStrategy("all_automated");
+
+  assert.deepEqual(module.applyStockFilters(watchlist).map(stock => stock.name), []);
+  assert.deepEqual(module.applyStockFilters(watchlist, { includeStrategy: false }).map(stock => stock.name), ["默认自选"]);
+
+  const watchlistViewBlock = extractFunction("renderStockWatchlistView");
+  assert.match(watchlistViewBlock, /applyStockFilters\(groupStocks, \{ includeStrategy: false \}\)/);
+  const updateBlock = extractFunction("updateStockWatchlistData");
+  assert.match(updateBlock, /applyStockFilters\(groupStocks, \{ includeStrategy: false \}\)/);
+});
+
+test("watchlist quick observation cards use the active group stocks", () => {
+  const quickCardsBlock = extractFunction("renderQuickStockCards");
+  const pageBlock = extractFunction("renderStockPage");
+
+  assert.match(quickCardsBlock, /function renderQuickStockCards\(list = stockWatchlist\)/);
+  assert.match(quickCardsBlock, /getQuickFilterStocks\("top-up", list\)/);
+  assert.match(quickCardsBlock, /getQuickFilterStocks\("top-down", list\)/);
+  assert.match(quickCardsBlock, /getQuickFilterStocks\("high-roe", list\)/);
+  assert.match(quickCardsBlock, /getQuickFilterStocks\("high-pe", list\)/);
+  assert.match(pageBlock, /const activeWatchGroupStocks = activeStockView === "watchlist" \? getStockWatchlistForGroup\(activeStockWatchGroupId\) : \[\]/);
+  assert.match(pageBlock, /renderQuickStockCards\(activeWatchGroupStocks\)/);
+  assert.doesNotMatch(pageBlock, /renderQuickStockCards\(\)/);
 });
 
 test("stock watchlist mini K chart loads missing history before drawing", async () => {
@@ -826,18 +1129,19 @@ test("stock filter workspace is a vertical screener without market cards", () =>
     /function renderStockFilterView\(\) \{/,
     /\n    \}\n\n    function renderStockActiveView/
   );
+  const resultPanelBlock = extractFunction("renderStockFilterResultsPanel");
   assert.match(filterViewBlock, /class="stock-filter-layout"/);
   assert.match(filterViewBlock, /class="stock-filter-panel/);
-  assert.match(filterViewBlock, /id="stockFilterResults"/);
-  assert.ok(filterViewBlock.indexOf("stock-filter-panel") < filterViewBlock.indexOf("stock-filter-results"));
+  assert.match(resultPanelBlock, /id="stockFilterResults"/);
+  assert.ok(filterViewBlock.indexOf("stock-filter-panel") < filterViewBlock.indexOf("renderStockFilterResultsPanel"));
   assert.doesNotMatch(filterViewBlock, /stockMarketCloud|stock-market-grid|renderMarketCloud/);
   assert.match(filterViewBlock, /data-stock-filter="logic"/);
-  assert.match(filterViewBlock, /renderStockFilterResultTable\(filteredStocks\)/);
+  assert.match(resultPanelBlock, /renderStockFilterResultTable\(filteredStocks\)/);
   assert.match(html, /data-stock-sort="\$\{field\}"/);
   assert.match(html, /data-stock-page="next"/);
 });
 
-test("stock filter tags, guru strategies, sorting, and pagination are wired", () => {
+test("stock strategy screener, sorting, and pagination are wired", () => {
   const requiredFunctions = [
     "getStockTrend",
     "getStockKLineSeries",
@@ -861,9 +1165,12 @@ test("stock filter tags, guru strategies, sorting, and pagination are wired", ()
     "getStockStatus",
     "formatStockMarketCap",
     "getStockFilterResults",
-    "applyStockTag",
-    "toggleStockTag",
+    "getStockStrategyById",
+    "resetStockAuxiliaryFilters",
     "applyStockStrategy",
+    "getStockStrategyHistoryCandidates",
+    "scheduleStockStrategyHistoryLoad",
+    "loadStockStrategyHistories",
     "loadStockFilterState",
     "saveStockFilterState",
     "saveCustomStockStrategies",
@@ -874,7 +1181,6 @@ test("stock filter tags, guru strategies, sorting, and pagination are wired", ()
     "setStockFilterSearch",
     "toggleStockFilterRowExpand",
     "renderStockFilterSearch",
-    "renderStockFilterTags",
     "renderStockStrategies",
     "renderStockFilterDetailRow",
     "renderStockFilterResultTable"
@@ -886,44 +1192,37 @@ test("stock filter tags, guru strategies, sorting, and pagination are wired", ()
 
   assert.match(html, /const STOCK_STRATEGY_KEY = "glass_nav_stock_strategies"/);
   assert.match(html, /const STOCK_FILTER_STATE_KEY = "glass_nav_stock_filter_state"/);
-  assert.match(html, /const stockFilterTags = \[/);
   assert.match(html, /marketCap:/);
   assert.match(html, /北交所/);
   assert.match(html, /非科创板/);
   assert.match(html, /非ST/);
-  assert.match(html, /5日趋势上行/);
-  assert.match(html, /15日趋势上行/);
-  assert.match(html, /15日趋势下降/);
-  assert.match(html, /30日趋势下降/);
-  assert.match(html, /放量活跃/);
   assert.match(html, /5日线之上/);
   assert.match(html, /data-stock-filter="minPb"/);
   assert.match(html, /data-stock-filter="maxPb"/);
-  assert.match(html, /data-stock-filter="technicalPattern"/);
   assert.match(html, /data-stock-filter="minVolumeRatio"/);
   assert.match(html, /data-stock-filter="maPosition"/);
   assert.match(html, /const defaultStockStrategies = \[/);
-  assert.match(html, /PDF策略/);
-  assert.match(html, /赵老哥首板/);
-  assert.match(html, /作手新一超跌一板/);
-  assert.match(html, /反包板/);
-  assert.match(html, /龙头首阴/);
-  assert.match(html, /林疯狂龙回头/);
-  assert.match(html, /作手新一三板一字/);
-  assert.match(html, /连板接力/);
-  assert.match(html, /强势趋势突破/);
-  assert.match(html, /PDF: 赵老哥交易系统总结/);
+  assert.match(html, /策略模板/);
+  assert.match(html, /全部策略/);
+  assert.match(html, /热点龙头放量/);
+  assert.match(html, /真突破/);
+  assert.match(html, /平台突破/);
+  assert.match(html, /首板/);
+  assert.match(html, /强势首阴/);
+  assert.match(html, /上影反包/);
+  assert.match(html, /龙回头/);
+  assert.match(html, /趋势低吸/);
+  assert.match(html, /板块补涨/);
+  assert.match(html, /自动选股规格: first_limit_up/);
   assert.match(html, /data-stock-risk/);
-  assert.match(html, /dragon-first-negative/);
-  assert.match(html, /dragon-pullback/);
-  assert.match(html, /multi-board-relay/);
-  assert.match(html, /strong-trend-breakout/);
+  assert.match(html, /trend_volume_leader/);
+  assert.match(html, /true_breakout/);
+  assert.match(html, /first_limit_up/);
+  assert.match(html, /dragon_return/);
   assert.doesNotMatch(html, /低市盈率 2/);
-  assert.match(html, /getStockMatchReasons\(stock, combinedConditions\)/);
+  assert.match(html, /getStockSelectionMatchReasons\(stock\)/);
   assert.match(html, /短线信号/);
-  assert.match(html, /let activeStockTags = \[\]/);
-  assert.match(html, /activeStockTags\.includes\(tag\.id\)/);
-  assert.match(html, /data-stock-tag="\$\{escapeHTML\(tag\.id\)\}"/);
+  assert.match(html, /let activeStockStrategy = defaultStockStrategies\[0\]\?\.id \|\| ""/);
   assert.match(html, /data-stock-strategy="\$\{escapeHTML\(strategy\.id\)\}"/);
   assert.match(html, /data-stock-strategy-add/);
   assert.match(html, /data-stock-strategy-edit/);
@@ -942,7 +1241,7 @@ test("stock filter tags, guru strategies, sorting, and pagination are wired", ()
     /function handleStockContentClick\(event\) \{/,
     /\n    \}\n\n    function refreshCategorySection/
   );
-  assert.match(clickBlock, /event\.target\.closest\("\[data-stock-tag\]"\)/);
+  assert.doesNotMatch(clickBlock, /event\.target\.closest\("\[data-stock-tag\]"\)/);
   assert.match(clickBlock, /event\.target\.closest\("\[data-stock-strategy\]"\)/);
   assert.match(clickBlock, /event\.target\.closest\("\[data-stock-sort\]"\)/);
   assert.match(clickBlock, /event\.target\.closest\("\[data-stock-page\]"\)/);
@@ -955,6 +1254,179 @@ test("stock filter tags, guru strategies, sorting, and pagination are wired", ()
   );
   assert.match(inputBlock, /#stockFilterSearchInput/);
   assert.match(inputBlock, /setStockFilterSearch\(filterSearch\.value\)/);
+});
+
+test("stock strategy screener removes deprecated tag and technical-pattern controls from the filter UI", () => {
+  const filterViewBlock = extractBlock(
+    /function renderStockFilterView\(\) \{/,
+    /\n    \}\n\n    function renderStockActiveView/
+  );
+  const strategyCss = extractBlock(
+    /\.stock-strategy-list\s*\{/,
+    /\n    \.stock-strategy-list::-webkit-scrollbar/
+  );
+
+  assert.match(filterViewBlock, /策略模板/);
+  assert.match(filterViewBlock, /renderStockStrategies\(\)/);
+  assert.match(filterViewBlock, /scheduleStockStrategyHistoryLoad\(\)/);
+  assert.doesNotMatch(filterViewBlock, /筛选标签/);
+  assert.doesNotMatch(filterViewBlock, /renderStockFilterTags/);
+  assert.doesNotMatch(filterViewBlock, /短线形态/);
+  assert.doesNotMatch(filterViewBlock, /data-stock-filter="technicalPattern"/);
+  assert.match(strategyCss, /display:\s*grid/);
+  assert.match(strategyCss, /grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(180px,\s*1fr\)\)/);
+  assert.doesNotMatch(strategyCss, /overflow-x:\s*auto/);
+});
+
+test("automated stock selection thresholds are loaded from a config file", () => {
+  const config = JSON.parse(fs.readFileSync(selectionConfigPath, "utf8"));
+
+  assert.equal(config.version, "1.0");
+  assert.equal(config.default_parameters.volume_expand_ratio, 1.5);
+  assert.equal(config.default_parameters.min_avg_amount_5d, 1000000000);
+  assert.ok(config.strategies.some(strategy => strategy.id === "trend_volume_leader" && strategy.enabled));
+  assert.ok(config.strategies.some(strategy => strategy.id === "board_reseal" && strategy.enabled === false));
+  assert.match(html, /src\/stocks\/selection-config\.json/);
+  assert.match(html, /function getStockSelectionParameter\(/);
+  assert.match(html, /function getAutomatedStockSelection\(/);
+  assert.doesNotMatch(html, /minVolumeRatio: "1\.3"/);
+  assert.doesNotMatch(html, /minVolumeRatio: "1\.2"/);
+});
+
+test("automated stock selection is whitelist-only and returns reason-coded candidates", () => {
+  const config = JSON.parse(fs.readFileSync(selectionConfigPath, "utf8"));
+  const module = loadAutomatedStockSelectionEngine(config);
+  const baseK = [
+    { close: 10, high: 10.2, low: 9.9, open: 10, volume: 100000, amount: 1200000000 },
+    { close: 10.1, high: 10.2, low: 10, open: 10.05, volume: 110000, amount: 1250000000 },
+    { close: 10.15, high: 10.25, low: 10.05, open: 10.1, volume: 105000, amount: 1260000000 },
+    { close: 10.2, high: 10.3, low: 10.1, open: 10.15, volume: 100000, amount: 1240000000 },
+    { close: 10.25, high: 10.35, low: 10.15, open: 10.2, volume: 106000, amount: 1270000000 },
+  ];
+  const firstLimitUp = {
+    id: "SH600101",
+    market: "SH",
+    code: "600101",
+    name: "热点首板",
+    industry: "机器人",
+    boardType: "main",
+    status: "normal",
+    price: 11.28,
+    changePercent: 10.05,
+    volume: 320000,
+    amount: 3600000000,
+    dailyK: [
+      ...baseK,
+      { close: 11.28, high: 11.28, low: 10.7, open: 10.75, volume: 320000, amount: 3600000000 },
+    ],
+  };
+  const oneWordLimitUp = {
+    ...firstLimitUp,
+    id: "SH600102",
+    code: "600102",
+    name: "一字观察",
+    dailyK: [
+      ...baseK,
+      { close: 11.28, high: 11.28, low: 11.28, open: 11.28, volume: 320000, amount: 3600000000 },
+    ],
+  };
+  const noPattern = {
+    ...firstLimitUp,
+    id: "SH600103",
+    code: "600103",
+    name: "无模板",
+    price: 10.28,
+    changePercent: 0.3,
+    volume: 130000,
+    amount: 1300000000,
+    dailyK: [
+      ...baseK,
+      { close: 10.28, high: 10.32, low: 10.18, open: 10.22, volume: 130000, amount: 1300000000 },
+    ],
+  };
+  const weakSectorStock = {
+    ...noPattern,
+    id: "SZ000501",
+    market: "SZ",
+    code: "000501",
+    name: "弱板块",
+    industry: "银行",
+    dailyK: [
+      { close: 10, high: 10.1, low: 9.9, open: 10, volume: 100000, amount: 1200000000 },
+      { close: 9.9, high: 10, low: 9.85, open: 9.95, volume: 100000, amount: 1200000000 },
+      { close: 9.8, high: 9.9, low: 9.75, open: 9.85, volume: 100000, amount: 1200000000 },
+      { close: 9.7, high: 9.8, low: 9.65, open: 9.75, volume: 100000, amount: 1200000000 },
+      { close: 9.65, high: 9.72, low: 9.6, open: 9.68, volume: 100000, amount: 1200000000 },
+      { close: 9.62, high: 9.7, low: 9.58, open: 9.64, volume: 100000, amount: 1200000000 },
+    ],
+  };
+  module.setUniverse([firstLimitUp, oneWordLimitUp, noPattern, weakSectorStock]);
+
+  const selected = module.getAutomatedStockSelection(firstLimitUp);
+  assert.equal(selected.isCandidate, true);
+  assert.ok(selected.strategyIds.includes("first_limit_up"));
+  assert.ok(selected.reasonCodes.includes("FIRST_LIMIT_UP"));
+  assert.ok(selected.reasonCodes.includes("HOT_SECTOR"));
+  assert.ok(selected.reasonCodes.includes("SECTOR_LEADER"));
+  assert.equal(selected.isTradable, true);
+  assert.ok(selected.totalScore > 0);
+
+  const oneWord = module.getAutomatedStockSelection(oneWordLimitUp);
+  assert.equal(oneWord.isCandidate, true);
+  assert.equal(oneWord.isTradable, false);
+  assert.ok(oneWord.reasonCodes.includes("ONE_WORD_UNTRADABLE"));
+
+  const rejected = module.getAutomatedStockSelection(noPattern);
+  assert.equal(rejected.isCandidate, false);
+  assert.deepEqual(rejected.strategyIds, []);
+  assert.ok(rejected.reasonCodes.includes("NO_STRATEGY_MATCH"));
+});
+
+test("applying a stock strategy clears stale auxiliary filters and queues K-line loading", () => {
+  const module = loadStockStrategyController();
+
+  module.applyStockStrategy("pdf-first-board");
+
+  const state = module.state();
+  assert.equal(state.activeQuickStockFilter, "");
+  assert.deepEqual(state.activeStockTags, []);
+  assert.equal(state.activeStockStrategy, "pdf-first-board");
+  assert.equal(state.stockResultPage, 1);
+  assert.equal(state.stockFilters.minPe, "");
+  assert.equal(state.stockFilters.maxPe, "");
+  assert.equal(state.stockFilters.technicalPattern, "all");
+  assert.equal(state.stockFilters.minVolumeRatio, "");
+  assert.equal(state.stockFilters.maPosition, "all");
+  assert.equal(state.stockFilters.industry, "all");
+  assert.equal(state.stockFilters.metric, "all");
+  assert.equal(state.stockFilters.logic, "and");
+  assert.equal(state.saved, 1);
+  assert.equal(state.rendered, 1);
+  assert.equal(state.historyScheduled, 1);
+});
+
+test("strategy history loading updates only filter results while K data is loading", () => {
+  const filterViewBlock = extractBlock(
+    /function renderStockFilterView\(\) \{/,
+    /\n    \}\n\n    function renderStockActiveView/
+  );
+  const loadBlock = extractBlock(
+    /async function loadStockStrategyHistories\(/,
+    /\n    \}\n\n    function loadStockWatchlist/
+  );
+  const updateBlock = extractFunction("updateStockFilterResults");
+
+  assert.match(filterViewBlock, /scheduleStockStrategyHistoryLoad\(\)/);
+  assert.match(loadBlock, /getStockStrategyHistoryCandidates\(strategy\)\.slice\(0, STOCK_STRATEGY_HISTORY_BATCH_SIZE\)/);
+  assert.match(loadBlock, /loadRealStockHistory\(stock, \{ foreground: false \}\)/);
+  assert.match(loadBlock, /activeStockView === "filter"/);
+  assert.match(loadBlock, /updateStockFilterResults\(\{ results: false \}\)/);
+  assert.doesNotMatch(loadBlock, /renderStockPage\(\)/);
+  assert.match(updateBlock, /function updateStockFilterResults\(\{ results = true \} = \{\}\)/);
+  assert.match(updateBlock, /getElementById\("stockFilterResults"\)/);
+  assert.match(updateBlock, /if \(results && resultsPanel\)/);
+  assert.match(updateBlock, /renderStockFilterResultsPanel\(filteredStocks\)/);
+  assert.doesNotMatch(updateBlock, /scheduleStockStrategyHistoryLoad\(\)/);
 });
 
 test("stock minute and K module renders virtual stock list, range controls, canvas, and tooltip", () => {
@@ -1626,6 +2098,21 @@ test("quick observation cards expose the requested preset filters", () => {
   assert.match(html, /高ROE 2/);
   assert.match(html, /data-stock-quick-filter="high-pe"/);
   assert.match(html, /高市盈率 2/);
+});
+
+test("stock select dropdown options have readable contrast", () => {
+  const selectCss = extractBlock(
+    /\.stock-select\s*\{/,
+    /\n    \.stock-input:focus,/
+  );
+  assert.match(selectCss, /color-scheme:\s*dark/);
+
+  const optionCss = extractBlock(
+    /\.stock-select option\s*\{/,
+    /\n    \.stock-input:focus,/
+  );
+  assert.match(optionCss, /background:\s*#1f1f35/);
+  assert.match(optionCss, /color:\s*#fff/);
 });
 
 test("stocks module has responsive glass styling and mobile horizontal overflow", () => {
