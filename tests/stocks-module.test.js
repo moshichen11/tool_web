@@ -55,11 +55,17 @@ function loadStockConditionMatcher() {
     ${extractFunction("isStockLimitUpBar")}
     ${extractFunction("isStockOneLineLimitUpBar")}
     ${extractFunction("getStockConsecutiveLimitCount")}
+    ${extractFunction("getStockLimitRunBeforeLatest")}
+    ${extractFunction("getStockRecentLimitStats")}
+    ${extractFunction("hasStockReversalPullback")}
+    ${extractFunction("isStockWeakOrNegativeBar")}
+    ${extractFunction("getStockRecentHigh")}
     ${extractFunction("getStockTechnicalSignals")}
     ${extractFunction("stockMatchesTechnicalPattern")}
+    ${extractFunction("getStockMatchReasons")}
     ${extractFunction("getStockConditionNumber")}
     ${extractFunction("stockMatchesConditions")}
-    return { stockMatchesConditions, getStockTechnicalSignals };
+    return { stockMatchesConditions, stockMatchesTechnicalPattern, getStockTechnicalSignals, getStockMatchReasons };
   `)();
 }
 
@@ -151,6 +157,11 @@ function loadStockFilterApplier() {
     ${extractFunction("isStockLimitUpBar")}
     ${extractFunction("isStockOneLineLimitUpBar")}
     ${extractFunction("getStockConsecutiveLimitCount")}
+    ${extractFunction("getStockLimitRunBeforeLatest")}
+    ${extractFunction("getStockRecentLimitStats")}
+    ${extractFunction("hasStockReversalPullback")}
+    ${extractFunction("isStockWeakOrNegativeBar")}
+    ${extractFunction("getStockRecentHigh")}
     ${extractFunction("getStockTechnicalSignals")}
     ${extractFunction("stockMatchesTechnicalPattern")}
     ${extractFunction("getCombinedStockConditions")}
@@ -836,8 +847,14 @@ test("stock filter tags, guru strategies, sorting, and pagination are wired", ()
     "isStockLimitUpBar",
     "isStockOneLineLimitUpBar",
     "getStockConsecutiveLimitCount",
+    "getStockLimitRunBeforeLatest",
+    "getStockRecentLimitStats",
+    "hasStockReversalPullback",
+    "isStockWeakOrNegativeBar",
+    "getStockRecentHigh",
     "getStockTechnicalSignals",
     "stockMatchesTechnicalPattern",
+    "getStockMatchReasons",
     "getStockTechnicalSignalLabel",
     "getStockExchange",
     "getStockBoardType",
@@ -886,12 +903,23 @@ test("stock filter tags, guru strategies, sorting, and pagination are wired", ()
   assert.match(html, /data-stock-filter="minVolumeRatio"/);
   assert.match(html, /data-stock-filter="maPosition"/);
   assert.match(html, /const defaultStockStrategies = \[/);
-  assert.match(html, /首板打板/);
-  assert.match(html, /一字板排板/);
+  assert.match(html, /PDF策略/);
+  assert.match(html, /赵老哥首板/);
+  assert.match(html, /作手新一超跌一板/);
   assert.match(html, /反包板/);
-  assert.match(html, /超跌首板/);
-  assert.match(html, /主升浪放量/);
-  assert.match(html, /游资短线模式/);
+  assert.match(html, /龙头首阴/);
+  assert.match(html, /林疯狂龙回头/);
+  assert.match(html, /作手新一三板一字/);
+  assert.match(html, /连板接力/);
+  assert.match(html, /强势趋势突破/);
+  assert.match(html, /PDF: 赵老哥交易系统总结/);
+  assert.match(html, /data-stock-risk/);
+  assert.match(html, /dragon-first-negative/);
+  assert.match(html, /dragon-pullback/);
+  assert.match(html, /multi-board-relay/);
+  assert.match(html, /strong-trend-breakout/);
+  assert.doesNotMatch(html, /低市盈率 2/);
+  assert.match(html, /getStockMatchReasons\(stock, combinedConditions\)/);
   assert.match(html, /短线信号/);
   assert.match(html, /let activeStockTags = \[\]/);
   assert.match(html, /activeStockTags\.includes\(tag\.id\)/);
@@ -1178,6 +1206,128 @@ test("stock condition matcher supports hot-money short-term technical patterns",
   assert.equal(stockMatchesConditions(thirdOneLineStock, { technicalPattern: "first-board", logic: "and" }), false);
 });
 
+test("stock condition matcher supports PDF-derived hot-money strategy patterns", () => {
+  const { stockMatchesConditions, stockMatchesTechnicalPattern, getStockTechnicalSignals } = loadStockConditionMatcher();
+
+  const dragonFirstNegative = {
+    id: "SH600101",
+    market: "SH",
+    code: "600101",
+    name: "龙头首阴样本",
+    boardType: "main",
+    status: "normal",
+    price: 13.05,
+    changePercent: -1.95,
+    volume: 260000,
+    pe: 24,
+    pb: 2.8,
+    roe: 11,
+    dailyK: [
+      { open: 9.9, high: 10.2, low: 9.8, close: 10, volume: 100000 },
+      { open: 10.5, high: 11, low: 10.5, close: 11, volume: 160000 },
+      { open: 11.2, high: 12.1, low: 11.2, close: 12.1, volume: 180000 },
+      { open: 12.3, high: 13.31, low: 12.3, close: 13.31, volume: 210000 },
+      { open: 13.3, high: 13.45, low: 12.92, close: 13.05, volume: 260000 },
+    ],
+  };
+  const dragonFirstNegativeSignals = getStockTechnicalSignals(dragonFirstNegative);
+  assert.equal(dragonFirstNegativeSignals.dragonFirstNegative, true);
+  assert.equal(stockMatchesConditions(dragonFirstNegative, { technicalPattern: "dragon-first-negative", logic: "and" }), true);
+
+  const dragonPullback = {
+    ...dragonFirstNegative,
+    code: "600102",
+    name: "龙回头样本",
+    price: 11.85,
+    changePercent: 4.87,
+    volume: 220000,
+    dailyK: [
+      { open: 9.9, high: 10.2, low: 9.8, close: 10, volume: 100000 },
+      { open: 10.2, high: 11, low: 10.1, close: 11, volume: 160000 },
+      { open: 11.1, high: 12.1, low: 11.05, close: 12.1, volume: 180000 },
+      { open: 11.8, high: 12, low: 11.2, close: 11.3, volume: 110000 },
+      { open: 11.4, high: 11.95, low: 11.35, close: 11.85, volume: 220000 },
+    ],
+  };
+  const dragonPullbackSignals = getStockTechnicalSignals(dragonPullback);
+  assert.equal(dragonPullbackSignals.dragonPullback, true);
+  assert.equal(stockMatchesConditions(dragonPullback, { technicalPattern: "dragon-pullback", logic: "and" }), true);
+
+  const multiBoardRelay = {
+    ...dragonFirstNegative,
+    code: "600103",
+    name: "连板接力样本",
+    price: 12.1,
+    changePercent: 10,
+    volume: 190000,
+    dailyK: [
+      { open: 9.9, high: 10.1, low: 9.8, close: 10, volume: 100000 },
+      { open: 10.5, high: 11, low: 10.4, close: 11, volume: 160000 },
+      { open: 11.5, high: 12.1, low: 11.4, close: 12.1, volume: 190000 },
+    ],
+  };
+  const multiBoardSignals = getStockTechnicalSignals(multiBoardRelay);
+  assert.equal(multiBoardSignals.consecutiveLimitCount, 2);
+  assert.equal(multiBoardSignals.multiBoardRelay, true);
+  assert.equal(stockMatchesConditions(multiBoardRelay, { technicalPattern: "multi-board-relay", logic: "and" }), true);
+
+  const trendBreakout = {
+    ...dragonFirstNegative,
+    code: "600104",
+    name: "趋势突破样本",
+    price: 11.4,
+    changePercent: 6.54,
+    volume: 260000,
+    dailyK: [
+      { open: 9.95, high: 10.1, low: 9.9, close: 10, volume: 100000 },
+      { open: 10, high: 10.15, low: 9.95, close: 10.1, volume: 101000 },
+      { open: 10.1, high: 10.25, low: 10.05, close: 10.2, volume: 102000 },
+      { open: 10.2, high: 10.3, low: 10.1, close: 10.25, volume: 103000 },
+      { open: 10.25, high: 10.35, low: 10.2, close: 10.3, volume: 104000 },
+      { open: 10.3, high: 10.4, low: 10.25, close: 10.35, volume: 105000 },
+      { open: 10.35, high: 10.45, low: 10.3, close: 10.4, volume: 106000 },
+      { open: 10.4, high: 10.55, low: 10.35, close: 10.5, volume: 107000 },
+      { open: 10.5, high: 10.65, low: 10.45, close: 10.6, volume: 108000 },
+      { open: 10.6, high: 10.75, low: 10.55, close: 10.7, volume: 109000 },
+      { open: 10.8, high: 11.45, low: 10.75, close: 11.4, volume: 260000 },
+    ],
+  };
+  const trendBreakoutSignals = getStockTechnicalSignals(trendBreakout);
+  assert.equal(trendBreakoutSignals.strongTrendBreakout, true);
+  assert.equal(stockMatchesConditions(trendBreakout, { technicalPattern: "strong-trend-breakout", logic: "and" }), true);
+  assert.equal(stockMatchesTechnicalPattern(trendBreakout, "not-in-pdf"), false);
+});
+
+test("stock match reasons explain PDF strategy matches", () => {
+  const { getStockMatchReasons } = loadStockConditionMatcher();
+  const stock = {
+    id: "SH600888",
+    market: "SH",
+    code: "600888",
+    name: "首板样本",
+    boardType: "main",
+    status: "normal",
+    price: 11.44,
+    changePercent: 10,
+    volume: 420000,
+    pe: 18,
+    pb: 2,
+    roe: 9,
+    dailyK: [
+      { open: 10, high: 10.2, low: 9.8, close: 10, volume: 100000 },
+      { open: 10, high: 10.3, low: 9.9, close: 10.1, volume: 110000 },
+      { open: 10.1, high: 10.35, low: 10, close: 10.2, volume: 120000 },
+      { open: 10.2, high: 10.5, low: 10.1, close: 10.35, volume: 130000 },
+      { open: 10.35, high: 10.5, low: 10.2, close: 10.4, volume: 140000 },
+      { open: 10.4, high: 11.44, low: 10.3, close: 11.44, volume: 420000 },
+    ],
+  };
+
+  const reasons = getStockMatchReasons(stock, { technicalPattern: "first-board", minVolumeRatio: "1.3", maPosition: "above-ma5" });
+  assert.ok(reasons.includes("首板"));
+  assert.ok(reasons.some(item => /^量比 /.test(item)));
+  assert.ok(reasons.includes("站上MA5"));
+});
 test("stock daily technical chart exposes quote metrics, MA, volume, MACD, periods and scrolling", () => {
   const requiredFunctions = [
     "renderStockDailyQuote",
