@@ -1,0 +1,184 @@
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+
+model = "gpt-5.5"
+model_reasoning_effort = "xhigh"
+service_tier = "fast"
+notify = [ "C:\\Users\\20230209\\AppData\\Local\\OpenAI\\Codex\\runtimes\\cua_node\\a89897d3d9baa117\\bin\\node_modules\\@oai\\sky\\bin\\windows\\codex-computer-use.exe", "turn-ended" ]
+[projects.'E:\pycharm\Projects\antigravity_ruanjian\dmm_2000v_read']
+trust_level = "trusted"
+
+[projects.'E:\pycharm\Projects\Auto_Projects\HDS120检验']
+trust_level = "trusted"
+
+[projects.'E:\pycharm\Projects\antigravity_ruanjian\3051校准系统']
+trust_level = "trusted"
+
+[projects.'E:\pycharm\Projects\antigravity_ruanjian\spm_compensate']
+trust_level = "trusted"
+
+[projects.'E:\pycharm\Projects\antigravity_ruanjian\CMS101_cal']
+trust_level = "trusted"
+
+[projects.'e:\pycharm\projects\antigravity_ruanjian\频谱自动检验']
+trust_level = "trusted"
+
+[projects.'e:\pycharm\projects\antigravity_ruanjian\odp检验软件']
+trust_level = "trusted"
+
+[projects.'e:\pycharm\projects\antigravity_ruanjian\hds200电阻电容校准']
+trust_level = "trusted"
+
+[projects.'e:\pycharm\projects\antigravity_ruanjian\条形码']
+trust_level = "trusted"
+
+[projects.'e:\pycharm\projects\antigravity_ruanjian\general_purpose_multimeter']
+trust_level = "trusted"
+
+[projects.'e:\pycharm\projects\antigravity_ruanjian\cms101_check']
+trust_level = "trusted"
+
+[projects.'e:\pycharm\projects\antigravity_ruanjian\tool_web']
+trust_level = "trusted"
+
+[projects.'e:\pycharm\projects\antigravity_ruanjian\owh_severaldmm_check']
+trust_level = "trusted"
+
+[projects.'e:\pycharm\projects\antigravity_ruanjian\sp_大功率电源']
+trust_level = "trusted"
+
+[projects.'e:\pycharm\projects\antigravity_ruanjian\music_app']
+trust_level = "trusted"
+
+[projects.'e:\desktop\自动更新']
+trust_level = "trusted"
+
+[projects.'e:\desktop\新建文件夹 (5)']
+trust_level = "trusted"
+
+[projects.'e:\obsidian_data\obsidian_knowledge\passive_income']
+trust_level = "trusted"
+
+[projects.'e:\pycharm\projects\antigravity_ruanjian\xdm电压电流检验-jh']
+trust_level = "trusted"
+
+[projects.'e:\pycharm\projects\auto_projects\3051校准系统']
+trust_level = "trusted"
+
+[projects.'e:\pycharm\projects\antigravity_ruanjian\dz_gf']
+trust_level = "trusted"
+
+[projects.'e:\pycharm\projects\antigravity_ruanjian\全面文档上传']
+trust_level = "trusted"
+
+[projects.'e:\desktop\cms101检验']
+trust_level = "trusted"
+
+[projects.'e:\pycharm\projects\antigravity_ruanjian\cms101检验']
+trust_level = "trusted"
+
+[projects.'e:\pycharm\projects\antigravity_ruanjian\xdm1000电压电流检验']
+trust_level = "trusted"
+
+[projects.'e:\pycharm\projects\antigravity_ruanjian\xdm1000电压电流校准']
+trust_level = "trusted"
+
+[projects.'c:\users\20230209']
+trust_level = "trusted"
+
+[projects.'e:\pycharm\projects\antigravity_ruanjian\点检脚本']
+trust_level = "trusted"
+
+[projects.'e:\pycharm\projects\antigravity_ruanjian\功率计检验']
+trust_level = "trusted"
+
+[projects.'e:\pycharm\projects\antigravity_ruanjian\xdm3051检验系统']
+trust_level = "trusted"
+
+[projects.'e:\pycharm\projects\antigravity_ruanjian\xdm3051校准系统']
+trust_level = "trusted"
+
+[projects.'E:\pycharm\Projects\antigravity_ruanjian\cms101检验']
+trust_level = "trusted"
+
+[projects.'e:\desktop\新建文件夹 (6)']
+trust_level = "trusted"
+
+[projects.'e:\pycharm\projects\antigravity_ruanjian\mes_增加工序']
+trust_level = "trusted"
+
+[projects.'e:\pycharm\projects\antigravity_ruanjian\hds_ag闭环']
+trust_level = "trusted"
+
+[projects.'e:\desktop\aaa']
+trust_level = "trusted"
+
+[projects.'e:\pycharm\projects\antigravity_ruanjian\ag检验软件']
+trust_level = "trusted"
+
+[projects.'e:\pycharm\projects\antigravity_ruanjian\ag检验软件_工程版']
+trust_level = "trusted"
+
+[projects.'e:\desktop\新建文件夹 (9)']
+trust_level = "trusted"
+
+[projects.'e:\pycharm\projects\git_branch\sp_high_power_power_supply']
+trust_level = "trusted"
+
+[projects.'e:\pycharm\projects\stady_projects\codex-candy-eval-main']
+trust_level = "trusted"
+
+[windows]
+sandbox = "unelevated"
+
+[plugins."superpowers@openai-curated"]
+enabled = true
+
+[plugins."documents@openai-primary-runtime"]
+enabled = true
+
+[plugins."spreadsheets@openai-primary-runtime"]
+enabled = true
+
+[plugins."presentations@openai-primary-runtime"]
+enabled = true
+
+[plugins."pdf@openai-primary-runtime"]
+enabled = true
+
+[plugins."template-creator@openai-primary-runtime"]
+enabled = true
+
+[marketplaces.openai-primary-runtime]
+last_updated = "2026-06-24T07:26:16Z"
+source_type = "local"
+source = '\\?\C:\Users\20230209\.cache\codex-runtimes\codex-primary-runtime\plugins\openai-primary-runtime'
+
+[features]
+fast_mode = true
+hooks = true
+
+[tui.model_availability_nux]
+"gpt-5.5" = 4
+
+[hooks.state]
+
+[hooks.state.'E:\pycharm\Projects\antigravity_ruanjian\CMS101_cal\.codex\hooks.json:session_start:0:0']
+trusted_hash = "sha256:d72e513747736a20c4743ddc2a19cee4e79cebfcb40d248f2fa6091e1183b036"
+
+[hooks.state.'E:\pycharm\Projects\antigravity_ruanjian\CMS101_cal\.codex\hooks.json:user_prompt_submit:0:0']
+trusted_hash = "sha256:5aac5a87a83459b53b242e6b1f637193a5169c1c0168dca5d78e45c2acebedae"
+
+[desktop]
+default-service-tier = "priority"
+
+[desktop.open-in-target-preferences]
+global = "vscode"
+
+[desktop.open-in-target-preferences.perPath]
+'C:\Users\20230209\Documents\New project' = "pycharm"
+'E:\pycharm\Projects\antigravity_ruanjian\3051校准系统' = "vscode"
+'E:\pycharm\Projects\antigravity_ruanjian\ODP检验软件' = "vscode"
+'E:\pycharm\Projects\antigravity_ruanjian\dmm_2000v_read' = "vscode"
+'E:\pycharm\Projects\antigravity_ruanjian\点检脚本' = "vscode"
+'E:\pycharm\Projects\antigravity_ruanjian\cms101检验' = "vscode"

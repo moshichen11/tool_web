@@ -1,0 +1,12 @@
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+
+[marketplaces.openai-curated]
+source_type = "local"
+source = 'C:\Users\20230209\.codex\.tmp\plugins'
+
+[plugins."build-web-apps@openai-curated"]
+enabled = true
+
+[plugins."superpowers@openai-curated"]
+enabled = true

@@ -151,17 +151,22 @@ function loadStockWatchlistAdder() {
     let stockWatchlist = [];
     let stockWatchGroups = [{ id: DEFAULT_STOCK_WATCH_GROUP_ID, name: "默认分组", stockIds: [] }];
     let activeStockWatchGroupId = DEFAULT_STOCK_WATCH_GROUP_ID;
+    let activeStockView = "watchlist";
     let stockDataSource = "eastmoney";
     let activeFeature = "stocks";
     let saved = 0;
     let savedGroups = 0;
     let rendered = 0;
+    let sideRendered = 0;
+    let pageRendered = 0;
+    let dailyButtonsRefreshed = 0;
     const messages = [];
     function showToast(message, type = "") { messages.push({ message, type }); }
     function saveStockWatchlist() { saved += 1; }
     function saveStockWatchGroups() { savedGroups += 1; }
-    function renderStockSideList() { rendered += 1; }
-    function renderStockPage() { rendered += 1; }
+    function renderStockSideList() { rendered += 1; sideRendered += 1; }
+    function renderStockPage() { rendered += 1; pageRendered += 1; }
+    function refreshStockDailyAddButtons() { dailyButtonsRefreshed += 1; }
     async function refreshRealStockQuotes() { return false; }
     ${extractFunction("getStockIdentity")}
     ${extractFunction("cloneStock")}
@@ -176,7 +181,21 @@ function loadStockWatchlistAdder() {
     return {
       addStockToWatchlist,
       setUniverse(items) { stockUniverse = items; },
-      state() { return { stockUniverse, stockWatchlist, stockWatchGroups, saved, savedGroups, rendered, messages }; },
+      setActiveView(value) { activeStockView = value; },
+      state() {
+        return {
+          stockUniverse,
+          stockWatchlist,
+          stockWatchGroups,
+          saved,
+          savedGroups,
+          rendered,
+          sideRendered,
+          pageRendered,
+          dailyButtonsRefreshed,
+          messages
+        };
+      },
     };
   `)();
 }
@@ -194,6 +213,8 @@ function loadStockFilterApplier() {
       { id: "sz-only", conditions: { exchange: "深交所" } }
     ];
     const stockFilters = {
+      trend: "",
+      trendDays: "15",
       minChange: "",
       maxChange: "",
       minVolume: "",
@@ -265,6 +286,8 @@ function loadStockStrategyController() {
     ];
     const customStockStrategies = [];
     const stockFilters = {
+      trend: "",
+      trendDays: "15",
       minChange: "-5",
       maxChange: "8",
       minVolume: "10000",
@@ -317,6 +340,8 @@ function loadStockWatchlistGroupManager(initialStorage = {}) {
     let stockWatchlist = [];
     let stockWatchGroups = [];
     let activeStockWatchGroupId = DEFAULT_STOCK_WATCH_GROUP_ID;
+    let activeFeature = "stocks";
+    let activeStockView = "watchlist";
     let stockDataSource = "eastmoney";
     let savedWatchlist = 0;
     let savedGroups = 0;
@@ -334,6 +359,7 @@ function loadStockWatchlistGroupManager(initialStorage = {}) {
     function showToast(message, type = "") { messages.push({ message, type }); }
     function renderStockSideList() { sideRendered += 1; }
     function renderStockPage() { rendered += 1; }
+    function refreshStockDailyAddButtons() {}
     ${extractFunction("getStockIdentity")}
     ${extractFunction("cloneStock")}
     ${extractFunction("getStockByCode")}
@@ -469,6 +495,32 @@ function loadStockHistoryLoader(fetchItems = []) {
       state() { return { stockApiStatus, stockApiErrorMessage, fetchCalls }; },
     };
   `)(fetchItems);
+}
+
+function loadStockApiErrorFormatter() {
+  return new Function(`
+    ${extractFunction("getStockApiErrorMessage")}
+    return getStockApiErrorMessage;
+  `)();
+}
+
+function renderStockDataStatusFixture({
+  status = "live",
+  loaded = 4,
+  total = 4,
+  source = "eastmoney",
+  error = "",
+} = {}) {
+  return new Function("fixture", `
+    let stockApiStatus = fixture.status;
+    let stockUniverseTotal = fixture.total;
+    let stockDataSource = fixture.source;
+    let stockApiErrorMessage = fixture.error;
+    const stockUniverse = Array.from({ length: fixture.loaded }, (_, index) => ({ code: String(index) }));
+    ${extractFunction("escapeHTML")}
+    ${extractFunction("renderStockDataStatus")}
+    return renderStockDataStatus();
+  `)({ status, loaded, total, source, error });
 }
 
 function loadStockApiBaseUrl({ hostname = "127.0.0.1", stored = "", override = "" } = {}) {
@@ -630,6 +682,31 @@ test("stocks module requires the backend API and does not fall back to generated
   assert.doesNotMatch(html, /STOCK_MOCK_TOTAL/);
   assert.doesNotMatch(html, /stockDataSource = "mock-a-share"/);
   assert.match(html, /await loadRealStockUniverse\(\)/);
+});
+
+test("stock API network errors are normalized before rendering", () => {
+  const formatError = loadStockApiErrorFormatter();
+  const networkMessage = "行情接口连接失败，请确认本地股票 API 已启动，或检查当前网络/隧道是否可访问。";
+
+  assert.equal(formatError(new TypeError("fetch failed")), networkMessage);
+  assert.equal(formatError(new TypeError("Failed to fetch")), networkMessage);
+  assert.equal(formatError(new Error("NetworkError when attempting to fetch resource.")), networkMessage);
+  assert.equal(formatError(new Error("XUEQIU_COOKIE is required")), "XUEQIU_COOKIE is required");
+  assert.equal(formatError(null), "行情接口不可用，请检查后端服务和 Xueqiu 凭据配置。");
+});
+
+test("stock status keeps loaded universe context after a later request failure", () => {
+  const statusHtml = renderStockDataStatusFixture({
+    status: "error",
+    loaded: 5866,
+    total: 5866,
+    error: "行情接口连接失败，请确认本地股票 API 已启动，或检查当前网络/隧道是否可访问。",
+  });
+
+  assert.match(statusHtml, /class="stock-refresh-note is-warning"/);
+  assert.match(statusHtml, /已载入 5866\/5866 只/);
+  assert.match(statusHtml, /最近请求失败/);
+  assert.doesNotMatch(statusHtml, /fetch failed/);
 });
 
 test("stocks default API base is configured to the public Render backend before startup", () => {
@@ -916,6 +993,22 @@ test("stock watchlist add falls back to a placeholder while universe is loading"
   assert.equal(state.rendered, 2);
   assert.equal(state.messages.at(-1).message, "已添加 603380");
   assert.equal(module.addStockToWatchlist("603380", "SH"), false);
+});
+
+test("daily K watchlist add updates the add button without rerendering the stock page", () => {
+  const module = loadStockWatchlistAdder();
+  module.setActiveView("daily");
+  module.setUniverse([
+    { id: "sh600519", market: "SH", code: "600519", name: "贵州茅台", industry: "白酒", price: 1500 }
+  ]);
+
+  assert.equal(module.addStockToWatchlist("600519", "SH"), true);
+
+  const state = module.state();
+  assert.equal(state.stockWatchlist.length, 1);
+  assert.equal(state.sideRendered, 1);
+  assert.equal(state.pageRendered, 0);
+  assert.equal(state.dailyButtonsRefreshed, 1);
 });
 
 test("stock watchlist groups migrate legacy watchlist and support multi-group membership", () => {
@@ -1399,6 +1492,8 @@ test("applying a stock strategy clears stale auxiliary filters and queues K-line
   assert.equal(state.stockFilters.maPosition, "all");
   assert.equal(state.stockFilters.industry, "all");
   assert.equal(state.stockFilters.metric, "all");
+  assert.equal(state.stockFilters.trend, "");
+  assert.equal(state.stockFilters.trendDays, "15");
   assert.equal(state.stockFilters.logic, "and");
   assert.equal(state.saved, 1);
   assert.equal(state.rendered, 1);
@@ -1676,6 +1771,46 @@ test("stock condition matcher supports hot-money short-term technical patterns",
   };
   assert.equal(stockMatchesConditions(thirdOneLineStock, { technicalPattern: "third-one-line-board", logic: "and" }), true);
   assert.equal(stockMatchesConditions(thirdOneLineStock, { technicalPattern: "first-board", logic: "and" }), false);
+});
+
+test("stock condition matcher supports trend direction filters", () => {
+  const { stockMatchesConditions, getStockMatchReasons } = loadStockConditionMatcher();
+  const upStock = {
+    id: "SZ300001",
+    market: "SZ",
+    code: "300001",
+    name: "趋势向上",
+    boardType: "gem",
+    status: "normal",
+    dailyK: [
+      { open: 10, high: 10.3, low: 9.9, close: 10, volume: 100000 },
+      { open: 10, high: 10.45, low: 10.1, close: 10.4, volume: 110000 },
+      { open: 10.4, high: 10.68, low: 10.2, close: 10.6, volume: 120000 },
+      { open: 10.6, high: 11, low: 10.5, close: 10.9, volume: 130000 },
+      { open: 10.9, high: 11.2, low: 10.85, close: 11.1, volume: 140000 },
+    ],
+  };
+  const downStock = {
+    ...upStock,
+    id: "SZ300002",
+    code: "300002",
+    name: "趋势向下",
+    dailyK: [
+      { open: 12, high: 12.2, low: 11.8, close: 12, volume: 100000 },
+      { open: 12, high: 12.05, low: 11.8, close: 11.95, volume: 98000 },
+      { open: 11.95, high: 12, low: 11.6, close: 11.7, volume: 90000 },
+      { open: 11.7, high: 11.75, low: 11.3, close: 11.35, volume: 92000 },
+      { open: 11.35, high: 11.4, low: 11.1, close: 11.15, volume: 88000 },
+    ],
+  };
+
+  assert.equal(stockMatchesConditions(upStock, { trend: "up", trendDays: "3", logic: "and" }), true);
+  assert.equal(stockMatchesConditions(upStock, { trend: "down", trendDays: "3", logic: "and" }), false);
+  assert.equal(stockMatchesConditions(downStock, { trend: "down", trendDays: "4", logic: "and" }), true);
+  assert.equal(stockMatchesConditions(downStock, { trend: "up", trendDays: "4", logic: "and" }), false);
+
+  const reasons = getStockMatchReasons(downStock, { trend: "down", trendDays: "3" });
+  assert.ok(reasons.includes("近3日向下"));
 });
 
 test("stock condition matcher supports PDF-derived hot-money strategy patterns", () => {

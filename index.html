@@ -1578,6 +1578,11 @@
       white-space: nowrap;
     }
 
+    .stock-refresh-note.is-warning {
+      color: #ffd166;
+      white-space: normal;
+    }
+
     .stock-market-grid {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -4169,6 +4174,8 @@
     let stockDataSource = "xueqiu";
     let stockDragState = { fromCode: "", overCode: "", placement: "before" };
     const stockFilters = {
+      trend: "",
+      trendDays: "15",
       minChange: "",
       maxChange: "",
       minVolume: "",
@@ -4811,7 +4818,29 @@
     }
 
     function getStockApiErrorMessage(error) {
-      return error?.message || "行情接口不可用，请检查后端服务和 Xueqiu 凭据配置。";
+      const fallback = "行情接口不可用，请检查后端服务和 Xueqiu 凭据配置。";
+      const message = String(error?.message || "").trim();
+      if (!message) return fallback;
+      const normalized = message.toLowerCase();
+      const networkPatterns = [
+        "fetch failed",
+        "failed to fetch",
+        "networkerror",
+        "network request failed",
+        "load failed",
+        "connection refused",
+        "err_connection",
+        "econnrefused",
+        "econnreset",
+        "socket hang up"
+      ];
+      if (error?.name === "AbortError" || normalized.includes("abort")) {
+        return "行情接口请求超时或已取消，请稍后重试。";
+      }
+      if (networkPatterns.some(pattern => normalized.includes(pattern))) {
+        return "行情接口连接失败，请确认本地股票 API 已启动，或检查当前网络/隧道是否可访问。";
+      }
+      return message;
     }
 
     function mapApiStock(raw) {
@@ -5474,6 +5503,8 @@
 
     function resetStockAuxiliaryFilters() {
       Object.assign(stockFilters, {
+        trend: "",
+        trendDays: "15",
         minChange: "",
         maxChange: "",
         minVolume: "",
@@ -5595,13 +5626,22 @@
       return `source=${escapeHTML(stock.source || stockDataSource)} · ${escapeHTML(formatStockUpdatedAt(stock.updatedAt))} · ${stock.delayed ? "延迟" : "未延迟"}`;
     }
 
+    function getStockIndustryLabel(stock) {
+      const industry = String(stock?.industry || "").trim();
+      return industry && industry !== "unknown" && industry !== "all" ? industry : "行业待更新";
+    }
+
     function renderStockDataStatus() {
+      const total = stockUniverseTotal || stockUniverse.length;
       if (stockApiStatus === "live") {
-        const total = stockUniverseTotal || stockUniverse.length;
         return `<div class="stock-refresh-note" data-stock-api-status>source=${escapeHTML(stockDataSource)} · 已载入 ${stockUniverse.length}/${total} 只 · 未回退</div>`;
       }
       if (stockApiStatus === "error") {
-        return `<div class="stock-empty" data-stock-api-status>${escapeHTML(stockApiErrorMessage || "行情接口不可用，请检查后端服务和 Xueqiu 凭据配置。")}</div>`;
+        const message = stockApiErrorMessage || "行情接口不可用，请检查后端服务和 Xueqiu 凭据配置。";
+        if (stockUniverse.length) {
+          return `<div class="stock-refresh-note is-warning" data-stock-api-status>source=${escapeHTML(stockDataSource)} · 已载入 ${stockUniverse.length}/${total} 只 · 最近请求失败：${escapeHTML(message)}</div>`;
+        }
+        return `<div class="stock-empty" data-stock-api-status>${escapeHTML(message)}</div>`;
       }
       return `<div class="stock-empty" data-stock-api-status>正在通过后端行情接口获取股票全集...</div>`;
     }
@@ -6398,6 +6438,10 @@
       if (pattern === "multi-board-relay" && signals.multiBoardRelay) addReason(`${signals.consecutiveLimitCount}连板`);
       if (pattern === "strong-trend-breakout" && signals.strongTrendBreakout) addReason("趋势突破");
       if (pattern === "trend-volume" && signals.trendVolume) addReason("放量趋势");
+      const trendDays = Number(conditions.trendDays) || 15;
+      const trendState = getStockTrend(stock, trendDays);
+      if (conditions.trend === "up" && trendState === "up") addReason(`近${trendDays}日向上`);
+      if (conditions.trend === "down" && trendState === "down") addReason(`近${trendDays}日向下`);
       const minVolumeRatio = getStockConditionNumber(conditions, "minVolumeRatio");
       if (minVolumeRatio !== null && signals.volumeRatio >= minVolumeRatio) addReason(`量比 ${signals.volumeRatio.toFixed(1)}`);
       if (conditions.maPosition === "above-ma5" && signals.aboveMa5) addReason("站上MA5");
@@ -6417,7 +6461,9 @@
     }
 
     function hasStockConditions(conditions = {}) {
-      return [
+      const trendMode = String(conditions.trend || "");
+      const hasTrendFilter = trendMode === "up" || trendMode === "down";
+      return hasTrendFilter || [
         "minChange",
         "maxChange",
         "minVolume",
@@ -6428,7 +6474,6 @@
         "maxPb",
         "minRoe",
         "maxRoe",
-        "trend",
         "minVolumeRatio",
         "maxVolumeRatio"
       ].some(key => conditions[key] !== undefined && conditions[key] !== "") ||
@@ -7464,6 +7509,7 @@
               <div>
                 <h2 class="stock-section-title" data-stock-daily-title>${escapeHTML(stock.name)} 分时/日K图</h2>
                 <span class="stock-refresh-note" data-stock-daily-meta>${escapeHTML(stock.market)} ${escapeHTML(stock.code)} · ${escapeHTML(getStockDailyPeriod().label)} · ${escapeHTML(getStockDailyRange().label)} · ${formatStockDataMeta(stock)}</span>
+                <span class="stock-refresh-note" data-stock-daily-industry>行业：${escapeHTML(getStockIndustryLabel(stock))}</span>
               </div>
             </div>
             ${renderStockDailyQuote(stock)}
@@ -7780,6 +7826,17 @@
                 <div class="stock-advanced-filter-body">
                   <div class="stock-filter-fields">
                     <div class="stock-field">
+                      <label>趋势</label>
+                      <div class="stock-field-row">
+                        <select class="stock-select" data-stock-filter="trend">
+                          <option value="" ${stockFilters.trend === "" ? "selected" : ""}>全部走势</option>
+                          <option value="up" ${stockFilters.trend === "up" ? "selected" : ""}>向上</option>
+                          <option value="down" ${stockFilters.trend === "down" ? "selected" : ""}>向下</option>
+                        </select>
+                        <input class="stock-input" data-stock-filter="trendDays" type="number" min="2" step="1" value="${escapeHTML(stockFilters.trendDays)}" placeholder="趋势天数" />
+                      </div>
+                    </div>
+                    <div class="stock-field">
                       <label>量比区间</label>
                       <div class="stock-field-row">
                         <input class="stock-input" data-stock-filter="minVolumeRatio" type="number" step="0.1" value="${escapeHTML(stockFilters.minVolumeRatio)}" placeholder="最低 倍" />
@@ -7919,6 +7976,24 @@
       });
     }
 
+    function refreshStockDailyAddButtons(identity = "") {
+      const watchIdentities = new Set(stockWatchlist.map(getStockIdentity));
+      const updateButton = (button, codeKey) => {
+        const code = button.dataset[codeKey] || "";
+        const stock = getStockByCode(code, button.dataset.stockMarket) || makeStockIdentityPlaceholder(code, button.dataset.stockMarket);
+        const buttonIdentity = getStockIdentity(stock);
+        if (identity && buttonIdentity !== identity) return;
+        const exists = watchIdentities.has(buttonIdentity);
+        const isDailyButton = button.matches("[data-stock-daily-add]");
+        button.classList.toggle("is-added", exists);
+        button.classList.toggle("primary", !exists && !isDailyButton);
+        button.textContent = exists ? "✓" : "+";
+        button.setAttribute("aria-label", exists ? (isDailyButton ? "已在自选股中" : "已添加") : `添加${stock.name}到自选${isDailyButton ? "股" : ""}`);
+      };
+      document.querySelectorAll("[data-stock-daily-add]").forEach(button => updateButton(button, "stockDailyAdd"));
+      document.querySelectorAll("[data-stock-add]").forEach(button => updateButton(button, "stockAdd"));
+    }
+
     function addStockToWatchlist(code, market = "", groupIds = null) {
       const stock = getStockByCode(code, market) || makeStockIdentityPlaceholder(code, market);
       if (!stock.code) {
@@ -7953,7 +8028,11 @@
       if (!exists) saveStockWatchlist();
       if (membershipChanged) saveStockWatchGroups();
       renderStockSideList();
-      renderStockPage();
+      if (activeFeature === "stocks" && activeStockView === "daily") {
+        refreshStockDailyAddButtons(identity);
+      } else {
+        renderStockPage();
+      }
       const groupNames = validTargetIds.map(id => getStockWatchGroupById(id).name).join("、");
       const showGroupNames = validTargetIds.length > 1 || validTargetIds[0] !== DEFAULT_STOCK_WATCH_GROUP_ID;
       showToast(`已添加 ${stock.name}${showGroupNames && groupNames ? ` 到 ${groupNames}` : ""}`);
@@ -8789,8 +8868,10 @@
       });
       const title = document.querySelector("[data-stock-daily-title]");
       const meta = document.querySelector("[data-stock-daily-meta]");
+      const industry = document.querySelector("[data-stock-daily-industry]");
       if (title) title.textContent = `${stock.name} 分时/日K图`;
       if (meta) meta.textContent = `${stock.market} ${stock.code} · ${period.label} · ${range.label}`;
+      if (industry) industry.textContent = `行业：${getStockIndustryLabel(stock)}`;
       const quote = document.querySelector("[data-stock-daily-quote]");
       if (quote) quote.outerHTML = renderStockDailyQuote(stock);
       const depth = document.querySelector("[data-stock-daily-depth]");
