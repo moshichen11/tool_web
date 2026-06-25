@@ -32,6 +32,7 @@ stocks feature
 | `daily` | 默认入口 | `activeDailyStockId`、period、range、viewport、order book | 可重绘 canvas 和报价面板，不刷新整个 app shell |
 | `watchlist` | 自选股侧栏/tab | `stockWatchlist`、quick filters、expanded row | 添加/删除/排序可重渲染 stock page，报价 tick 只能局部 patch |
 | `filter` | 条件选股侧栏/tab | filters、tags、strategy、sort、pagination、expanded row | 条件变化可重渲染 filter view，报价 tick 局部 patch |
+| `limit-board` | 连板 tab | `activeDailyStockId`、board level、涨停候选 K-line progress | 先按最新报价筛涨停候选，再后台补齐候选 K 线，分组面板可局部更新，右侧复用 daily canvas |
 
 无 `market` 子视图。已有测试要求移除/不恢复市场云图视图。
 

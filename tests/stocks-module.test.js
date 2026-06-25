@@ -74,6 +74,37 @@ function loadStockConditionMatcher() {
   `)();
 }
 
+function loadStockLimitBoardEngine() {
+  return new Function(`
+    let stockSelectionConfig = ${JSON.stringify(JSON.parse(fs.readFileSync(selectionConfigPath, "utf8")))};
+    ${extractFunction("getStockDailyK")}
+    ${extractFunction("getStockIdentity")}
+    ${extractFunction("getStockExchange")}
+    ${extractFunction("getStockBoardCategory")}
+    ${extractFunction("getStockBoardType")}
+    ${extractFunction("getStockStatus")}
+    ${extractFunction("getStockKLineSeries")}
+    ${extractFunction("getStockMaValue")}
+    ${extractFunction("getStockVolumeRatio")}
+    ${extractFunction("getStockSelectionConfig")}
+    ${extractFunction("getStockSelectionParameter")}
+    ${extractFunction("getStockLimitThreshold")}
+    ${extractFunction("isStockLimitUpBar")}
+    ${extractFunction("isStockOneLineLimitUpBar")}
+    ${extractFunction("getStockConsecutiveLimitCount")}
+    ${extractFunction("getStockLimitRunBeforeLatest")}
+    ${extractFunction("getStockRecentLimitStats")}
+    ${extractFunction("hasStockReversalPullback")}
+    ${extractFunction("isStockWeakOrNegativeBar")}
+    ${extractFunction("getStockRecentHigh")}
+    ${extractFunction("getStockTechnicalSignals")}
+    ${extractFunction("getStockLimitBoardItem")}
+    ${extractFunction("getStockLimitBoardGroups")}
+    ${extractFunction("getHighestStockLimitBoardLevel")}
+    return { getStockLimitBoardItem, getStockLimitBoardGroups, getHighestStockLimitBoardLevel };
+  `)();
+}
+
 function loadAutomatedStockSelectionEngine(config) {
   return new Function("config", `
     let stockUniverse = [];
@@ -497,6 +528,33 @@ function loadStockHistoryLoader(fetchItems = []) {
   `)(fetchItems);
 }
 
+function loadStockQuoteRefresher(errorMessage = "Xueqiu outbound rate limit exceeded") {
+  return new Function("errorMessage", `
+    const STOCK_DAILY_FAST_MODE = false;
+    let stockApiReady = true;
+    let stockApiStatus = "live";
+    let stockApiErrorMessage = "";
+    let stockDataSource = "eastmoney";
+    let activeFeature = "stocks";
+    const messages = [];
+    const stockWatchlist = [];
+    const stockUniverse = [
+      { id: "SH:600000", market: "SH", code: "600000", name: "浦发银行" },
+      { id: "SZ:000001", market: "SZ", code: "000001", name: "平安银行" }
+    ];
+    function getStockIdentity(stock) { return stock.id || stock.market + stock.code; }
+    function getStockApiErrorMessage(error) { return error?.message || "报价刷新失败"; }
+    function showToast(message, type = "") { messages.push({ message, type }); }
+    function mergeStockQuote() {}
+    async function fetchStockApi() { throw new Error(errorMessage); }
+    ${extractFunction("refreshRealStockQuotes").replace("function refreshRealStockQuotes", "async function refreshRealStockQuotes")}
+    return {
+      refreshRealStockQuotes,
+      state() { return { stockApiReady, stockApiStatus, stockApiErrorMessage, messages }; },
+    };
+  `)(errorMessage);
+}
+
 function loadStockApiErrorFormatter() {
   return new Function(`
     ${extractFunction("getStockApiErrorMessage")}
@@ -603,6 +661,16 @@ test("stock secondary sidebar switches modules instead of scrolling sections", (
   assert.doesNotMatch(stockSidebarClickBlock, /scrollIntoView/);
 });
 
+test("stock limit-board view is registered and schedules candidate history loading", () => {
+  assert.match(html, /id: "limit-board"/);
+  assert.match(html, /name: "连板"/);
+  assert.match(html, /let activeStockLimitBoardLevel = 0/);
+  assert.match(html, /let stockLimitBoardHistoryLoading = false/);
+  assert.match(html, /function scheduleStockLimitBoardHistoryLoad\(\)/);
+  assert.match(html, /loadRealStockHistory\(stock, \{ foreground: false \}\)/);
+  assert.match(html, /activeStockView === "limit-board"/);
+});
+
 test("stocks logic supports search, filters, watchlist persistence, sorting, charts, and refresh", () => {
   const requiredFunctions = [
     "getStockApiBaseUrl",
@@ -672,9 +740,9 @@ test("stocks module requires the backend API and does not fall back to generated
   assert.match(html, /async function refreshRealStockQuotes\(\)/);
   assert.match(html, /body: JSON\.stringify\(\{ symbols \}\)/);
   assert.match(html, /response\.items\.forEach\(mergeStockQuote\)/);
-  assert.match(html, /stockApiStatus = "error"/);
+  assert.match(html, /stockApiStatus = stockUniverse\.length \? "live" : "error"/);
   assert.match(html, /stockApiErrorMessage = getStockApiErrorMessage\(error\)/);
-  assert.match(html, /showToast\(stockApiErrorMessage, "error"\)/);
+  assert.match(html, /实时行情刷新失败，继续使用已载入数据/);
   assert.doesNotMatch(html, /marketIndices\.forEach\(mutateStockQuote\)/);
   assert.doesNotMatch(html, /stockUniverse\.forEach\(mutateStockQuote\)/);
   assert.doesNotMatch(html, /stockWatchlist\.forEach\(mutateStockQuote\)/);
@@ -707,6 +775,24 @@ test("stock status keeps loaded universe context after a later request failure",
   assert.match(statusHtml, /已载入 5866\/5866 只/);
   assert.match(statusHtml, /最近请求失败/);
   assert.doesNotMatch(statusHtml, /fetch failed/);
+});
+
+test("stock quote refresh failures keep loaded universe live instead of showing connection failure", async () => {
+  const module = loadStockQuoteRefresher();
+
+  const refreshed = await module.refreshRealStockQuotes();
+  const state = module.state();
+
+  assert.equal(refreshed, false);
+  assert.equal(state.stockApiReady, true);
+  assert.equal(state.stockApiStatus, "live");
+  assert.equal(state.stockApiErrorMessage, "Xueqiu outbound rate limit exceeded");
+  assert.deepEqual(state.messages, [
+    {
+      message: "实时行情刷新失败，继续使用已载入数据：Xueqiu outbound rate limit exceeded",
+      type: "warning",
+    },
+  ]);
 });
 
 test("stocks default API base is configured to the public Render backend before startup", () => {
@@ -1627,6 +1713,85 @@ test("stock minute and K module renders virtual stock list, range controls, canv
   assert.match(moveBlock, /handleStockDailyCanvasMove\(event, dailyCanvas\)/);
 });
 
+test("stock daily chart hover draws crosshair lines with a price label", () => {
+  const moveBlock = extractFunction("handleStockDailyCanvasMove");
+  const crosshairBlock = extractFunction("drawStockDailyCrosshair");
+  const hideBlock = extractFunction("hideStockDailyTooltip");
+  const kBlock = extractFunction("drawStockKCanvas");
+  const minuteBlock = extractFunction("drawStockMinuteCanvas");
+
+  assert.match(moveBlock, /drawStockDailyCanvas\(\)/);
+  assert.match(moveBlock, /drawStockDailyCrosshair\(canvas, meta, nearest, crosshairY\)/);
+  assert.match(crosshairBlock, /ctx\.moveTo\(meta\.plot\.left, y\)/);
+  assert.match(crosshairBlock, /ctx\.lineTo\(meta\.plot\.right, y\)/);
+  assert.match(crosshairBlock, /ctx\.moveTo\(x, meta\.plot\.top\)/);
+  assert.match(crosshairBlock, /ctx\.lineTo\(x, meta\.plot\.bottom\)/);
+  assert.match(crosshairBlock, /const price = meta\.priceFromY\(y\)/);
+  assert.match(crosshairBlock, /formatStockPrice\(price\)/);
+  assert.match(crosshairBlock, /fillText\(priceLabel/);
+  assert.match(kBlock, /priceFromY: y =>/);
+  assert.match(minuteBlock, /priceFromY: y =>/);
+  assert.match(hideBlock, /drawStockDailyCanvas\(\)/);
+});
+
+test("stock limit-board view renders grouped board levels and reuses daily K chart controls", () => {
+  assert.match(html, /function renderStockLimitBoardView\(\)/);
+  assert.match(html, /function renderStockLimitBoardLevels/);
+  assert.match(html, /function renderStockLimitBoardList/);
+  assert.match(html, /data-stock-limit-board-level/);
+  assert.match(html, /data-stock-limit-board-row/);
+  assert.match(html, /renderStockDailyQuote\(stock\)/);
+  assert.match(html, /renderStockDailyPeriods\(\)/);
+  assert.match(html, /renderStockDailyRanges\(\)/);
+  assert.match(html, /data-stock-daily-chart/);
+});
+
+test("stock limit-board history loading updates only the limit-board panel", () => {
+  const loadBlock = extractBlock(
+    /async function loadStockLimitBoardHistories\(/,
+    /\n    \}\n\n    function scheduleStockLimitBoardHistoryLoad/
+  );
+  const updateBlock = extractFunction("updateStockLimitBoardResults");
+
+  assert.match(loadBlock, /loadRealStockHistory\(stock, \{ foreground: false \}\)/);
+  assert.match(loadBlock, /activeStockView === "limit-board"/);
+  assert.match(loadBlock, /updateStockLimitBoardResults\(\{ results: false \}\)/);
+  assert.doesNotMatch(loadBlock, /renderStockPage\(\)/);
+  assert.match(updateBlock, /document\.querySelector\('\[data-stock-limit-board-panel\]'\)/);
+  assert.match(updateBlock, /renderStockLimitBoardPanel\(/);
+  assert.doesNotMatch(updateBlock, /scheduleStockLimitBoardHistoryLoad\(\)/);
+});
+
+test("stock limit-board history loading only targets quote limit-up candidates", () => {
+  const candidateBlock = extractBlock(
+    /function getStockLimitBoardHistoryCandidates\(\) \{/,
+    /\n    \}\n\n    async function loadStockLimitBoardHistories/
+  );
+
+  assert.match(html, /function stockLooksLimitUpFromQuote\(stock\)/);
+  assert.match(html, /function getStockLimitBoardUniverse\(\)/);
+  assert.match(candidateBlock, /getStockLimitBoardUniverse\(\)\.filter/);
+  assert.doesNotMatch(candidateBlock, /stockUniverse\.filter\(stock => !hasStockLimitBoardHistoryReady\(stock\)\)/);
+});
+
+test("stock limit-board sidebar rows omit industry while the chart header keeps it", () => {
+  const listBlock = extractFunction("renderStockLimitBoardList");
+  const viewBlock = extractFunction("renderStockLimitBoardView");
+
+  assert.match(listBlock, /\$\{escapeHTML\(stock\.market\)\} \$\{escapeHTML\(stock\.code\)\}/);
+  assert.doesNotMatch(listBlock, /getStockIndustryLabel\(stock\)/);
+  assert.match(viewBlock, /data-stock-daily-industry>行业：\$\{escapeHTML\(getStockIndustryLabel\(stock\)\)\}/);
+});
+
+test("stock limit-board interaction handlers switch board level and selected chart stock", () => {
+  assert.match(html, /function setStockLimitBoardLevel\(level\)/);
+  assert.match(html, /function setActiveLimitBoardStock\(id\)/);
+  assert.match(html, /data-stock-limit-board-level/);
+  assert.match(html, /setStockLimitBoardLevel\(limitBoardLevelButton\.dataset\.stockLimitBoardLevel\)/);
+  assert.match(html, /data-stock-limit-board-row/);
+  assert.match(html, /setActiveLimitBoardStock\(limitBoardRow\.dataset\.stockLimitBoardRow\)/);
+});
+
 test("stock search supports Chinese pinyin initials", () => {
   const { getStockTextInitials, stockMatchesSearchText } = loadStockSearchMatcher();
   const maotai = {
@@ -1903,6 +2068,71 @@ test("stock condition matcher supports PDF-derived hot-money strategy patterns",
   assert.equal(trendBreakoutSignals.strongTrendBreakout, true);
   assert.equal(stockMatchesConditions(trendBreakout, { technicalPattern: "strong-trend-breakout", logic: "and" }), true);
   assert.equal(stockMatchesTechnicalPattern(trendBreakout, "not-in-pdf"), false);
+});
+
+test("stock limit-board grouping separates first, second, and highest boards", () => {
+  const { getStockLimitBoardGroups, getHighestStockLimitBoardLevel } = loadStockLimitBoardEngine();
+  const firstBoard = {
+    id: "SH:600201",
+    market: "SH",
+    code: "600201",
+    name: "一板样本",
+    boardType: "main",
+    status: "normal",
+    changePercent: 10,
+    volume: 300000,
+    marketCap: 80,
+    industry: "电力",
+    dailyK: [
+      { open: 10, high: 10.2, low: 9.9, close: 10, volume: 100000 },
+      { open: 10.1, high: 11, low: 10.1, close: 11, volume: 300000 },
+    ],
+  };
+  const twoBoard = {
+    ...firstBoard,
+    id: "SZ:000202",
+    market: "SZ",
+    code: "000202",
+    name: "二板样本",
+    changePercent: 10,
+    marketCap: 60,
+    dailyK: [
+      { open: 10, high: 10.1, low: 9.9, close: 10, volume: 100000 },
+      { open: 10.3, high: 11, low: 10.2, close: 11, volume: 180000 },
+      { open: 11.4, high: 12.1, low: 11.3, close: 12.1, volume: 260000 },
+    ],
+  };
+  const threeOneLine = {
+    ...firstBoard,
+    id: "SH:600203",
+    code: "600203",
+    name: "三板一字样本",
+    marketCap: 50,
+    dailyK: [
+      { open: 10, high: 10, low: 10, close: 10, volume: 90000 },
+      { open: 11, high: 11, low: 11, close: 11, volume: 100000 },
+      { open: 12.1, high: 12.1, low: 12.1, close: 12.1, volume: 110000 },
+      { open: 13.31, high: 13.31, low: 13.31, close: 13.31, volume: 120000 },
+    ],
+  };
+  const nonLimit = {
+    ...firstBoard,
+    id: "SH:600204",
+    code: "600204",
+    name: "未涨停样本",
+    changePercent: 2,
+    dailyK: [
+      { open: 10, high: 10.3, low: 9.9, close: 10, volume: 100000 },
+      { open: 10, high: 10.5, low: 9.9, close: 10.2, volume: 120000 },
+    ],
+  };
+
+  const groups = getStockLimitBoardGroups([firstBoard, twoBoard, threeOneLine, nonLimit]);
+  assert.deepEqual(groups.map(group => [group.level, group.count]), [[1, 1], [2, 1], [3, 1]]);
+  assert.equal(groups[0].items[0].stock.name, "一板样本");
+  assert.equal(groups[1].items[0].stock.name, "二板样本");
+  assert.equal(groups[2].items[0].oneLineBoard, true);
+  assert.equal(getHighestStockLimitBoardLevel(groups), 3);
 });
 
 test("stock match reasons explain PDF strategy matches", () => {

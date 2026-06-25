@@ -4,7 +4,7 @@ export const STOCK_STORAGE_KEYS = {
   filterState: "glass_nav_stock_filter_state",
 } as const;
 
-export const STOCK_VIEWS = ["daily", "watchlist", "filter"] as const;
+export const STOCK_VIEWS = ["daily", "watchlist", "filter", "limit-board"] as const;
 export type StockView = (typeof STOCK_VIEWS)[number];
 
 export const A_SHARE_MARKETS = ["SH", "SZ", "BJ"] as const;

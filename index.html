@@ -2005,6 +2005,12 @@
       gap: 6px;
     }
 
+    .stock-limit-board-levels {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
     .stock-daily-filter {
       min-height: 30px;
       padding: 0 9px;
@@ -2025,6 +2031,13 @@
       border-color: rgba(131,195,65,0.44);
       background: var(--green-active);
       outline: 0;
+    }
+
+    .stock-limit-board-layout .stock-daily-row em {
+      color: var(--stock-up, #ff4d4f);
+      font-size: 11px;
+      font-style: normal;
+      font-weight: 760;
     }
 
     .stock-daily-list {
@@ -3859,7 +3872,8 @@
     const stockViews = [
       { id: "daily", icon: "📈", name: "股票分时/日K图", desc: "分时、K线与盘口分布" },
       { id: "watchlist", icon: "⭐", name: "自选股", desc: "添加、排序、刷新自选" },
-      { id: "filter", icon: "⚗️", name: "条件选股", desc: "多条件筛选自选股" }
+      { id: "filter", icon: "⚗️", name: "条件选股", desc: "多条件筛选自选股" },
+      { id: "limit-board", icon: "♟", name: "连板", desc: "最新交易日涨停高度" }
     ];
       const stockDailyRanges = [
         { id: "15", label: "15日", days: 15 },
@@ -4153,6 +4167,11 @@
     let stockStrategyHistoryLoaded = 0;
     let stockStrategyHistoryTarget = 0;
     let stockStrategyHistoryStrategyId = "";
+    let activeStockLimitBoardLevel = 0;
+    let stockLimitBoardHistoryLoading = false;
+    let stockLimitBoardHistoryLoadToken = 0;
+    let stockLimitBoardHistoryLoaded = 0;
+    let stockLimitBoardHistoryTarget = 0;
     let stockSelectionConfig = null;
     let stockSelectionConfigStatus = "loading";
     let stockSelectionConfigError = "";
@@ -5036,10 +5055,15 @@
         stockApiStatus = "live";
         return true;
       } catch (error) {
-        stockApiReady = false;
-        stockApiStatus = "error";
         stockApiErrorMessage = getStockApiErrorMessage(error);
-        if (activeFeature === "stocks") showToast(stockApiErrorMessage, "error");
+        stockApiReady = Boolean(stockUniverse.length);
+        stockApiStatus = stockUniverse.length ? "live" : "error";
+        if (activeFeature === "stocks") {
+          const message = stockUniverse.length
+            ? `实时行情刷新失败，继续使用已载入数据：${stockApiErrorMessage}`
+            : stockApiErrorMessage;
+          showToast(message, stockUniverse.length ? "warning" : "error");
+        }
         return false;
       }
     }
@@ -5273,6 +5297,61 @@
         localStorage.removeItem(STOCK_WATCHLIST_KEY);
       }
       return defaultStockWatchCodes.map(code => cloneStock(makeStockIdentityPlaceholder(code)));
+    }
+
+    function stockLooksLimitUpFromQuote(stock) {
+      const price = Number(stock?.price) || 0;
+      const change = Number(stock?.changePercent) || 0;
+      return price > 0 && change >= getStockLimitThreshold(stock);
+    }
+
+    function getStockLimitBoardUniverse() {
+      return stockUniverse.filter(stockLooksLimitUpFromQuote);
+    }
+
+    function hasStockLimitBoardHistoryReady(stock) {
+      const loadKey = getStockHistoryLoadKey(stock);
+      const dailyK = getStockDailyK(stock);
+      return dailyK.length >= 2 ||
+        stock.historyLoadKey === loadKey ||
+        stock.historyLoadEmptyKey === loadKey ||
+        stock.historyLoadErrorKey === loadKey;
+    }
+
+    function getStockLimitBoardHistoryCandidates() {
+      if (!stockApiReady) return [];
+      return getStockLimitBoardUniverse().filter(stock => !hasStockLimitBoardHistoryReady(stock));
+    }
+
+    async function loadStockLimitBoardHistories(token) {
+      try {
+        while (token === stockLimitBoardHistoryLoadToken) {
+          const batch = getStockLimitBoardHistoryCandidates().slice(0, STOCK_STRATEGY_HISTORY_BATCH_SIZE);
+          if (!batch.length) break;
+          await Promise.all(batch.map(stock => loadRealStockHistory(stock, { foreground: false })));
+          stockLimitBoardHistoryLoaded += batch.length;
+          if (activeFeature === "stocks" && activeStockView === "limit-board") updateStockLimitBoardResults({ results: false });
+          await new Promise(resolve => setTimeout(resolve, 0));
+        }
+      } finally {
+        if (token === stockLimitBoardHistoryLoadToken) {
+          stockLimitBoardHistoryLoading = false;
+          stockLimitBoardHistoryLoaded = 0;
+          stockLimitBoardHistoryTarget = 0;
+          if (activeFeature === "stocks" && activeStockView === "limit-board") updateStockLimitBoardResults();
+        }
+      }
+    }
+
+    function scheduleStockLimitBoardHistoryLoad() {
+      if (!stockApiReady || stockLimitBoardHistoryLoading) return;
+      const candidates = getStockLimitBoardHistoryCandidates();
+      if (!candidates.length) return;
+      stockLimitBoardHistoryLoadToken += 1;
+      stockLimitBoardHistoryLoading = true;
+      stockLimitBoardHistoryLoaded = 0;
+      stockLimitBoardHistoryTarget = candidates.length;
+      loadStockLimitBoardHistories(stockLimitBoardHistoryLoadToken);
     }
 
     function saveStockWatchlist() {
@@ -5567,6 +5646,7 @@
       await loadRealStockHistory(getActiveDailyStock());
       renderStockSideList();
       renderStockPage();
+      if (activeStockView === "limit-board") scheduleStockLimitBoardHistoryLoad();
       updateStockDynamicData();
       scheduleStockUniverseChartPreload();
     }
@@ -5977,6 +6057,56 @@
         strongTrendBreakout,
         trendVolume: Boolean(ma5 && previousMa5 && latestClose >= ma5 && ma5 >= previousMa5 && volumeRatio >= 1.3),
       };
+    }
+
+    function getStockLimitBoardItem(stock) {
+      const series = getStockKLineSeries(stock);
+      if (series.length < 2 && stockLooksLimitUpFromQuote(stock)) {
+        return {
+          stock,
+          level: 1,
+          oneLineBoard: false,
+          volumeRatio: 0,
+          latestDate: "",
+          pendingHistory: true
+        };
+      }
+      const signals = getStockTechnicalSignals(stock);
+      if (!signals.limitUp || signals.consecutiveLimitCount < 1) return null;
+      const latest = series[series.length - 1] || {};
+      return {
+        stock,
+        level: signals.consecutiveLimitCount,
+        oneLineBoard: signals.oneLineBoard,
+        volumeRatio: signals.volumeRatio,
+        latestDate: latest.time || latest.date || ""
+      };
+    }
+
+    function getStockLimitBoardGroups(list = getStockLimitBoardUniverse()) {
+      const buckets = new Map();
+      list.forEach(stock => {
+        const item = getStockLimitBoardItem(stock);
+        if (!item) return;
+        if (!buckets.has(item.level)) buckets.set(item.level, []);
+        buckets.get(item.level).push(item);
+      });
+      return [...buckets.entries()]
+        .sort((a, b) => a[0] - b[0])
+        .map(([level, items]) => ({
+          level,
+          label: `${level}板`,
+          count: items.length,
+          items: items.sort((a, b) =>
+            (Number(b.stock.changePercent) || 0) - (Number(a.stock.changePercent) || 0) ||
+            (Number(b.volumeRatio) || 0) - (Number(a.volumeRatio) || 0) ||
+            (Number(a.stock.marketCap) || Number.POSITIVE_INFINITY) - (Number(b.stock.marketCap) || Number.POSITIVE_INFINITY)
+          )
+        }));
+    }
+
+    function getHighestStockLimitBoardLevel(groups = getStockLimitBoardGroups()) {
+      return groups.reduce((max, group) => Math.max(max, group.level), 0);
     }
 
     function getStockSelectionClosePosition(bar) {
@@ -6712,6 +6842,35 @@
       });
     }
 
+    function setStockLimitBoardLevel(level) {
+      const numeric = Number(level) || 0;
+      const groups = getStockLimitBoardGroups();
+      if (!groups.some(group => group.level === numeric)) return;
+      activeStockLimitBoardLevel = numeric;
+      const nextStock = getActiveStockLimitBoardGroup(groups)?.items?.[0]?.stock;
+      if (nextStock) {
+        activeDailyStockId = nextStock.id;
+        stockDailyViewportStart = -1;
+      }
+      renderStockPage();
+      if (nextStock) {
+        loadRealStockHistory(nextStock).then(() => {
+          if (activeDailyStockId === nextStock.id) updateStockDailyChart();
+        });
+      }
+    }
+
+    function setActiveLimitBoardStock(id) {
+      const stock = stockUniverse.find(item => item.id === id);
+      if (!stock) return;
+      activeDailyStockId = id;
+      stockDailyViewportStart = -1;
+      updateStockDailyChart();
+      loadRealStockHistory(stock).then(() => {
+        if (activeDailyStockId === id) updateStockDailyChart();
+      });
+    }
+
     function getStockDailyRangeIndex() {
       return Math.max(0, stockDailyRanges.findIndex(range => range.id === activeStockDailyRange));
     }
@@ -6841,6 +7000,7 @@
       activeStockView = view;
       expandedStockIdentity = "";
       expandedStockFilterIdentity = "";
+      if (activeStockView === "limit-board") scheduleStockLimitBoardHistoryLoad();
       renderStockSideList();
       renderStockPage();
     }
@@ -7077,6 +7237,10 @@
     }
 
     function getActiveDailyStock() {
+      if (activeStockView === "limit-board") {
+        const limitBoardStock = stockUniverse.find(item => item.id === activeDailyStockId);
+        if (limitBoardStock) return limitBoardStock;
+      }
       const stocks = getDailyFilteredStocks();
       const stock = stocks.find(item => item.id === activeDailyStockId);
       if (stock) return stock;
@@ -7537,6 +7701,132 @@
       `;
     }
 
+    function renderStockLimitBoardLevels(groups = getStockLimitBoardGroups()) {
+      if (!groups.length) return `<div class="stock-empty">最新交易日暂无涨停连板数据。</div>`;
+      if (!activeStockLimitBoardLevel || !groups.some(group => group.level === activeStockLimitBoardLevel)) {
+        activeStockLimitBoardLevel = groups[0]?.level || 0;
+      }
+      return `
+        <div class="stock-limit-board-levels" aria-label="连板高度">
+          ${groups.map(group => `
+            <button class="stock-daily-filter ${group.level === activeStockLimitBoardLevel ? "active" : ""}" type="button" data-stock-limit-board-level="${group.level}" aria-pressed="${group.level === activeStockLimitBoardLevel}">
+              ${group.level}板 <span>${group.count}只</span>
+            </button>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    function getActiveStockLimitBoardGroup(groups = getStockLimitBoardGroups()) {
+      if (!activeStockLimitBoardLevel || !groups.some(group => group.level === activeStockLimitBoardLevel)) {
+        activeStockLimitBoardLevel = groups[0]?.level || 0;
+      }
+      return groups.find(group => group.level === activeStockLimitBoardLevel) || groups[groups.length - 1] || null;
+    }
+
+    function renderStockLimitBoardList(group = getActiveStockLimitBoardGroup()) {
+      if (!group?.items?.length) return `<div class="stock-empty">当前板数没有匹配股票。</div>`;
+      return group.items.map((item, index) => {
+        const stock = item.stock;
+        const exists = stockWatchlist.some(watch => getStockIdentity(watch) === getStockIdentity(stock));
+        const changeClass = getStockChangeClass(stock.changePercent);
+        return `
+          <div class="stock-daily-row ${stock.id === activeDailyStockId ? "active" : ""}" style="height:${STOCK_DAILY_ROW_HEIGHT - 4}px" role="button" tabindex="0" data-stock-limit-board-row="${escapeHTML(stock.id)}" aria-pressed="${stock.id === activeDailyStockId}">
+            <span class="stock-daily-index">${String(index + 1).padStart(3, "0")}</span>
+            <span class="stock-daily-meta">
+              <span class="stock-daily-name">${escapeHTML(stock.name)}${item.oneLineBoard ? " <em>一字</em>" : ""}</span>
+              <span class="stock-daily-code">${escapeHTML(stock.market)} ${escapeHTML(stock.code)}</span>
+            </span>
+            <span class="stock-daily-row-change stock-change ${changeClass}">${item.level}板 · 量比 ${Number(item.volumeRatio || 0).toFixed(1)}</span>
+            <button class="stock-daily-add ${exists ? "is-added" : ""}" type="button" data-stock-daily-add="${escapeHTML(stock.code)}" data-stock-market="${escapeHTML(stock.market)}" aria-label="${exists ? "已在自选股中" : `添加${escapeHTML(stock.name)}到自选股`}">${exists ? "✓" : "+"}</button>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function getStockLimitBoardStatusText() {
+      const candidateCount = getStockLimitBoardUniverse().length;
+      if (stockLimitBoardHistoryLoading) {
+        const loaded = Math.min(stockLimitBoardHistoryLoaded, stockLimitBoardHistoryTarget);
+        return `最新交易日 · 涨停候选 ${candidateCount} 只 · K线补齐中 ${loaded}/${stockLimitBoardHistoryTarget}`;
+      }
+      return `最新交易日 · 涨停候选 ${candidateCount} 只 · 已评估 ${stockUniverse.length} 只`;
+    }
+
+    function renderStockLimitBoardPanel(groups = getStockLimitBoardGroups(), group = getActiveStockLimitBoardGroup(groups)) {
+      return `
+        <aside class="stock-card stock-daily-sidebar" id="stockLimitBoardPanel" data-stock-limit-board-panel>
+          <div class="stock-section-head">
+            <h2 class="stock-section-title">连板高度</h2>
+            <span class="stock-refresh-note">${escapeHTML(getStockLimitBoardStatusText())}</span>
+          </div>
+          ${renderStockLimitBoardLevels(groups)}
+          <div class="stock-daily-list" data-stock-limit-board-list aria-label="连板股票列表">${renderStockLimitBoardList(group)}</div>
+        </aside>
+      `;
+    }
+
+    function updateStockLimitBoardResults({ results = true } = {}) {
+      if (activeFeature !== "stocks" || activeStockView !== "limit-board") return;
+      const groups = getStockLimitBoardGroups();
+      const group = getActiveStockLimitBoardGroup(groups);
+      const panel = document.querySelector('[data-stock-limit-board-panel]');
+      if (panel) panel.outerHTML = renderStockLimitBoardPanel(groups, group);
+      if (results) requestAnimationFrame(() => drawStockCanvases());
+    }
+
+    function renderStockLimitBoardView() {
+      const groups = getStockLimitBoardGroups();
+      const group = getActiveStockLimitBoardGroup(groups);
+      const stock = group?.items?.find(item => item.stock.id === activeDailyStockId)?.stock || group?.items?.[0]?.stock || getActiveDailyStock();
+      if (stock) activeDailyStockId = stock.id;
+      if (!stock) {
+        return `
+          <div class="stock-daily-layout stock-limit-board-layout">
+            ${renderStockLimitBoardPanel(groups, group)}
+            <section class="stock-card stock-daily-chart-card">
+              <div class="stock-empty">正在等待涨停候选日K数据。</div>
+            </section>
+          </div>
+        `;
+      }
+      return `
+        <div class="stock-daily-layout stock-limit-board-layout">
+          ${renderStockLimitBoardPanel(groups, group)}
+
+          <section class="stock-card stock-daily-chart-card">
+            <div class="stock-section-head">
+              <div>
+                <h2 class="stock-section-title" data-stock-daily-title>${escapeHTML(stock.name)} 日K图</h2>
+                <span class="stock-refresh-note" data-stock-daily-meta>${escapeHTML(stock.market)} ${escapeHTML(stock.code)} · ${escapeHTML(getStockDailyPeriod().label)} · ${escapeHTML(getStockDailyRange().label)} · ${formatStockDataMeta(stock)}</span>
+                <span class="stock-refresh-note" data-stock-daily-industry>行业：${escapeHTML(getStockIndustryLabel(stock))}</span>
+              </div>
+            </div>
+            ${renderStockDailyQuote(stock)}
+            <div class="stock-daily-control-row">
+              <div class="stock-daily-period-row">${renderStockDailyPeriods()}</div>
+              <div class="stock-daily-range-row ${stockDailyMoreOpen ? "" : "is-hidden"}">${renderStockDailyRanges()}</div>
+            </div>
+            <div class="stock-daily-ma-legend" aria-label="技术指标图例">
+              <span class="stock-daily-ma-item" style="color:#ffd166"><span class="stock-daily-ma-dot"></span>MA5</span>
+              <span class="stock-daily-ma-item" style="color:#f78cfa"><span class="stock-daily-ma-dot"></span>MA10</span>
+              <span class="stock-daily-ma-item" style="color:#69cbff"><span class="stock-daily-ma-dot"></span>MA30</span>
+              <span class="stock-daily-ma-item" style="color:#a7f070"><span class="stock-daily-ma-dot"></span>MA60</span>
+              <span class="stock-daily-ma-item" style="color:#ffb86b"><span class="stock-daily-ma-dot"></span>DIF</span>
+              <span class="stock-daily-ma-item" style="color:#8f7dff"><span class="stock-daily-ma-dot"></span>DEA</span>
+              <span>MACD</span>
+            </div>
+            <div class="stock-daily-canvas-wrap">
+              <canvas class="stock-daily-canvas" data-stock-daily-chart width="960" height="560" aria-label="${escapeHTML(stock.name)}日K图"></canvas>
+              <div class="stock-daily-tooltip" id="stockDailyTooltip" role="tooltip"></div>
+            </div>
+            ${renderStockDailyScrollbar()}
+            ${renderStockDailyDepth(stock)}
+          </section>
+        </div>
+      `;
+    }
+
     function renderStockFilterTags() {
       return stockFilterTags.map(tag => `
         <button class="stock-filter-tag ${activeStockTags.includes(tag.id) ? "active" : ""}" type="button" data-stock-tag="${escapeHTML(tag.id)}" aria-pressed="${activeStockTags.includes(tag.id)}">
@@ -7927,6 +8217,7 @@
     function renderStockActiveView() {
       if (activeStockView === "watchlist") return renderStockWatchlistView();
       if (activeStockView === "filter") return renderStockFilterView();
+      if (activeStockView === "limit-board") return renderStockLimitBoardView();
       if (activeStockView === "daily") return renderStockDailyView();
       activeStockView = "daily";
       return renderStockDailyView();
@@ -8635,6 +8926,7 @@
         candles: pointMeta,
         viewport,
         panes: { pricePane, volumePane },
+        priceFromY: y => maxPrice - ((Math.max(pricePane.top, Math.min(pricePane.bottom, y)) - pricePane.top) / pricePane.height) * priceRange,
         plot: { left: pad.left, right: width - pad.right, top: pad.top, bottom: height - pad.bottom },
         candleSpace: pointSpace,
         width,
@@ -8836,6 +9128,7 @@
         macdValues,
         viewport,
         panes: { candlePane, volumePane, macdPane },
+        priceFromY: y => maxPrice - ((Math.max(candlePane.top, Math.min(candlePane.bottom, y)) - candlePane.top) / candlePane.height) * priceRange,
         plot: { left: pad.left, right: width - pad.right, top: pad.top, bottom: height - pad.bottom },
         candleSpace,
         width,
@@ -8851,6 +9144,10 @@
       document.querySelectorAll("[data-stock-daily-row]").forEach(row => {
         row.classList.toggle("active", row.dataset.stockDailyRow === stock.id);
         row.setAttribute("aria-pressed", String(row.dataset.stockDailyRow === stock.id));
+      });
+      document.querySelectorAll("[data-stock-limit-board-row]").forEach(row => {
+        row.classList.toggle("active", row.dataset.stockLimitBoardRow === stock.id);
+        row.setAttribute("aria-pressed", String(row.dataset.stockLimitBoardRow === stock.id));
       });
       document.querySelectorAll("[data-stock-daily-range]").forEach(button => {
         const active = button.dataset.stockDailyRange === range.id;
@@ -8879,16 +9176,65 @@
       drawStockDailyCanvas();
     }
 
+    function drawStockDailyCrosshair(canvas, meta, nearest, pointerY) {
+      const ctx = canvas?.getContext?.("2d");
+      const pricePane = meta?.panes?.candlePane || meta?.panes?.pricePane;
+      if (!ctx || !meta?.plot || !pricePane || typeof meta.priceFromY !== "function" || !nearest) return;
+      const x = Math.max(meta.plot.left, Math.min(meta.plot.right, nearest.x));
+      const y = Math.max(pricePane.top, Math.min(pricePane.bottom, Number(pointerY) || pricePane.top));
+      const price = meta.priceFromY(y);
+      const priceLabel = formatStockPrice(price);
+      const timeLabel = String(nearest.item?.date || nearest.item?.label || "");
+      ctx.save();
+      ctx.strokeStyle = "rgba(255,255,255,0.42)";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(meta.plot.left, y);
+      ctx.lineTo(meta.plot.right, y);
+      ctx.moveTo(x, meta.plot.top);
+      ctx.lineTo(x, meta.plot.bottom);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.font = "11px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+      const priceLabelWidth = Math.ceil(ctx.measureText(priceLabel).width) + 12;
+      const priceLabelX = Math.min(meta.width - priceLabelWidth - 4, meta.plot.right + 6);
+      const priceLabelY = Math.max(4, Math.min(meta.height - 20, y - 10));
+      ctx.fillStyle = "rgba(10,12,30,0.86)";
+      ctx.fillRect(priceLabelX, priceLabelY, priceLabelWidth, 20);
+      ctx.strokeStyle = "rgba(255,255,255,0.28)";
+      ctx.strokeRect(priceLabelX, priceLabelY, priceLabelWidth, 20);
+      ctx.fillStyle = "#fff";
+      ctx.fillText(priceLabel, priceLabelX + 6, priceLabelY + 14);
+
+      if (timeLabel) {
+        const timeLabelWidth = Math.ceil(ctx.measureText(timeLabel).width) + 12;
+        const timeLabelX = Math.max(meta.plot.left, Math.min(meta.plot.right - timeLabelWidth, x - timeLabelWidth / 2));
+        const timeLabelY = Math.min(meta.height - 20, meta.plot.bottom + 6);
+        ctx.fillStyle = "rgba(10,12,30,0.86)";
+        ctx.fillRect(timeLabelX, timeLabelY, timeLabelWidth, 20);
+        ctx.strokeStyle = "rgba(255,255,255,0.28)";
+        ctx.strokeRect(timeLabelX, timeLabelY, timeLabelWidth, 20);
+        ctx.fillStyle = "#fff";
+        ctx.fillText(timeLabel, timeLabelX + 6, timeLabelY + 14);
+      }
+      ctx.restore();
+    }
+
     function handleStockDailyCanvasMove(event, canvas) {
+      drawStockDailyCanvas();
       const meta = canvas?._dailyKMeta;
       const tooltip = document.getElementById("stockDailyTooltip");
       if (!meta?.candles?.length || !tooltip) return;
       const rect = canvas.getBoundingClientRect();
       const x = event.clientX - rect.left;
+      const crosshairY = event.clientY - rect.top;
       const nearest = meta.candles.reduce((best, candle) =>
         Math.abs(candle.x - x) < Math.abs(best.x - x) ? candle : best
       , meta.candles[0]);
       if (!nearest) return;
+      drawStockDailyCrosshair(canvas, meta, nearest, crosshairY);
       const item = nearest.item;
       if (meta.type === "minute") {
         tooltip.innerHTML = `
@@ -8923,6 +9269,7 @@
 
     function hideStockDailyTooltip() {
       document.getElementById("stockDailyTooltip")?.classList.remove("is-visible");
+      drawStockDailyCanvas();
     }
 
     function handleStockDailyWheel(event, canvas) {
@@ -9054,6 +9401,18 @@
         event.preventDefault();
         event.stopPropagation();
         addStockFromDailyListToWatchlist(dailyAddButton.dataset.stockDailyAdd, dailyAddButton.dataset.stockMarket);
+        return;
+      }
+
+      const limitBoardLevelButton = event.target.closest("[data-stock-limit-board-level]");
+      if (limitBoardLevelButton) {
+        setStockLimitBoardLevel(limitBoardLevelButton.dataset.stockLimitBoardLevel);
+        return;
+      }
+
+      const limitBoardRow = event.target.closest("[data-stock-limit-board-row]");
+      if (limitBoardRow) {
+        setActiveLimitBoardStock(limitBoardRow.dataset.stockLimitBoardRow);
         return;
       }
 
@@ -10561,6 +10920,12 @@
         if (filterRow && ["Enter", " "].includes(event.key)) {
           event.preventDefault();
           toggleStockFilterRowExpand(filterRow.dataset.stockCode, filterRow.dataset.stockMarket);
+          return;
+        }
+        const limitBoardRow = event.target.closest("[data-stock-limit-board-row]");
+        if (limitBoardRow && ["Enter", " "].includes(event.key)) {
+          event.preventDefault();
+          setActiveLimitBoardStock(limitBoardRow.dataset.stockLimitBoardRow);
           return;
         }
         const dailyRow = event.target.closest("[data-stock-daily-row]");

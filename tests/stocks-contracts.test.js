@@ -6,6 +6,7 @@ const path = require("node:path");
 const root = path.join(__dirname, "..");
 const contracts = fs.readFileSync(path.join(root, "src", "stocks", "contracts.ts"), "utf8");
 const openapi = fs.readFileSync(path.join(root, "docs", "openapi", "stocks.openapi.yaml"), "utf8");
+const stateMachine = fs.readFileSync(path.join(root, "docs", "stocks", "state-machine-data-flow.md"), "utf8");
 
 function assertIncludes(source, value, label = value) {
   assert.ok(source.includes(value), `Missing ${label}`);
@@ -90,4 +91,10 @@ test("A-share visual and interaction contract remains explicit", () => {
   assertIncludes(openapi, "x-data-source-policy:");
   assertIncludes(openapi, "productionRequiresLicensedProvider: true");
   assertIncludes(openapi, "webScrapingForbidden: true");
+});
+
+test("stock view contracts include the latest limit-board subview", () => {
+  assert.match(contracts, /"limit-board"/);
+  assert.match(stateMachine, /`limit-board`/);
+  assert.match(stateMachine, /连板 tab/);
 });
