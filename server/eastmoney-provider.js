@@ -6,6 +6,7 @@ const KLINE_FIELDS1 = "f1,f2,f3,f4,f5,f6";
 const KLINE_FIELDS2 = "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61";
 const LIST_FIELDS = "f2,f3,f4,f5,f6,f9,f12,f13,f14,f23,f100";
 const A_SHARE_LIST_FS = "m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23,m:0+t:81+s:2048";
+const ETF_LIST_FS = "b:MK0021,b:MK0022,b:MK0023,b:MK0024";
 const DEFAULT_LIST_PAGE_SIZE = 6000;
 
 const stockCatalog = [
@@ -170,6 +171,70 @@ function listSummary(row) {
   };
 }
 
+function classifyEtfTheme(name) {
+  const text = String(name || "");
+  if (/300|500|1000|创业板|科创|上证|深证|中证|A50|50|宽基/.test(text)) return "宽基";
+  if (/证券|券商/.test(text)) return "证券";
+  if (/银行/.test(text)) return "银行";
+  if (/医药|医疗|创新药/.test(text)) return "医药";
+  if (/半导体|芯片|电子/.test(text)) return "半导体";
+  if (/新能源|电池|光伏|汽车/.test(text)) return "新能源";
+  if (/消费|食品|酒/.test(text)) return "消费";
+  if (/军工|国防/.test(text)) return "军工";
+  if (/红利|股息/.test(text)) return "红利";
+  return "其他";
+}
+
+function etfListSummary(row) {
+  const code = String(row?.f12 || "").trim();
+  if (!code) return null;
+  const market = marketFromListRow(row);
+  const name = String(row?.f14 || code);
+  const changePercent = numberOrZero(row.f3);
+  const category = classifyEtfTheme(name);
+  return {
+    id: `ETF:${market}:${code}`,
+    type: "etf",
+    market,
+    code,
+    name,
+    category,
+    theme: category,
+    fundType: String(row.f100 || "ETF"),
+    price: numberOrZero(row.f2),
+    changePercent,
+    changeAmount: numberOrZero(row.f4),
+    volume: numberOrZero(row.f5),
+    amount: round(numberOrZero(row.f6)),
+    direction: direction(changePercent),
+    colorRole: colorRole(changePercent),
+    source: "eastmoney",
+    delayed: false,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function etfMatchesSearchQuery(item, queryText) {
+  if (!queryText) return true;
+  const compactQuery = queryText.replace(/[\s:：.-]+/g, "");
+  const fields = [
+    item.code,
+    item.name,
+    item.market,
+    item.id,
+    `${item.market}${item.code}`,
+    `${item.market} ${item.code}`,
+    `${item.market}:${item.code}`,
+    item.category,
+    item.theme,
+    item.fundType,
+  ].map(value => String(value || "").toLowerCase());
+  return fields.some(field => (
+    field.includes(queryText)
+    || field.replace(/[\s:：.-]+/g, "").includes(compactQuery)
+  ));
+}
+
 function stockMatchesSearchQuery(item, queryText) {
   if (!queryText) return true;
   const compactQuery = queryText.replace(/[\s:：.-]+/g, "");
@@ -230,6 +295,44 @@ function quoteFromEastmoney(data, requested) {
     volume: Math.round(Number(data?.f47 || 0) / 100),
     amount: round(Number(data?.f48 || 0)),
     marketCap: round(Number(data?.f116 || 0) / 100_000_000),
+    open,
+    high,
+    low,
+    previousClose,
+    direction: direction(changePercent),
+    colorRole: colorRole(changePercent),
+    source: "eastmoney",
+    delayed: false,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function etfQuoteFromEastmoney(data, requested) {
+  const market = requested.market;
+  const code = String(data?.f57 || requested.code);
+  const name = data?.f58 || code;
+  const changePercent = scaled(data?.f170);
+  const previousClose = scaled(data?.f60);
+  const latestPrice = scaled(data?.f43) || previousClose;
+  const open = scaled(data?.f46) || latestPrice;
+  const high = scaled(data?.f44) || latestPrice;
+  const low = scaled(data?.f45) || latestPrice;
+  const category = classifyEtfTheme(name);
+
+  return {
+    id: `ETF:${market}:${code}`,
+    type: "etf",
+    market,
+    code,
+    name,
+    category,
+    theme: category,
+    fundType: "ETF",
+    price: latestPrice,
+    changePercent,
+    changeAmount: scaled(data?.f169),
+    volume: Math.round(Number(data?.f47 || 0) / 100),
+    amount: round(Number(data?.f48 || 0)),
     open,
     high,
     low,
@@ -361,6 +464,24 @@ export function createEastmoneyProvider(options = {}) {
     };
   }
 
+  async function getEtfListPage(page, pageSize = listPageSize) {
+    const url = new URL(listEndpoint);
+    url.searchParams.set("pn", String(page));
+    url.searchParams.set("pz", String(Math.max(1, Math.min(Number(pageSize) || listPageSize, 10000))));
+    url.searchParams.set("po", "1");
+    url.searchParams.set("np", "1");
+    url.searchParams.set("fltt", "2");
+    url.searchParams.set("invt", "2");
+    url.searchParams.set("fid", "f12");
+    url.searchParams.set("fs", ETF_LIST_FS);
+    url.searchParams.set("fields", LIST_FIELDS);
+    const result = await getJson(url);
+    return {
+      total: Number(result.data?.total || 0),
+      rows: normalizeDiff(result.data?.diff),
+    };
+  }
+
   async function getStockUniverse({ market, limit = 6000, offset = 0 } = {}) {
     const requestedLimit = Math.max(1, Math.min(Number(limit) || 6000, 10000));
     const requestedOffset = Math.max(Number(offset) || 0, 0);
@@ -452,6 +573,106 @@ export function createEastmoneyProvider(options = {}) {
     };
   }
 
+  async function getEtfUniverse({ market, category, limit = 6000, offset = 0 } = {}) {
+    const requestedLimit = Math.max(1, Math.min(Number(limit) || 6000, 10000));
+    const requestedOffset = Math.max(Number(offset) || 0, 0);
+    const targetMarket = market ? String(market).toUpperCase() : "";
+    const targetCategory = String(category || "").trim();
+
+    if (!targetMarket && !targetCategory && requestedLimit < listPageSize && requestedOffset % requestedLimit === 0) {
+      const page = Math.floor(requestedOffset / requestedLimit) + 1;
+      const result = await getEtfListPage(page, requestedLimit);
+      const items = result.rows.map(etfListSummary).filter(Boolean);
+      return {
+        items,
+        total: Number(result.total || items.length),
+        limit: requestedLimit,
+        offset: requestedOffset,
+        source: "eastmoney",
+        delayed: false,
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
+    const first = await getEtfListPage(1);
+    const firstRows = first.rows;
+    const total = Number(first.total || firstRows.length);
+    if (!firstRows.length || !total) {
+      return { items: [], total: 0, limit: requestedLimit, offset: requestedOffset, source: "eastmoney", delayed: false, updatedAt: new Date().toISOString() };
+    }
+
+    const pageSize = firstRows.length;
+    const rowsNeeded = targetMarket || targetCategory ? total : Math.min(total, requestedOffset + requestedLimit);
+    const pageCount = Math.ceil(rowsNeeded / pageSize);
+    const rows = [...firstRows];
+    for (let page = 2; page <= pageCount; page += 1) {
+      await wait(listPageDelayMs);
+      rows.push(...(await getEtfListPage(page)).rows);
+    }
+
+    const items = rows
+      .map(etfListSummary)
+      .filter(Boolean)
+      .filter(item => !targetMarket || item.market === targetMarket)
+      .filter(item => !targetCategory || targetCategory === "all" || item.category === targetCategory || item.theme === targetCategory);
+    return {
+      items: items.slice(requestedOffset, requestedOffset + requestedLimit),
+      total: targetMarket || targetCategory ? items.length : total,
+      limit: requestedLimit,
+      offset: requestedOffset,
+      source: "eastmoney",
+      delayed: false,
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  async function searchEtfs({ q, market, limit = 20 }) {
+    const queryText = String(q || "").trim().toLowerCase();
+    const targetMarket = market ? String(market).toUpperCase() : "";
+    const requestedLimit = Math.min(Number(limit) || 20, 100);
+    const universe = await getEtfUniverse({ market: targetMarket, limit: 10000 });
+    const items = universe.items
+      .filter(item => etfMatchesSearchQuery(item, queryText))
+      .slice(0, requestedLimit);
+    return { items, source: "eastmoney", delayed: false, updatedAt: new Date().toISOString() };
+  }
+
+  async function getEtfQuote(identity) {
+    const url = new URL(quoteEndpoint);
+    url.searchParams.set("secid", toSecid(identity));
+    url.searchParams.set("fields", QUOTE_FIELDS);
+    const result = await getJson(url);
+    if (!result.data) return null;
+    return etfQuoteFromEastmoney(result.data, identity);
+  }
+
+  async function getEtfHistory({ market, code, period, range }) {
+    const klt = periodToKlt(period);
+    if (!klt) {
+      throw makeEastmoneyError(400, "MARKET_DATA_UNAVAILABLE", `Eastmoney provider does not support ${period} ETF history`);
+    }
+    const url = new URL(klineEndpoint);
+    url.searchParams.set("secid", toSecid({ market, code }));
+    url.searchParams.set("fields1", KLINE_FIELDS1);
+    url.searchParams.set("fields2", KLINE_FIELDS2);
+    url.searchParams.set("klt", klt);
+    url.searchParams.set("fqt", "1");
+    url.searchParams.set("beg", "0");
+    url.searchParams.set("end", "20500101");
+    const result = await getJson(url);
+    const days = rangeDays[range] || 30;
+    const items = (result.data?.klines || []).slice(-days).map(kLineFromText);
+    return {
+      etf: { id: `ETF:${market}:${code}`, type: "etf", market, code },
+      period,
+      range,
+      items,
+      source: "eastmoney",
+      delayed: false,
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
   return {
     id: "eastmoney",
     sourceId: "eastmoney",
@@ -470,5 +691,9 @@ export function createEastmoneyProvider(options = {}) {
     getQuote,
     getQuotes,
     getHistory,
+    getEtfUniverse,
+    searchEtfs,
+    getEtfQuote,
+    getEtfHistory,
   };
 }

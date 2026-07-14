@@ -30,7 +30,7 @@ Confidence：0.94。
 | 契约层 | 已有 TypeScript 类型草案，但未接入构建 | `src/stocks/contracts.ts` |
 | API 契约 | 已有 OpenAPI 3.1 YAML 草案 | `docs/openapi/stocks.openapi.yaml` |
 | 入口文件 | `index.html` 是唯一应用入口 | `index.html` 共 8304 行 |
-| 资产 | 记忆翻牌图片 `angle.png`，并在 head 预加载 | `index.html:6` |
+| 资产 | 记忆翻牌源图 `angle.png` 与运行时压缩牌背 `angle-card.jpg`，并在 head 预加载小图 | `index.html:6` |
 | 部署 | 静态站点自定义域名 | `CNAME` |
 | 测试 | Node 内置 `node:test` 的静态契约测试，无 npm script | `tests/*.test.js` |
 | 外部服务 | 未发现 `fetch()`、XHR、WebSocket；只通过 `window.open` 打开外链 | `index.html:6715`, `index.html:8281` |
@@ -40,7 +40,7 @@ Confidence：0.94。
 | 文件 | 角色 | 备注 |
 | --- | --- | --- |
 | `index.html` | 应用入口、样式、状态、渲染、事件全部集中于此 | 8304 行，后续改动需避免大面积回归 |
-| `angle.png` | 记忆翻牌背面图片 | 被 `<link rel="preload">` 和 `<img loading="eager">` 使用 |
+| `angle-card.jpg` | 记忆翻牌运行时背面图片 | 由 `angle.png` 缩小压缩生成，被 `<link rel="preload">` 和 `<img loading="eager">` 使用 |
 | `CNAME` | 静态站点自定义域名配置 | `kid1412.dpdns.org` |
 | `tests/mobile-layout.test.js` | 移动端布局静态契约 | 保护底部 tab、移动搜索区、单列 shell |
 | `tests/memory-game.test.js` | 记忆翻牌契约 | 保护 4 行模式、图片加载、卡片尺寸 |

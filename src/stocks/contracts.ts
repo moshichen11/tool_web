@@ -4,7 +4,7 @@ export const STOCK_STORAGE_KEYS = {
   filterState: "glass_nav_stock_filter_state",
 } as const;
 
-export const STOCK_VIEWS = ["daily", "watchlist", "filter", "limit-board"] as const;
+export const STOCK_VIEWS = ["daily", "watchlist", "filter", "limit-board", "etf"] as const;
 export type StockView = (typeof STOCK_VIEWS)[number];
 
 export const A_SHARE_MARKETS = ["SH", "SZ", "BJ"] as const;
@@ -89,6 +89,14 @@ export interface StockIdentityWithId extends StockIdentity {
   id: string;
 }
 
+export interface EtfIdentity extends StockIdentity {
+  type: "etf";
+}
+
+export interface EtfIdentityWithId extends EtfIdentity {
+  id: string;
+}
+
 export interface LicensedMarket {
   id: MarketCode;
   name: string;
@@ -137,6 +145,31 @@ export interface StockQuote extends StockSummary {
   colorRole: StockColorRole;
 }
 
+export interface EtfSummary extends EtfIdentityWithId {
+  name: string;
+  category: string;
+  theme: string;
+  fundType?: string;
+  price: Yuan;
+  changePercent: Percent;
+  changeAmount: Yuan;
+  volume: number;
+  amount?: Yuan;
+  detailUrl?: string;
+  delayed: boolean;
+  source: string;
+  updatedAt: ISODateTime;
+}
+
+export interface EtfQuote extends EtfSummary {
+  open: Yuan;
+  high: Yuan;
+  low: Yuan;
+  previousClose: Yuan;
+  direction: QuoteDirection;
+  colorRole: StockColorRole;
+}
+
 export interface KLinePoint {
   time: ISODate | ISODateTime;
   open: Yuan;
@@ -176,6 +209,16 @@ export interface StockHistoryResponse {
   items: KLinePoint[] | MinutePoint[];
   source: string;
   delayed: boolean;
+}
+
+export interface EtfHistoryResponse {
+  etf: EtfIdentityWithId;
+  period: StockPeriod;
+  range: StockRange;
+  items: KLinePoint[] | MinutePoint[];
+  source: string;
+  delayed: boolean;
+  updatedAt?: ISODateTime;
 }
 
 export interface OrderBookLevel {
@@ -318,6 +361,19 @@ export type ApiResult<T> =
   | { ok: false; error: ApiError };
 
 export interface StockSearchQuery {
+  q: string;
+  market?: MarketCode;
+  limit?: number;
+}
+
+export interface EtfUniverseQuery {
+  market?: MarketCode;
+  category?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface EtfSearchQuery {
   q: string;
   market?: MarketCode;
   limit?: number;
@@ -558,6 +614,10 @@ export interface StockApiContract {
   getRateLimitPolicy(): Promise<ApiResult<RateLimitPolicy[]>>;
   getStockUniverse(query?: StockUniverseQuery): Promise<ApiResult<PagedResult<StockSummary>>>;
   searchStocks(query: StockSearchQuery): Promise<ApiResult<StockSummary[]>>;
+  getEtfUniverse(query?: EtfUniverseQuery): Promise<ApiResult<PagedResult<EtfSummary>>>;
+  searchEtfs(query: EtfSearchQuery): Promise<ApiResult<EtfSummary[]>>;
+  getEtfQuote(etf: EtfIdentity): Promise<ApiResult<EtfQuote>>;
+  getEtfHistory(request: StockHistoryRequest & { type: "etf" }): Promise<ApiResult<EtfHistoryResponse>>;
   getQuote(stock: StockIdentity): Promise<ApiResult<StockQuote>>;
   getQuotes(request: QuoteBatchRequest): Promise<ApiResult<QuoteBatchResponse>>;
   streamQuotes(symbols: StockIdentity[], fallback: PollingFallbackPolicy): AsyncIterable<QuoteStreamEvent>;

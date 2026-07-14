@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>神之领域</title>
-  <link rel="preload" as="image" href="angle.png" />
+  <link rel="preload" as="image" href="angle-card.jpg" />
   <style>
     *,
     *::before,
@@ -2011,6 +2011,17 @@
       gap: 8px;
     }
 
+    .stock-limit-board-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .stock-limit-board-filters .stock-daily-filter:not(.active) {
+      opacity: 0.68;
+    }
+
     .stock-daily-filter {
       min-height: 30px;
       padding: 0 9px;
@@ -2933,7 +2944,7 @@
       justify-content: center;
       z-index: 3;
       border-radius: var(--memory-card-radius);
-      background: #0f0c29 url("angle.png") center / cover no-repeat;
+      background: #0f0c29 url("angle-card.jpg") center / cover no-repeat;
       overflow: hidden;
     }
 
@@ -3858,6 +3869,18 @@
     const STOCK_API_BASE_URL_KEY = "glass_nav_stock_api_base_url";
     const STOCK_DEFAULT_API_BASE_URL = "https://tool-web-stock-api.onrender.com";
     const STOCK_LOCAL_API_BASE_URL = "http://127.0.0.1:8787";
+    const TENCENT_PROVIDER_MODULE_URL = "./tencent-provider.mjs";
+    const STOCK_API_RETRY_ATTEMPTS = 2;
+    const STOCK_API_RETRY_DELAY_MS = 300;
+    const STOCK_API_UNIVERSE_CACHE_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+    const STOCK_API_HISTORY_CACHE_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+    const STOCK_API_CACHE_DB_NAME = "tool_web_stock_cache";
+    const STOCK_API_CACHE_DB_VERSION = 1;
+    const STOCK_API_CACHE_STORE = "responses";
+    const STOCK_API_STALE_MESSAGE = "上游行情源暂时不可用，当前显示缓存行情。";
+    const stockApiMemoryCache = new Map();
+    let stockApiCacheDbPromise = null;
+    let browserTencentProviderPromise = null;
     const STOCK_SELECTION_CONFIG_URL = "src/stocks/selection-config.json";
     const STOCK_UNIVERSE_LOAD_LIMIT = 6000;
     const defaultStockWatchCodes = ["600519", "300750", "000001", "601318"];
@@ -3865,15 +3888,14 @@
     const STOCK_DAILY_ROW_HEIGHT = 56;
     const STOCK_DAILY_VIRTUAL_BUFFER = 6;
     const STOCK_DAILY_VIRTUAL_COUNT = 18;
-    const STOCK_UNIVERSE_CHART_PRELOAD_PAGE_SIZE = STOCK_DAILY_VIRTUAL_COUNT;
-    const STOCK_UNIVERSE_CHART_PRELOAD_PAGE_RADIUS = 5;
-    const STOCK_UNIVERSE_CHART_PRELOAD_LIMIT = STOCK_UNIVERSE_CHART_PRELOAD_PAGE_SIZE * (STOCK_UNIVERSE_CHART_PRELOAD_PAGE_RADIUS * 2 + 1) + 1;
+    const STOCK_UNIVERSE_CHART_PRELOAD_LIMIT = STOCK_DAILY_VIRTUAL_COUNT + STOCK_DAILY_VIRTUAL_BUFFER;
     const STOCK_STRATEGY_HISTORY_BATCH_SIZE = 24;
     const stockViews = [
       { id: "daily", icon: "📈", name: "股票分时/日K图", desc: "分时、K线与盘口分布" },
       { id: "watchlist", icon: "⭐", name: "自选股", desc: "添加、排序、刷新自选" },
       { id: "filter", icon: "⚗️", name: "条件选股", desc: "多条件筛选自选股" },
-      { id: "limit-board", icon: "♟", name: "连板", desc: "最新交易日涨停高度" }
+      { id: "limit-board", icon: "♟", name: "连板", desc: "最新交易日涨停高度" },
+      { id: "etf", icon: "▦", name: "行业ETF", desc: "ETF 实时行情与K线" }
     ];
       const stockDailyRanges = [
         { id: "15", label: "15日", days: 15 },
@@ -3946,6 +3968,7 @@
     const marketIndices = [];
     const stockUniverse = [];
     const stockHistoryLoads = new Map();
+    const etfHistoryLoads = new Map();
 
     const USER_CONFIG_KEY = "glass_nav_user_config";
     const UNLOCKED_KEY = "glass_nav_unlocked";
@@ -4172,6 +4195,18 @@
     let stockLimitBoardHistoryLoadToken = 0;
     let stockLimitBoardHistoryLoaded = 0;
     let stockLimitBoardHistoryTarget = 0;
+    let excludeStockLimitBoardSt = true;
+    let excludeStockLimitBoardGem = true;
+    let etfUniverse = [];
+    let etfUniverseTotal = 0;
+    let activeEtfId = "";
+    let activeEtfCategory = "all";
+    let etfSearchTerm = "";
+    let etfSort = "amount";
+    let etfApiStatus = "idle";
+    let etfApiErrorMessage = "";
+    let etfDataSource = "";
+    let etfApiLoading = false;
     let stockSelectionConfig = null;
     let stockSelectionConfigStatus = "loading";
     let stockSelectionConfigError = "";
@@ -4735,20 +4770,215 @@
       return String(configured).replace(/\/+$/, "");
     }
 
-    async function fetchStockApi(path, options = {}) {
-      const response = await fetch(`${getStockApiBaseUrl()}${path}`, {
-        ...options,
-        headers: {
-          "content-type": "application/json",
-          ...(options.headers || {})
+    function getStockApiCacheRetentionMs(path, options = {}) {
+      const method = String(options.method || "GET").toUpperCase();
+      if (method !== "GET") return 0;
+      const pathname = String(path || "").split("?")[0];
+      if (/^\/v1\/(?:stocks|etfs)\/universe$/.test(pathname)) return STOCK_API_UNIVERSE_CACHE_RETENTION_MS;
+      if (/^\/v1\/(?:stocks|etfs)\/[^/]+\/[^/]+\/history$/.test(pathname)) return STOCK_API_HISTORY_CACHE_RETENTION_MS;
+      return 0;
+    }
+
+    function getStockApiCacheKey(path) {
+      return `${getStockApiBaseUrl()}${String(path || "")}`;
+    }
+
+    function openStockApiCacheDb() {
+      if (stockApiCacheDbPromise) return stockApiCacheDbPromise;
+      if (!window.indexedDB) return Promise.resolve(null);
+      stockApiCacheDbPromise = new Promise((resolve, reject) => {
+        const request = window.indexedDB.open(STOCK_API_CACHE_DB_NAME, STOCK_API_CACHE_DB_VERSION);
+        request.onupgradeneeded = () => {
+          const db = request.result;
+          if (!db.objectStoreNames.contains(STOCK_API_CACHE_STORE)) {
+            db.createObjectStore(STOCK_API_CACHE_STORE, { keyPath: "key" });
+          }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error("Stock cache database failed to open"));
+        request.onblocked = () => reject(new Error("Stock cache database is blocked"));
+      }).catch(() => null);
+      return stockApiCacheDbPromise;
+    }
+
+    async function readStockApiCache(cacheKey, now = Date.now()) {
+      const currentTime = Number(now);
+      const memoryRecord = stockApiMemoryCache.get(cacheKey);
+      if (memoryRecord?.retainUntil > currentTime) return memoryRecord;
+      if (memoryRecord) stockApiMemoryCache.delete(cacheKey);
+
+      const db = await openStockApiCacheDb();
+      if (!db) return null;
+      try {
+        const record = await new Promise((resolve, reject) => {
+          const request = db.transaction(STOCK_API_CACHE_STORE, "readonly")
+            .objectStore(STOCK_API_CACHE_STORE)
+            .get(cacheKey);
+          request.onsuccess = () => resolve(request.result || null);
+          request.onerror = () => reject(request.error || new Error("Stock cache read failed"));
+        });
+        if (!record) return null;
+        if (record.retainUntil <= currentTime) {
+          try {
+            db.transaction(STOCK_API_CACHE_STORE, "readwrite")
+              .objectStore(STOCK_API_CACHE_STORE)
+              .delete(cacheKey);
+          } catch (_error) {
+            // Expired IndexedDB cleanup is best-effort.
+          }
+          return null;
         }
-      });
-      const text = await response.text();
-      const body = text ? JSON.parse(text) : {};
-      if (!response.ok) {
-        throw new Error(body.message || `Stock API ${response.status}`);
+        stockApiMemoryCache.set(cacheKey, record);
+        return record;
+      } catch (_error) {
+        return null;
       }
-      return { ...body, headers: response.headers };
+    }
+
+    async function writeStockApiCache(cacheKey, value, retentionMs, now = Date.now()) {
+      const safeRetentionMs = Math.max(0, Number(retentionMs) || 0);
+      if (!cacheKey || !safeRetentionMs) return false;
+      const cachedAt = Number(now);
+      const record = {
+        key: cacheKey,
+        value,
+        cachedAt,
+        retainUntil: cachedAt + safeRetentionMs,
+      };
+      stockApiMemoryCache.set(cacheKey, record);
+
+      const db = await openStockApiCacheDb();
+      if (!db) return true;
+      try {
+        await new Promise((resolve, reject) => {
+          const transaction = db.transaction(STOCK_API_CACHE_STORE, "readwrite");
+          transaction.oncomplete = () => resolve();
+          transaction.onerror = () => reject(transaction.error || new Error("Stock cache write failed"));
+          transaction.onabort = () => reject(transaction.error || new Error("Stock cache write aborted"));
+          transaction.objectStore(STOCK_API_CACHE_STORE).put(record);
+        });
+        return true;
+      } catch (_error) {
+        return false;
+      }
+    }
+
+    function getStockApiCachedResponse(record) {
+      const headers = new Headers({
+        "x-cache": "CLIENT-STALE",
+        "x-data-stale": "true",
+      });
+      return { ...record.value, stale: true, headers };
+    }
+
+    function createStockApiError(response, body = {}) {
+      const error = new Error(body.message || `Stock API ${response.status}`);
+      error.name = "StockApiError";
+      error.status = response.status;
+      error.code = body.code || "";
+      error.traceId = body.traceId || response.headers.get("x-trace-id") || "";
+      return error;
+    }
+
+    function isTransientStockApiError(error) {
+      if (error?.name === "StockApiError") return [502, 503, 504].includes(Number(error.status));
+      const message = String(error?.message || "").toLowerCase();
+      return error instanceof TypeError || [
+        "fetch failed",
+        "failed to fetch",
+        "networkerror",
+        "network request failed",
+        "load failed",
+        "connection refused",
+        "econnrefused",
+        "econnreset",
+        "socket hang up"
+      ].some(pattern => message.includes(pattern));
+    }
+
+    function shouldRetryStockApiRequest(error, method, attempt) {
+      return String(method || "GET").toUpperCase() === "GET" &&
+        attempt < STOCK_API_RETRY_ATTEMPTS &&
+        isTransientStockApiError(error);
+    }
+
+    function waitForStockApiRetry() {
+      return STOCK_API_RETRY_DELAY_MS > 0
+        ? new Promise(resolve => setTimeout(resolve, STOCK_API_RETRY_DELAY_MS))
+        : Promise.resolve();
+    }
+
+    function getBrowserTencentProvider() {
+      if (!browserTencentProviderPromise) {
+        browserTencentProviderPromise = import(TENCENT_PROVIDER_MODULE_URL)
+          .then(module => module.createTencentProvider())
+          .catch(error => {
+            browserTencentProviderPromise = null;
+            throw error;
+          });
+      }
+      return browserTencentProviderPromise;
+    }
+
+    function fetchFastMarketHistory(path, { market, code, period, range, type = "stock" }) {
+      return getBrowserTencentProvider()
+        .then(provider => {
+          const load = type === "etf" ? provider.getEtfHistory : provider.getHistory;
+          return load({ market, code, period, range });
+        })
+        .then(response => {
+          const retentionMs = getStockApiCacheRetentionMs(path);
+          if (retentionMs > 0) {
+            void writeStockApiCache(getStockApiCacheKey(path), response, retentionMs);
+          }
+          const headers = new Headers({ "x-data-source": response.source || "tencent" });
+          return { ...response, stale: false, headers };
+        })
+        .catch(() => fetchStockApi(path));
+    }
+
+    async function fetchStockApi(path, options = {}) {
+      const method = String(options.method || "GET").toUpperCase();
+      const cacheRetentionMs = getStockApiCacheRetentionMs(path, options);
+      const cacheKey = cacheRetentionMs > 0 ? getStockApiCacheKey(path) : "";
+      const attempts = cacheRetentionMs > 0 ? STOCK_API_RETRY_ATTEMPTS : 1;
+      let lastError = null;
+      for (let attempt = 1; attempt <= attempts; attempt += 1) {
+        try {
+          const response = await fetch(`${getStockApiBaseUrl()}${path}`, {
+            ...options,
+            headers: {
+              "content-type": "application/json",
+              ...(options.headers || {})
+            }
+          });
+          const text = await response.text();
+          let body = {};
+          if (text) {
+            try {
+              body = JSON.parse(text);
+            } catch (error) {
+              if (response.ok) throw error;
+              body = { message: `Stock API ${response.status}` };
+            }
+          }
+          if (!response.ok) throw createStockApiError(response, body);
+          const stale = response.headers.get("x-data-stale") === "true" || response.headers.get("x-cache") === "STALE";
+          if (cacheRetentionMs > 0 && !stale) {
+            void writeStockApiCache(cacheKey, body, cacheRetentionMs);
+          }
+          return { ...body, stale, headers: response.headers };
+        } catch (error) {
+          lastError = error;
+          if (!shouldRetryStockApiRequest(error, method, attempt)) break;
+          await waitForStockApiRetry();
+        }
+      }
+      if (cacheKey && isTransientStockApiError(lastError)) {
+        const cached = await readStockApiCache(cacheKey);
+        if (cached) return getStockApiCachedResponse(cached);
+      }
+      throw lastError || new Error("Stock API request failed");
     }
 
     function getStockSelectionConfig() {
@@ -4856,6 +5086,13 @@
       if (error?.name === "AbortError" || normalized.includes("abort")) {
         return "行情接口请求超时或已取消，请稍后重试。";
       }
+      const errorCode = String(error?.code || "").toUpperCase();
+      if (error?.name === "StockApiError" && errorCode === "MARKET_DATA_TIMEOUT") {
+        return "上游行情源响应超时，请稍后重试；已加载的数据会继续保留。";
+      }
+      if (error?.name === "StockApiError" && errorCode.startsWith("MARKET_DATA")) {
+        return "上游行情源暂时不可用，请稍后重试；已加载的数据会继续保留。";
+      }
       if (networkPatterns.some(pattern => normalized.includes(pattern))) {
         return "行情接口连接失败，请确认本地股票 API 已启动，或检查当前网络/隧道是否可访问。";
       }
@@ -4898,6 +5135,45 @@
       return mapped;
     }
 
+    function mapApiEtf(raw) {
+      const code = String(raw?.code || "").trim();
+      const market = String(raw?.market || "").trim().toUpperCase();
+      if (!code || !market) return null;
+      const fallback = etfUniverse.find(item => item.market === market && item.code === code) || {};
+      return {
+        ...fallback,
+        ...raw,
+        id: raw.id || `ETF:${market}:${code}`,
+        type: "etf",
+        code,
+        market,
+        name: raw.name || fallback.name || code,
+        category: raw.category || fallback.category || "其他",
+        theme: raw.theme || raw.category || fallback.theme || "其他",
+        fundType: raw.fundType || fallback.fundType || "ETF",
+        price: Number(raw.price ?? fallback.price ?? 0),
+        changePercent: Number(raw.changePercent ?? fallback.changePercent ?? 0),
+        changeAmount: Number(raw.changeAmount ?? fallback.changeAmount ?? 0),
+        volume: Number(raw.volume ?? fallback.volume ?? 0),
+        amount: Number(raw.amount ?? fallback.amount ?? 0),
+        open: Number(raw.open ?? fallback.open ?? raw.price ?? fallback.price ?? 0),
+        high: Number(raw.high ?? fallback.high ?? raw.price ?? fallback.price ?? 0),
+        low: Number(raw.low ?? fallback.low ?? raw.price ?? fallback.price ?? 0),
+        previousClose: Number(raw.previousClose ?? fallback.previousClose ?? raw.price ?? fallback.price ?? 0),
+        source: raw.source || fallback.source || etfDataSource || stockDataSource,
+        delayed: Boolean(raw.delayed ?? fallback.delayed ?? true),
+        updatedAt: raw.updatedAt || fallback.updatedAt || new Date().toISOString(),
+        history: Array.isArray(raw.history) ? raw.history.map(item => ({ ...item })) : (fallback.history || []).map(item => ({ ...item })),
+        dailyK: Array.isArray(raw.dailyK) ? raw.dailyK.map(item => ({ ...item })) : (fallback.dailyK || []).map(item => ({ ...item })),
+        intraday: Array.isArray(raw.intraday) ? raw.intraday.map(item => ({ ...item })) : (fallback.intraday || []).map(item => ({ ...item })),
+        multiDayMinute: raw.multiDayMinute || fallback.multiDayMinute,
+      };
+    }
+
+    async function fetchEtfApi(path, options = {}) {
+      return fetchStockApi(path, options);
+    }
+
     function mergeStockQuote(raw) {
       const stock = mapApiStock(raw);
       if (!stock) return null;
@@ -4912,8 +5188,40 @@
       return stock;
     }
 
+    function mergeStockLoadedHistory(target, source) {
+      if (!target || !source || target === source) return target;
+      if (Array.isArray(source.dailyK) && source.dailyK.length) {
+        target.dailyK = source.dailyK.map(item => ({ ...item }));
+      }
+      if (Array.isArray(source.history) && source.history.length) {
+        target.history = source.history.map(item => ({ ...item }));
+      }
+      [
+        "source",
+        "updatedAt",
+        "delayed",
+        "historyLoadKey",
+        "historyLoadEmptyKey",
+        "historyLoadErrorKey",
+        "historyLoadErrorMessage",
+        "historyDataStale",
+      ].forEach(key => {
+        if (source[key] !== undefined) target[key] = source[key];
+      });
+      return target;
+    }
+
     function storeStockUniverse(response) {
-      const mapped = (response.items || []).map(mapApiStock).filter(Boolean);
+      const previousByIdentity = new Map(
+        [...stockUniverse, ...stockWatchlist].map(stock => [getStockIdentity(stock), stock])
+      );
+      const mapped = (response.items || [])
+        .map(mapApiStock)
+        .filter(Boolean)
+        .map(stock => mergeStockLoadedHistory(
+          stock,
+          previousByIdentity.get(getStockIdentity(stock))
+        ));
       if (!mapped.length) throw new Error("Stock API returned no stocks");
       stockUniverseTotal = Number(response.total || mapped.length || 0);
       stockDataSource = response.source || response.headers.get("x-data-source") || stockDataSource;
@@ -4928,7 +5236,7 @@
       return mapped;
     }
 
-    async function loadRealStockUniverse({ force = false, foreground = true } = {}) {
+    async function loadRealStockUniverse({ force = false, foreground = true, notify = true } = {}) {
       if (!force && stockUniverse.length) {
         stockApiReady = true;
         stockApiStatus = "live";
@@ -4945,11 +5253,8 @@
         const response = await fetchStockApi(`/v1/stocks/universe?limit=${STOCK_UNIVERSE_LOAD_LIMIT}`);
         storeStockUniverse(response);
         stockApiReady = true;
-        stockApiStatus = "live";
-        if (stockUniverse.length) {
-          stockApiReady = true;
-          stockApiStatus = "live";
-        }
+        stockApiStatus = response.stale ? "error" : "live";
+        stockApiErrorMessage = response.stale ? STOCK_API_STALE_MESSAGE : "";
         scheduleStockUniverseChartPreload();
         return true;
       } catch (error) {
@@ -4957,12 +5262,123 @@
           stockApiReady = false;
           stockApiStatus = "error";
           stockApiErrorMessage = getStockApiErrorMessage(error);
-          if (activeFeature === "stocks") showToast(stockApiErrorMessage, "error");
+          if (activeFeature === "stocks" && notify) showToast(stockApiErrorMessage, "error");
         }
         return false;
       } finally {
         if (foreground) stockApiLoading = false;
       }
+    }
+
+    function storeEtfUniverse(response) {
+      const mapped = (response.items || []).map(mapApiEtf).filter(Boolean);
+      if (!mapped.length) throw new Error("ETF API returned no ETFs");
+      etfUniverseTotal = Number(response.total || mapped.length || 0);
+      etfDataSource = response.source || response.headers.get("x-data-source") || etfDataSource || stockDataSource;
+      etfUniverse.splice(0, etfUniverse.length, ...mapped);
+      if (!etfUniverse.some(etf => etf.id === activeEtfId)) {
+        activeEtfId = etfUniverse[0]?.id || "";
+      }
+      return mapped;
+    }
+
+    async function loadRealEtfUniverse() {
+      if (etfUniverse.length) {
+        etfApiStatus = "live";
+        return true;
+      }
+      if (etfApiLoading) return false;
+      etfApiLoading = true;
+      etfApiStatus = "loading";
+      etfApiErrorMessage = "";
+      try {
+        const response = await fetchEtfApi("/v1/etfs/universe?limit=6000");
+        storeEtfUniverse(response);
+        etfApiStatus = response.stale ? "error" : "live";
+        etfApiErrorMessage = response.stale ? STOCK_API_STALE_MESSAGE : "";
+        if (activeEtfId) {
+          const etf = getActiveEtf();
+          if (etf) loadRealEtfHistory(etf, { foreground: false }).then(() => {
+            if (activeFeature === "stocks" && activeStockView === "etf") {
+              renderStockPage();
+            }
+          });
+        }
+        if (activeFeature === "stocks" && activeStockView === "etf") renderStockPage();
+        return true;
+      } catch (error) {
+        etfApiStatus = "error";
+        etfApiErrorMessage = getStockApiErrorMessage(error);
+        if (activeFeature === "stocks" && activeStockView === "etf") renderStockPage();
+        return false;
+      } finally {
+        etfApiLoading = false;
+      }
+    }
+
+    async function loadRealEtfHistory(etf, { force = false, foreground = true } = {}) {
+      if (!etf?.market || !etf?.code) return false;
+      const dailyPeriod = getStockDailyPeriod();
+      const period = dailyPeriod.mode === "k" ? dailyPeriod.id : "day";
+      const range = getStockHistoryRangeParam();
+      const loadKey = getStockHistoryLoadKey(etf);
+      if (!force && etf.historyLoadKey === loadKey && getStockDailyK(etf).length) return true;
+      if (!force && etf.historyLoadEmptyKey === loadKey) return false;
+      if (!force && !foreground && etf.historyLoadErrorKey === loadKey) return false;
+      if (!force && etfHistoryLoads.has(loadKey)) return etfHistoryLoads.get(loadKey);
+      const path = `/v1/etfs/${etf.market}/${etf.code}/history?period=${encodeURIComponent(period)}&range=${encodeURIComponent(range)}`;
+      const request = fetchFastMarketHistory(path, {
+        market: etf.market,
+        code: etf.code,
+        period,
+        range,
+        type: "etf",
+      })
+        .then(response => {
+          etf.source = response.source || etf.source;
+          etf.updatedAt = response.updatedAt || etf.updatedAt;
+          etf.delayed = Boolean(response.delayed ?? etf.delayed);
+          etf.historyDataStale = Boolean(response.stale);
+          if (foreground) {
+            etfApiStatus = response.stale ? "error" : "live";
+            etfApiErrorMessage = response.stale ? STOCK_API_STALE_MESSAGE : "";
+          }
+          if (!Array.isArray(response.items) || !response.items.length) {
+            etf.dailyK = [];
+            etf.history = [];
+            etf.historyLoadKey = loadKey;
+            etf.historyLoadEmptyKey = loadKey;
+            etf.historyLoadErrorKey = "";
+            etf.historyLoadErrorMessage = "";
+            return false;
+          }
+          etf.dailyK = response.items.map(mergeStockHistory);
+          etf.history = etf.dailyK.slice(-18).map(item => ({
+            open: item.open,
+            high: item.high,
+            low: item.low,
+            close: item.close
+          }));
+          etf.historyLoadKey = loadKey;
+          etf.historyLoadEmptyKey = "";
+          etf.historyLoadErrorKey = "";
+          etf.historyLoadErrorMessage = "";
+          return true;
+        })
+        .catch(error => {
+          etf.historyLoadErrorKey = loadKey;
+          etf.historyLoadErrorMessage = getStockApiErrorMessage(error);
+          if (foreground) {
+            etfApiStatus = "error";
+            etfApiErrorMessage = getStockApiErrorMessage(error);
+          }
+          return false;
+        })
+        .finally(() => {
+          etfHistoryLoads.delete(loadKey);
+        });
+      etfHistoryLoads.set(loadKey, request);
+      return request;
     }
 
     function getStockUniverseChartPreloadStocks() {
@@ -4971,29 +5387,17 @@
       const addStock = stock => {
         if (!stock || candidates.length >= STOCK_UNIVERSE_CHART_PRELOAD_LIMIT) return;
         const identity = getStockIdentity(stock);
-        if (seen.has(identity)) return;
+        if (!identity || seen.has(identity)) return;
         seen.add(identity);
         candidates.push(stock);
       };
 
       addStock(getActiveDailyStock());
       const sortedStocks = getSortedDailyStocks();
-      const pageSize = Math.max(1, STOCK_UNIVERSE_CHART_PRELOAD_PAGE_SIZE);
-      const maxPage = Math.max(0, Math.ceil(sortedStocks.length / pageSize) - 1);
       const maxStart = Math.max(0, sortedStocks.length - STOCK_DAILY_VIRTUAL_COUNT);
       const start = Math.max(0, Math.min(maxStart, stockDailyVirtualStart));
-      const currentPage = Math.max(0, Math.min(maxPage, Math.floor(start / pageSize)));
-      const pageOffsets = [0];
-      for (let offset = 1; offset <= STOCK_UNIVERSE_CHART_PRELOAD_PAGE_RADIUS; offset += 1) {
-        pageOffsets.push(-offset, offset);
-      }
-      pageOffsets.forEach(offset => {
-        const pageIndex = currentPage + offset;
-        if (pageIndex < 0 || pageIndex > maxPage) return;
-        const pageStart = pageIndex * pageSize;
-        const pageEnd = Math.min(sortedStocks.length, pageStart + pageSize);
-        sortedStocks.slice(pageStart, pageEnd).forEach(addStock);
-      });
+      const end = Math.min(sortedStocks.length, start + STOCK_UNIVERSE_CHART_PRELOAD_LIMIT);
+      sortedStocks.slice(start, end).forEach(addStock);
 
       return candidates.slice(0, STOCK_UNIVERSE_CHART_PRELOAD_LIMIT);
     }
@@ -5096,7 +5500,7 @@
     }
 
     async function loadRealStockHistory(stock, { force = false, foreground = true } = {}) {
-      if (!stockApiReady || !stock?.market || !stock?.code) return false;
+      if (!stock?.market || !stock?.code) return false;
       const dailyPeriod = getStockDailyPeriod();
       const period = dailyPeriod.mode === "k" ? dailyPeriod.id : "day";
       const range = getStockHistoryRangeParam();
@@ -5105,8 +5509,23 @@
       if (!force && stock.historyLoadEmptyKey === loadKey) return false;
       if (!force && !foreground && stock.historyLoadErrorKey === loadKey) return false;
       if (!force && stockHistoryLoads.has(loadKey)) return stockHistoryLoads.get(loadKey);
-      const request = fetchStockApi(`/v1/stocks/${stock.market}/${stock.code}/history?period=${encodeURIComponent(period)}&range=${encodeURIComponent(range)}`)
+      const path = `/v1/stocks/${stock.market}/${stock.code}/history?period=${encodeURIComponent(period)}&range=${encodeURIComponent(range)}`;
+      const request = fetchFastMarketHistory(path, {
+        market: stock.market,
+        code: stock.code,
+        period,
+        range,
+        type: "stock",
+      })
         .then(response => {
+          stock.source = response.source || stock.source;
+          stock.updatedAt = response.updatedAt || stock.updatedAt;
+          stock.delayed = Boolean(response.delayed ?? stock.delayed);
+          stock.historyDataStale = Boolean(response.stale);
+          if (foreground) {
+            stockApiStatus = response.stale ? "error" : "live";
+            stockApiErrorMessage = response.stale ? STOCK_API_STALE_MESSAGE : "";
+          }
           if (!Array.isArray(response.items) || !response.items.length) {
             stock.dailyK = [];
             stock.history = [];
@@ -5305,8 +5724,14 @@
       return price > 0 && change >= getStockLimitThreshold(stock);
     }
 
+    function stockPassesLimitBoardFilters(stock) {
+      if (excludeStockLimitBoardSt && getStockStatus(stock) !== "非ST") return false;
+      if (excludeStockLimitBoardGem && getStockBoardCategory(stock) === "创业板") return false;
+      return true;
+    }
+
     function getStockLimitBoardUniverse() {
-      return stockUniverse.filter(stockLooksLimitUpFromQuote);
+      return stockUniverse.filter(stockPassesLimitBoardFilters).filter(stockLooksLimitUpFromQuote);
     }
 
     function hasStockLimitBoardHistoryReady(stock) {
@@ -5637,15 +6062,45 @@
     }
 
     async function initializeRealStockData() {
-      const loaded = await loadRealStockUniverse();
-      if (!loaded) {
-        if (activeFeature === "stocks") renderStockPage();
-        return;
+      const activeStock = getActiveDailyStock()
+        || stockWatchlist.find(stock => getStockIdentity(stock) === activeDailyStockId)
+        || stockWatchlist[0]
+        || makeStockIdentityPlaceholder(defaultStockWatchCodes[0]);
+      if (activeStock && !activeDailyStockId) activeDailyStockId = activeStock.id;
+      const synchronizeHistory = historyLoaded => {
+        if (!historyLoaded || !activeStock) return historyLoaded;
+        const canonical = getStockByCode(activeStock.code, activeStock.market);
+        if (canonical) mergeStockLoadedHistory(canonical, activeStock);
+        const watchStock = stockWatchlist.find(stock =>
+          getStockIdentity(stock) === getStockIdentity(activeStock)
+        );
+        if (watchStock) mergeStockLoadedHistory(watchStock, activeStock);
+        return historyLoaded;
+      };
+      const historyRequest = loadRealStockHistory(activeStock).then(historyLoaded => {
+        synchronizeHistory(historyLoaded);
+        if (historyLoaded && activeFeature === "stocks") {
+          renderStockSideList();
+          renderStockPage();
+        }
+        return historyLoaded;
+      });
+      const universeRequest = loadRealStockUniverse({ notify: false });
+      const [historyLoaded, loaded] = await Promise.all([historyRequest, universeRequest]);
+      synchronizeHistory(historyLoaded);
+
+      if (!loaded && historyLoaded) {
+        stockApiStatus = "chart-live";
+        stockApiErrorMessage = "";
+        stockDataSource = activeStock.source || "tencent";
+      } else if (!loaded && !historyLoaded && activeFeature === "stocks") {
+        showToast(stockApiErrorMessage || "行情接口不可用", "error");
       }
-      if (activeFeature !== "stocks") return;
-      await loadRealStockHistory(getActiveDailyStock());
-      renderStockSideList();
-      renderStockPage();
+      if (activeFeature === "stocks") {
+        renderStockSideList();
+        renderStockPage();
+      }
+      if (!loaded || activeFeature !== "stocks") return;
       if (activeStockView === "limit-board") scheduleStockLimitBoardHistoryLoad();
       updateStockDynamicData();
       scheduleStockUniverseChartPreload();
@@ -5713,6 +6168,9 @@
 
     function renderStockDataStatus() {
       const total = stockUniverseTotal || stockUniverse.length;
+      if (stockApiStatus === "chart-live") {
+        return `<div class="stock-refresh-note is-warning" data-stock-api-status>source=${escapeHTML(stockDataSource)} · 图表直连可用 · 股票列表暂不可用</div>`;
+      }
       if (stockApiStatus === "live") {
         return `<div class="stock-refresh-note" data-stock-api-status>source=${escapeHTML(stockDataSource)} · 已载入 ${stockUniverse.length}/${total} 只 · 未回退</div>`;
       }
@@ -6832,11 +7290,28 @@
       });
     }
 
+    function setActiveEtf(id) {
+      const etf = etfUniverse.find(item => item.id === id);
+      if (!etf) return;
+      activeEtfId = id;
+      stockDailyViewportStart = -1;
+      updateStockDailyChart();
+      loadRealEtfHistory(etf).then(() => {
+        if (activeEtfId === id) updateStockDailyChart();
+      });
+    }
+
     function setStockDailyRange(id) {
       if (!stockDailyRanges.some(range => range.id === id)) return;
       activeStockDailyRange = id;
       stockDailyViewportStart = -1;
       updateStockDailyChart();
+      if (activeStockView === "etf") {
+        loadRealEtfHistory(getActiveDailyStock()).then(() => {
+          updateStockDailyChart();
+        });
+        return;
+      }
       loadRealStockHistory(getActiveDailyStock()).then(() => {
         updateStockDailyChart();
       });
@@ -6871,6 +7346,23 @@
       });
     }
 
+    function toggleStockLimitBoardFilter(filter) {
+      if (filter === "st") {
+        excludeStockLimitBoardSt = !excludeStockLimitBoardSt;
+      } else if (filter === "gem") {
+        excludeStockLimitBoardGem = !excludeStockLimitBoardGem;
+      } else {
+        return;
+      }
+      activeStockLimitBoardLevel = 0;
+      stockLimitBoardHistoryLoadToken += 1;
+      stockLimitBoardHistoryLoading = false;
+      stockLimitBoardHistoryLoaded = 0;
+      stockLimitBoardHistoryTarget = 0;
+      if (activeFeature === "stocks" && activeStockView === "limit-board") renderStockPage();
+      scheduleStockLimitBoardHistoryLoad();
+    }
+
     function getStockDailyRangeIndex() {
       return Math.max(0, stockDailyRanges.findIndex(range => range.id === activeStockDailyRange));
     }
@@ -6885,6 +7377,12 @@
       activeStockDailyPeriod = id;
       stockDailyViewportStart = -1;
       updateStockDailyChart();
+      if (activeStockView === "etf") {
+        loadRealEtfHistory(getActiveDailyStock()).then(() => {
+          updateStockDailyChart();
+        });
+        return;
+      }
       loadRealStockHistory(getActiveDailyStock()).then(() => {
         updateStockDailyChart();
       });
@@ -7001,6 +7499,7 @@
       expandedStockIdentity = "";
       expandedStockFilterIdentity = "";
       if (activeStockView === "limit-board") scheduleStockLimitBoardHistoryLoad();
+      if (activeStockView === "etf") loadRealEtfUniverse();
       renderStockSideList();
       renderStockPage();
     }
@@ -7210,7 +7709,7 @@
     function getDailyFilteredStocks() {
       const tags = activeStockDailyTags.map(getDailyFilterTag).filter(Boolean);
       const keyword = stockDailySearchTerm.trim();
-      const source = stockUniverse;
+      const source = stockUniverse.length ? stockUniverse : stockWatchlist;
       if (!tags.length && !keyword) return source;
       return source.filter(stock => {
         const matchesSearch = !keyword || stockMatchesSearchText(stock, keyword);
@@ -7237,6 +7736,9 @@
     }
 
     function getActiveDailyStock() {
+      if (activeStockView === "etf") {
+        return getActiveEtf();
+      }
       if (activeStockView === "limit-board") {
         const limitBoardStock = stockUniverse.find(item => item.id === activeDailyStockId);
         if (limitBoardStock) return limitBoardStock;
@@ -7246,6 +7748,50 @@
       if (stock) return stock;
       activeDailyStockId = stocks[0]?.id || "";
       return stocks[0];
+    }
+
+    function getEtfCategories() {
+      const categories = Array.from(new Set(etfUniverse.map(etf => etf.category || etf.theme || "其他")));
+      return ["all", ...categories.sort((a, b) => a.localeCompare(b, "zh-CN"))];
+    }
+
+    function etfMatchesSearchText(etf, keyword) {
+      const query = String(keyword || "").trim().toLowerCase();
+      if (!query) return true;
+      const compactQuery = query.replace(/\s+/g, "");
+      const fields = [
+        etf.name,
+        etf.code,
+        etf.market,
+        `${etf.market}${etf.code}`,
+        etf.category,
+        etf.theme,
+        etf.fundType
+      ].map(item => String(item || "").toLowerCase());
+      return fields.some(field => field.includes(query) || field.replace(/\s+/g, "").includes(compactQuery));
+    }
+
+    function getFilteredEtfs() {
+      const category = activeEtfCategory;
+      const keyword = etfSearchTerm.trim();
+      const filtered = etfUniverse.filter(etf => {
+        const matchesCategory = !category || category === "all" || etf.category === category || etf.theme === category;
+        return matchesCategory && etfMatchesSearchText(etf, keyword);
+      });
+      return filtered.sort((a, b) => {
+        if (etfSort === "code") return `${a.market}${a.code}`.localeCompare(`${b.market}${b.code}`);
+        if (etfSort === "name") return a.name.localeCompare(b.name, "zh-CN");
+        if (etfSort === "change") return Number(b.changePercent || 0) - Number(a.changePercent || 0);
+        if (etfSort === "volume") return Number(b.volume || 0) - Number(a.volume || 0);
+        return Number(b.amount || 0) - Number(a.amount || 0);
+      });
+    }
+
+    function getActiveEtf() {
+      const visible = getFilteredEtfs();
+      const current = etfUniverse.find(item => item.id === activeEtfId) || visible[0];
+      if (current && !activeEtfId) activeEtfId = current.id;
+      return current || null;
     }
 
     function getStockDailyRange() {
@@ -7513,6 +8059,178 @@
       `;
     }
 
+    function renderEtfDataStatus() {
+      const total = etfUniverseTotal || etfUniverse.length;
+      if (etfApiStatus === "live") {
+        return `<div class="stock-refresh-note" data-stock-etf-status>source=${escapeHTML(etfDataSource || stockDataSource)} · 已载入 ${etfUniverse.length}/${total} 只 ETF</div>`;
+      }
+      if (etfApiStatus === "error") {
+        return `<div class="stock-empty" data-stock-etf-status>${escapeHTML(etfApiErrorMessage || "ETF 行情接口不可用。")}</div>`;
+      }
+      return `<div class="stock-empty" data-stock-etf-status>正在通过后端行情接口获取 ETF 列表...</div>`;
+    }
+
+    function renderStockEtfFilters() {
+      const categories = getEtfCategories();
+      return `
+        <div class="stock-daily-toolbar">
+          <div class="stock-filter-search">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input class="stock-search-input" data-stock-etf-search type="search" value="${escapeHTML(etfSearchTerm)}" placeholder="搜索ETF代码/名称/主题" autocomplete="off" />
+          </div>
+          <select class="stock-select" data-stock-etf-sort aria-label="ETF排序">
+            <option value="amount" ${etfSort === "amount" ? "selected" : ""}>按成交额</option>
+            <option value="change" ${etfSort === "change" ? "selected" : ""}>按涨幅</option>
+            <option value="volume" ${etfSort === "volume" ? "selected" : ""}>按成交量</option>
+            <option value="name" ${etfSort === "name" ? "selected" : ""}>按名称</option>
+            <option value="code" ${etfSort === "code" ? "selected" : ""}>按代码</option>
+          </select>
+        </div>
+        <div class="stock-limit-board-filters" aria-label="ETF主题筛选">
+          ${categories.map(category => {
+            const active = activeEtfCategory === category;
+            const label = category === "all" ? "全部" : category;
+            return `<button class="stock-daily-filter ${active ? "active" : ""}" type="button" data-stock-etf-category="${escapeHTML(category)}" aria-pressed="${active}">${escapeHTML(label)}</button>`;
+          }).join("")}
+        </div>
+      `;
+    }
+
+    function renderStockEtfList() {
+      const list = getFilteredEtfs();
+      if (!list.length) {
+        return `<div class="stock-empty">当前条件下暂无 ETF。</div>`;
+      }
+      return list.map((etf, index) => {
+        const changeClass = getStockChangeClass(etf.changePercent);
+        return `
+          <div class="stock-daily-row ${etf.id === activeEtfId ? "active" : ""}" style="height:${STOCK_DAILY_ROW_HEIGHT - 4}px" role="button" tabindex="0" data-stock-etf-row="${escapeHTML(etf.id)}" aria-pressed="${etf.id === activeEtfId}">
+            <span class="stock-daily-index">${String(index + 1).padStart(3, "0")}</span>
+            <span class="stock-daily-meta">
+              <span class="stock-daily-name">${escapeHTML(etf.name)}</span>
+              <span class="stock-daily-code">${escapeHTML(etf.market)} ${escapeHTML(etf.code)} · ${escapeHTML(etf.category || etf.theme || "其他")}</span>
+            </span>
+            <span class="stock-daily-row-change stock-change ${changeClass}">${formatStockPercent(etf.changePercent)}</span>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderStockEtfQuote(etf) {
+      const latest = getStockDailyK(etf).slice(-1)[0];
+      const price = Number(latest?.close ?? etf.price ?? 0);
+      const open = Number(latest?.open ?? etf.open ?? price);
+      const high = Number(latest?.high ?? etf.high ?? price);
+      const low = Number(latest?.low ?? etf.low ?? price);
+      const previousClose = Number(etf.previousClose || (price - Number(etf.changeAmount || 0)) || price);
+      const changeAmount = Number(etf.changeAmount ?? (price - previousClose));
+      const changePercent = Number(etf.changePercent ?? (previousClose ? changeAmount / previousClose * 100 : 0));
+      const changeClass = getStockChangeClass(changePercent);
+      return `
+        <div class="stock-daily-quote" data-stock-daily-quote data-stock-id="${escapeHTML(etf.id)}">
+          <div class="stock-daily-quote-main">
+            <div class="stock-daily-quote-name">
+              <strong data-stock-daily-field="name">${escapeHTML(etf.name)}</strong>
+              <span class="stock-daily-quote-code" data-stock-daily-field="code">${escapeHTML(etf.market)} ${escapeHTML(etf.code)} · ${escapeHTML(etf.category || etf.theme || "ETF")}</span>
+            </div>
+            <div class="stock-daily-quote-price">
+              <strong data-stock-daily-field="price">${formatStockPrice(price)}</strong>
+              <span class="stock-change ${changeClass}" data-stock-daily-field="changePercent">${formatStockAmount(changeAmount)} · ${formatStockPercent(changePercent)}</span>
+            </div>
+          </div>
+          <div class="stock-daily-quote-grid">
+            <div class="stock-daily-stat"><span>今开</span><strong data-stock-daily-stat="open">${formatStockPrice(open)}</strong></div>
+            <div class="stock-daily-stat"><span>昨收</span><strong data-stock-daily-stat="prevClose">${formatStockPrice(previousClose)}</strong></div>
+            <div class="stock-daily-stat"><span>最高</span><strong data-stock-daily-stat="high">${formatStockPrice(high)}</strong></div>
+            <div class="stock-daily-stat"><span>最低</span><strong data-stock-daily-stat="low">${formatStockPrice(low)}</strong></div>
+            <div class="stock-daily-stat"><span>成交量</span><strong data-stock-daily-stat="volume">${formatStockVolume(etf.volume)}</strong></div>
+            <div class="stock-daily-stat"><span>成交额</span><strong data-stock-daily-stat="amount">${formatStockTradeAmount(Number(etf.amount || 0))}</strong></div>
+            <div class="stock-daily-stat"><span>类型</span><strong>${escapeHTML(etf.fundType || "ETF")}</strong></div>
+            <div class="stock-daily-stat"><span>数据源</span><strong>${escapeHTML(etf.source || etfDataSource || stockDataSource)}</strong></div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderStockEtfView() {
+      if (etfApiStatus === "idle") {
+        setTimeout(() => loadRealEtfUniverse(), 0);
+      }
+      const filteredEtfs = getFilteredEtfs();
+      if (!activeEtfId && filteredEtfs[0]) activeEtfId = filteredEtfs[0].id;
+      const etf = getActiveEtf();
+      if (etf && !getStockDailyK(etf).length && !etfHistoryLoads.has(getStockHistoryLoadKey(etf))) {
+        setTimeout(() => {
+          loadRealEtfHistory(etf, { foreground: false }).then(() => {
+            if (activeFeature === "stocks" && activeStockView === "etf" && activeEtfId === etf.id) {
+              updateStockDailyChart();
+            }
+          });
+        }, 0);
+      }
+
+      if (!etf) {
+        return `
+          <div class="stock-daily-layout">
+            <aside class="stock-card stock-daily-sidebar">
+              <div class="stock-section-head">
+                <h2 class="stock-section-title">ETF池</h2>
+                <span class="stock-refresh-note">${filteredEtfs.length}/${etfUniverseTotal || etfUniverse.length} 只</span>
+              </div>
+              ${renderStockEtfFilters()}
+              <div class="stock-daily-list" data-stock-etf-list aria-label="ETF选择列表">${renderStockEtfList()}</div>
+            </aside>
+            <section class="stock-card stock-daily-chart-card">
+              ${renderEtfDataStatus()}
+            </section>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="stock-daily-layout">
+          <aside class="stock-card stock-daily-sidebar">
+            <div class="stock-section-head">
+              <h2 class="stock-section-title">ETF池</h2>
+              <span class="stock-refresh-note">${filteredEtfs.length}/${etfUniverseTotal || etfUniverse.length} 只</span>
+            </div>
+            ${renderStockEtfFilters()}
+            <div class="stock-daily-list" data-stock-etf-list aria-label="ETF选择列表">${renderStockEtfList()}</div>
+          </aside>
+
+          <section class="stock-card stock-daily-chart-card">
+            <div class="stock-section-head">
+              <div>
+                <h2 class="stock-section-title" data-stock-daily-title>${escapeHTML(etf.name)} 分时/日K图</h2>
+                <span class="stock-refresh-note" data-stock-daily-meta>${escapeHTML(etf.market)} ${escapeHTML(etf.code)} · ${escapeHTML(getStockDailyPeriod().label)} · ${escapeHTML(getStockDailyRange().label)} · ${escapeHTML(etf.category || etf.theme || "ETF")}</span>
+                <span class="stock-refresh-note" data-stock-daily-industry>主题：${escapeHTML(etf.theme || etf.category || "其他")}</span>
+              </div>
+            </div>
+            ${renderStockEtfQuote(etf)}
+            <div class="stock-daily-control-row">
+              <div class="stock-daily-period-row">${renderStockDailyPeriods()}</div>
+              <div class="stock-daily-range-row ${stockDailyMoreOpen ? "" : "is-hidden"}">${renderStockDailyRanges()}</div>
+            </div>
+            <div class="stock-daily-ma-legend" aria-label="技术指标图例">
+              <span class="stock-daily-ma-item" style="color:#ffd166"><span class="stock-daily-ma-dot"></span>MA5</span>
+              <span class="stock-daily-ma-item" style="color:#f78cfa"><span class="stock-daily-ma-dot"></span>MA10</span>
+              <span class="stock-daily-ma-item" style="color:#69cbff"><span class="stock-daily-ma-dot"></span>MA30</span>
+              <span class="stock-daily-ma-item" style="color:#a7f070"><span class="stock-daily-ma-dot"></span>MA60</span>
+              <span class="stock-daily-ma-item" style="color:#ffb86b"><span class="stock-daily-ma-dot"></span>DIF</span>
+              <span class="stock-daily-ma-item" style="color:#8f7dff"><span class="stock-daily-ma-dot"></span>DEA</span>
+              <span>MACD</span>
+            </div>
+            <div class="stock-daily-canvas-wrap">
+              <canvas class="stock-daily-canvas" data-stock-daily-chart width="960" height="560" aria-label="${escapeHTML(etf.name)}日K图"></canvas>
+              <div class="stock-daily-tooltip" id="stockDailyTooltip" role="tooltip"></div>
+            </div>
+            ${renderStockDailyScrollbar()}
+            ${renderEtfDataStatus()}
+          </section>
+        </div>
+      `;
+    }
+
     function renderStockDailyRanges() {
       return stockDailyRanges.map(range => `
         <button class="stock-action ${range.id === activeStockDailyRange ? "primary active" : ""}" type="button" data-stock-daily-range="${escapeHTML(range.id)}" aria-pressed="${range.id === activeStockDailyRange}">
@@ -7717,6 +8435,19 @@
       `;
     }
 
+    function renderStockLimitBoardFilters() {
+      return `
+        <div class="stock-limit-board-filters" aria-label="连板筛选">
+          <button class="stock-daily-filter ${excludeStockLimitBoardSt ? "active" : ""}" type="button" data-stock-limit-board-filter="st" aria-pressed="${excludeStockLimitBoardSt}">
+            排除ST
+          </button>
+          <button class="stock-daily-filter ${excludeStockLimitBoardGem ? "active" : ""}" type="button" data-stock-limit-board-filter="gem" aria-pressed="${excludeStockLimitBoardGem}">
+            排除创业板
+          </button>
+        </div>
+      `;
+    }
+
     function getActiveStockLimitBoardGroup(groups = getStockLimitBoardGroups()) {
       if (!activeStockLimitBoardLevel || !groups.some(group => group.level === activeStockLimitBoardLevel)) {
         activeStockLimitBoardLevel = groups[0]?.level || 0;
@@ -7760,6 +8491,7 @@
             <h2 class="stock-section-title">连板高度</h2>
             <span class="stock-refresh-note">${escapeHTML(getStockLimitBoardStatusText())}</span>
           </div>
+          ${renderStockLimitBoardFilters()}
           ${renderStockLimitBoardLevels(groups)}
           <div class="stock-daily-list" data-stock-limit-board-list aria-label="连板股票列表">${renderStockLimitBoardList(group)}</div>
         </aside>
@@ -8218,6 +8950,7 @@
       if (activeStockView === "watchlist") return renderStockWatchlistView();
       if (activeStockView === "filter") return renderStockFilterView();
       if (activeStockView === "limit-board") return renderStockLimitBoardView();
+      if (activeStockView === "etf") return renderStockEtfView();
       if (activeStockView === "daily") return renderStockDailyView();
       activeStockView = "daily";
       return renderStockDailyView();
@@ -8228,7 +8961,7 @@
       content.className = "content stock-content";
       content.innerHTML = `
         <section class="stock-page">
-          ${activeStockView === "filter" ? "" : `<div class="stock-topbar">
+          ${activeStockView === "filter" || activeStockView === "etf" ? "" : `<div class="stock-topbar">
             <div class="stock-title-block">
               <div class="stock-kicker">A 股行情 · 分时/K线</div>
               <h1 class="stock-title">股票分时/日K图</h1>
@@ -9149,6 +9882,10 @@
         row.classList.toggle("active", row.dataset.stockLimitBoardRow === stock.id);
         row.setAttribute("aria-pressed", String(row.dataset.stockLimitBoardRow === stock.id));
       });
+      document.querySelectorAll("[data-stock-etf-row]").forEach(row => {
+        row.classList.toggle("active", row.dataset.stockEtfRow === stock.id);
+        row.setAttribute("aria-pressed", String(row.dataset.stockEtfRow === stock.id));
+      });
       document.querySelectorAll("[data-stock-daily-range]").forEach(button => {
         const active = button.dataset.stockDailyRange === range.id;
         button.classList.toggle("primary", active);
@@ -9167,12 +9904,16 @@
       const meta = document.querySelector("[data-stock-daily-meta]");
       const industry = document.querySelector("[data-stock-daily-industry]");
       if (title) title.textContent = `${stock.name} 分时/日K图`;
-      if (meta) meta.textContent = `${stock.market} ${stock.code} · ${period.label} · ${range.label}`;
-      if (industry) industry.textContent = `行业：${getStockIndustryLabel(stock)}`;
+      if (meta) meta.textContent = activeStockView === "etf"
+        ? `${stock.market} ${stock.code} · ${period.label} · ${range.label} · ${stock.category || stock.theme || "ETF"}`
+        : `${stock.market} ${stock.code} · ${period.label} · ${range.label}`;
+      if (industry) industry.textContent = activeStockView === "etf"
+        ? `主题：${stock.theme || stock.category || "其他"}`
+        : `行业：${getStockIndustryLabel(stock)}`;
       const quote = document.querySelector("[data-stock-daily-quote]");
-      if (quote) quote.outerHTML = renderStockDailyQuote(stock);
+      if (quote) quote.outerHTML = activeStockView === "etf" ? renderStockEtfQuote(stock) : renderStockDailyQuote(stock);
       const depth = document.querySelector("[data-stock-daily-depth]");
-      if (depth) depth.outerHTML = renderStockDailyDepth(stock);
+      if (depth && activeStockView !== "etf") depth.outerHTML = renderStockDailyDepth(stock);
       drawStockDailyCanvas();
     }
 
@@ -9401,6 +10142,27 @@
         event.preventDefault();
         event.stopPropagation();
         addStockFromDailyListToWatchlist(dailyAddButton.dataset.stockDailyAdd, dailyAddButton.dataset.stockMarket);
+        return;
+      }
+
+      const etfCategoryButton = event.target.closest("[data-stock-etf-category]");
+      if (etfCategoryButton) {
+        activeEtfCategory = etfCategoryButton.dataset.stockEtfCategory;
+        activeEtfId = "";
+        stockDailyViewportStart = -1;
+        renderStockPage();
+        return;
+      }
+
+      const etfRow = event.target.closest("[data-stock-etf-row]");
+      if (etfRow) {
+        setActiveEtf(etfRow.dataset.stockEtfRow);
+        return;
+      }
+
+      const limitBoardFilterButton = event.target.closest("[data-stock-limit-board-filter]");
+      if (limitBoardFilterButton) {
+        toggleStockLimitBoardFilter(limitBoardFilterButton.dataset.stockLimitBoardFilter);
         return;
       }
 
@@ -10029,7 +10791,7 @@
                       </svg>
                     </div>
                     <div class="angel-icon">
-                      <img src="angle.png" alt="Angel" loading="eager" decoding="async" fetchpriority="high" />
+                      <img src="angle-card.jpg" alt="Angel" loading="eager" decoding="async" fetchpriority="high" />
                     </div>
                   </div>
                   <div class="card-face card-front">${card.icon}</div>
@@ -10833,6 +11595,13 @@
         setStockDailySearch(dailySearch.value);
         return;
       }
+      const etfSearch = event.target.closest("[data-stock-etf-search]");
+      if (etfSearch) {
+        etfSearchTerm = etfSearch.value.trim();
+        activeEtfId = "";
+        renderStockPage();
+        return;
+      }
       const input = event.target.closest("#stockSearchInput");
       if (!input) return;
       stockSearchTerm = input.value.trim();
@@ -10852,6 +11621,14 @@
       const dailySort = event.target.closest("[data-stock-daily-sort]");
       if (dailySort) {
         setStockDailySort(dailySort.value);
+        return;
+      }
+      const etfSortSelect = event.target.closest("[data-stock-etf-sort]");
+      if (etfSortSelect) {
+        etfSort = etfSortSelect.value;
+        activeEtfId = "";
+        stockDailyViewportStart = -1;
+        renderStockPage();
         return;
       }
       if (!event.target.closest("[data-stock-filter]")) return;

@@ -25,9 +25,37 @@ function createEastmoneyUniverseRows(total = 3) {
   });
 }
 
+function createEastmoneyEtfRows() {
+  return [
+    {
+      f2: 4120,
+      f3: 0.68,
+      f4: 28,
+      f5: 880000,
+      f6: 362560000,
+      f12: "510300",
+      f13: 1,
+      f14: "沪深300ETF",
+      f100: "ETF",
+    },
+    {
+      f2: 96,
+      f3: 1.24,
+      f4: 1,
+      f5: 650000,
+      f6: 62400000,
+      f12: "512880",
+      f13: 1,
+      f14: "证券ETF",
+      f100: "ETF",
+    },
+  ];
+}
+
 function createFakeEastmoneyFetch(options = {}) {
   const calls = [];
   const universeRows = options.universeRows || createEastmoneyUniverseRows(options.universeTotal || 3);
+  const etfRows = options.etfRows || createEastmoneyEtfRows();
 
   async function fakeFetch(url) {
     const parsed = new URL(url);
@@ -35,14 +63,16 @@ function createFakeEastmoneyFetch(options = {}) {
     const secid = parsed.searchParams.get("secid");
 
     if (parsed.pathname.includes("/api/qt/clist/get")) {
+      const fs = parsed.searchParams.get("fs") || "";
+      const rows = fs.includes("b:MK0021") ? etfRows : universeRows;
       const page = Number(parsed.searchParams.get("pn") || 1);
       const pageSize = Math.min(Number(parsed.searchParams.get("pz") || 100), 100);
       const start = (page - 1) * pageSize;
       return new Response(JSON.stringify({
         rc: 0,
         data: {
-          total: universeRows.length,
-          diff: universeRows.slice(start, start + pageSize),
+          total: rows.length,
+          diff: rows.slice(start, start + pageSize),
         },
       }), { status: 200 });
     }
@@ -51,7 +81,7 @@ function createFakeEastmoneyFetch(options = {}) {
       return new Response(JSON.stringify({
         rc: 0,
         data: {
-          code: "600519",
+          code: secid === "1.510300" ? "510300" : "600519",
           market: 1,
           klines: [
             "2026-05-11,1280.00,1295.50,1302.00,1278.00,42100,5432100000.00,1.88,0.42,5.37,0.33",
@@ -89,6 +119,20 @@ function createFakeEastmoneyFetch(options = {}) {
         f116: 899100000000,
         f169: -149,
         f170: -72,
+      },
+      "1.510300": {
+        f43: 4120,
+        f44: 4168,
+        f45: 4071,
+        f46: 4104,
+        f47: 880000,
+        f48: 362560000,
+        f57: "510300",
+        f58: "沪深300ETF",
+        f60: 4092,
+        f116: 0,
+        f169: 28,
+        f170: 68,
       },
     };
 
@@ -141,6 +185,32 @@ test("eastmoney provider maps public quote and kline responses into stock contra
   assert.equal(history.items[1].close, 1290.2);
   assert.equal(fetchImpl.calls.some(call => call.parsed.hostname === "push2.eastmoney.com"), true);
   assert.equal(fetchImpl.calls.some(call => call.parsed.hostname === "push2his.eastmoney.com"), true);
+});
+
+test("eastmoney provider maps ETF universe, quote, and history responses", async () => {
+  const { createEastmoneyProvider } = await import("../server/eastmoney-provider.js");
+  const fetchImpl = createFakeEastmoneyFetch();
+  const provider = createEastmoneyProvider({ fetchImpl });
+
+  const etfs = await provider.getEtfUniverse({ limit: 100 });
+  assert.equal(etfs.source, "eastmoney");
+  assert.equal(etfs.items[0].id, "ETF:SH:510300");
+  assert.equal(etfs.items[0].type, "etf");
+  assert.equal(etfs.items[0].category, "宽基");
+
+  const search = await provider.searchEtfs({ q: "沪深300", limit: 5 });
+  assert.equal(search.items[0].code, "510300");
+
+  const quote = await provider.getEtfQuote({ market: "SH", code: "510300" });
+  assert.equal(quote.id, "ETF:SH:510300");
+  assert.equal(quote.source, "eastmoney");
+  assert.equal(quote.price, 41.2);
+  assert.equal(quote.changePercent, 0.68);
+
+  const history = await provider.getEtfHistory({ market: "SH", code: "510300", period: "day", range: "30d" });
+  assert.equal(history.etf.id, "ETF:SH:510300");
+  assert.equal(history.items.length, 2);
+  assert.equal(fetchImpl.calls.some(call => (call.parsed.searchParams.get("fs") || "").includes("b:MK0021")), true);
 });
 
 test("eastmoney provider paginates the full A-share universe beyond 5000 stocks", async () => {

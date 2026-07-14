@@ -98,3 +98,27 @@ test("stock view contracts include the latest limit-board subview", () => {
   assert.match(stateMachine, /`limit-board`/);
   assert.match(stateMachine, /连板 tab/);
 });
+
+test("contracts and OpenAPI expose ETF instrument routes separately from stocks", () => {
+  [
+    "export interface EtfIdentity",
+    "export interface EtfSummary",
+    "export interface EtfQuote",
+    "export interface EtfHistoryResponse",
+    "getEtfUniverse(",
+    "searchEtfs(",
+    "getEtfQuote(",
+    "getEtfHistory(",
+    '"etf"',
+  ].forEach(item => assertIncludes(contracts, item));
+
+  [
+    "/v1/etfs/universe:",
+    "/v1/etfs/search:",
+    "/v1/etfs/{market}/{code}/quote:",
+    "/v1/etfs/{market}/{code}/history:",
+    "EtfSummary:",
+    "EtfQuote:",
+    "EtfHistoryResponse:",
+  ].forEach(item => assertIncludes(openapi, item));
+});

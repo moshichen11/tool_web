@@ -149,6 +149,93 @@ paths:
                     items:
                       $ref: "#/components/schemas/StockSummary"
 
+  /v1/etfs/universe:
+    get:
+      tags: [MarketData]
+      summary: List ETF instruments for industry and theme browsing
+      parameters:
+        - $ref: "#/components/parameters/MarketQuery"
+        - name: category
+          in: query
+          schema: { type: string }
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Paged ETF universe
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EtfSummaryPage"
+
+  /v1/etfs/search:
+    get:
+      tags: [MarketData]
+      summary: Search ETF instruments by code, name, or theme
+      parameters:
+        - $ref: "#/components/parameters/Query"
+        - $ref: "#/components/parameters/MarketQuery"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: ETF search results
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/EtfSummary"
+
+  /v1/etfs/{market}/{code}/quote:
+    get:
+      tags: [MarketData]
+      summary: Get latest quote for one ETF
+      parameters:
+        - $ref: "#/components/parameters/MarketPath"
+        - $ref: "#/components/parameters/CodePath"
+      responses:
+        "200":
+          description: Latest ETF quote
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EtfQuote"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/etfs/{market}/{code}/history:
+    get:
+      tags: [MarketData]
+      summary: Get minute or K-line history for one ETF
+      parameters:
+        - $ref: "#/components/parameters/MarketPath"
+        - $ref: "#/components/parameters/CodePath"
+        - name: period
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [minute, day, week, month]
+        - name: range
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [1d, 3d, 5d, 15d, 30d, 60d, 120d, 250d, 500d]
+      responses:
+        "200":
+          description: ETF historical bars
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EtfHistoryResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /v1/quotes:
     post:
       tags: [MarketData]
@@ -809,6 +896,22 @@ components:
           required: [id]
           properties:
             id: { type: string }
+    EtfIdentity:
+      allOf:
+        - $ref: "#/components/schemas/StockIdentity"
+        - type: object
+          required: [type]
+          properties:
+            type:
+              type: string
+              enum: [etf]
+    EtfIdentityWithId:
+      allOf:
+        - $ref: "#/components/schemas/EtfIdentity"
+        - type: object
+          required: [id]
+          properties:
+            id: { type: string }
     QuoteDirection:
       type: string
       enum: [up, down, flat]
@@ -863,6 +966,67 @@ components:
               $ref: "#/components/schemas/QuoteDirection"
             colorRole:
               $ref: "#/components/schemas/StockColorRole"
+    EtfSummary:
+      allOf:
+        - $ref: "#/components/schemas/EtfIdentityWithId"
+        - type: object
+          required: [name, category, theme, price, changePercent, changeAmount, volume, delayed, source, updatedAt]
+          properties:
+            name: { type: string }
+            category: { type: string }
+            theme: { type: string }
+            fundType: { type: string }
+            price: { type: number }
+            changePercent: { type: number }
+            changeAmount: { type: number }
+            volume: { type: integer, minimum: 0 }
+            amount: { type: number }
+            detailUrl:
+              type: string
+              format: uri
+            delayed: { type: boolean }
+            source: { type: string }
+            updatedAt:
+              type: string
+              format: date-time
+    EtfQuote:
+      allOf:
+        - $ref: "#/components/schemas/EtfSummary"
+        - type: object
+          required: [open, high, low, previousClose, direction, colorRole]
+          properties:
+            open: { type: number }
+            high: { type: number }
+            low: { type: number }
+            previousClose: { type: number }
+            direction:
+              $ref: "#/components/schemas/QuoteDirection"
+            colorRole:
+              $ref: "#/components/schemas/StockColorRole"
+    EtfHistoryResponse:
+      type: object
+      required: [etf, period, range, items, source, delayed]
+      properties:
+        etf:
+          $ref: "#/components/schemas/EtfIdentityWithId"
+        period:
+          type: string
+          enum: [minute, day, week, month]
+        range:
+          type: string
+        items:
+          type: array
+          items:
+            oneOf:
+              - $ref: "#/components/schemas/KLinePoint"
+              - $ref: "#/components/schemas/MinutePoint"
+        source:
+          type: string
+        delayed:
+          type: boolean
+        updatedAt:
+          type: string
+          format: date-time
     KLinePoint:
       type: object
       required: [time, open, high, low, close, volume]
@@ -1008,6 +1172,17 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/StockSummary"
+        total: { type: integer, minimum: 0 }
+        limit: { type: integer, minimum: 1 }
+        offset: { type: integer, minimum: 0 }
+    EtfSummaryPage:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/EtfSummary"
         total: { type: integer, minimum: 0 }
         limit: { type: integer, minimum: 1 }
         offset: { type: integer, minimum: 0 }

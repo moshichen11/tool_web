@@ -1,5 +1,5 @@
 import { createEastmoneyProvider } from "./eastmoney-provider.js";
-import { createInitialStocks, entitlements as mockEntitlements, makeDepth, makeHistory } from "./mock-data.js";
+import { createInitialEtfs, createInitialStocks, entitlements as mockEntitlements, makeDepth, makeHistory } from "./mock-data.js";
 import { createTushareProvider } from "./tushare-provider.js";
 import { createXueqiuStockDataProvider } from "./xueqiu-provider.js";
 
@@ -71,6 +71,17 @@ function normalizeMockQuote(stock) {
   };
 }
 
+function normalizeMockEtf(etf) {
+  return {
+    ...etf,
+    id: `ETF:${etf.market}:${etf.code}`,
+    type: "etf",
+    source: "mock-a-share",
+    direction: etf.direction || direction(Number(etf.changePercent || 0)),
+    colorRole: etf.colorRole || colorRole(Number(etf.changePercent || 0)),
+  };
+}
+
 function paged(items, { limit = 6000, offset = 0 } = {}) {
   const requestedLimit = Math.max(1, Math.min(Number(limit) || 6000, 10000));
   const requestedOffset = Math.max(Number(offset) || 0, 0);
@@ -84,9 +95,14 @@ function paged(items, { limit = 6000, offset = 0 } = {}) {
 
 export function createMockStockDataProvider(options = {}) {
   const state = options.state || { stocks: new Map(createInitialStocks().map(stock => [stock.id, stock])) };
+  const etfs = state.etfs || new Map(createInitialEtfs().map(etf => [`${etf.market}:${etf.code}`, etf]));
 
   function getStock(identity) {
     return state.stocks.get(`${identity.market}:${identity.code}`) || null;
+  }
+
+  function getEtf(identity) {
+    return etfs.get(`${identity.market}:${identity.code}`) || null;
   }
 
   async function searchStocks({ q, market, limit = 20 }) {
@@ -140,6 +156,50 @@ export function createMockStockDataProvider(options = {}) {
     return stock ? makeDepth(stock) : null;
   }
 
+  async function getEtfUniverse({ market, category, limit = 6000, offset = 0 } = {}) {
+    const targetMarket = market ? String(market).toUpperCase() : "";
+    const targetCategory = String(category || "").trim();
+    const items = [...etfs.values()]
+      .filter(item => !targetMarket || item.market === targetMarket)
+      .filter(item => !targetCategory || targetCategory === "all" || item.category === targetCategory || item.theme === targetCategory)
+      .map(normalizeMockEtf);
+    return { ...paged(items, { limit, offset }), source: "mock-a-share", delayed: false, updatedAt: new Date().toISOString() };
+  }
+
+  async function searchEtfs({ q, market, limit = 20 }) {
+    const queryText = String(q || "").trim().toLowerCase();
+    const items = [...etfs.values()]
+      .filter(item => !market || item.market === market)
+      .filter(item => (
+        item.code.includes(queryText) ||
+        item.name.toLowerCase().includes(queryText) ||
+        item.category.toLowerCase().includes(queryText) ||
+        item.theme.toLowerCase().includes(queryText)
+      ))
+      .slice(0, Math.min(Number(limit) || 20, 100))
+      .map(normalizeMockEtf);
+    return { items, source: "mock-a-share", delayed: false, updatedAt: new Date().toISOString() };
+  }
+
+  async function getEtfQuote(identity) {
+    const etf = getEtf(identity);
+    return etf ? normalizeMockEtf(etf) : null;
+  }
+
+  async function getEtfHistory({ market, code, period, range }) {
+    const etf = getEtf({ market, code });
+    if (!etf) return null;
+    return {
+      etf: { id: `ETF:${market}:${code}`, type: "etf", market, code },
+      period,
+      range,
+      items: makeHistory(etf, period, range),
+      source: "mock-a-share",
+      delayed: false,
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
   return {
     id: "mock-a-share",
     sourceId: "mock-a-share",
@@ -150,6 +210,10 @@ export function createMockStockDataProvider(options = {}) {
     getQuotes,
     getHistory,
     getDepth,
+    getEtfUniverse,
+    searchEtfs,
+    getEtfQuote,
+    getEtfHistory,
   };
 }
 
@@ -172,6 +236,10 @@ function createDisabledMockProvider() {
     getQuotes: disabled,
     getHistory: disabled,
     getDepth: disabled,
+    getEtfUniverse: disabled,
+    searchEtfs: disabled,
+    getEtfQuote: disabled,
+    getEtfHistory: disabled,
   };
 }
 

@@ -153,7 +153,7 @@ test("memory card back uses the source image ratio with overlapping container an
   assert.match(holderRule[1], /height:\s*100%/);
   assert.doesNotMatch(holderRule[1], /transform:/);
   assert.match(holderRule[1], /border-radius:\s*var\(--memory-card-radius\)/);
-  assert.match(holderRule[1], /background:\s*#0f0c29 url\("angle\.png"\) center \/ cover no-repeat/);
+  assert.match(holderRule[1], /background:\s*#0f0c29 url\("angle-card\.jpg"\) center \/ cover no-repeat/);
   assert.match(imageRule[1], /width:\s*100%/);
   assert.match(imageRule[1], /height:\s*100%/);
   assert.match(imageRule[1], /object-fit:\s*cover/);
@@ -165,18 +165,47 @@ test("memory card back uses the source image ratio with overlapping container an
 test("memory card back image is eagerly available on mobile browsers", () => {
   assert.match(
     html,
-    /<link rel="preload" as="image" href="angle\.png" \/>/,
+    /<link rel="preload" as="image" href="angle-card\.jpg" \/>/,
     "The card back image should be preloaded before the memory board is rendered",
   );
   assert.match(
     html,
-    /<img src="angle\.png" alt="Angel" loading="eager" decoding="async" fetchpriority="high" \/>/,
+    /<img src="angle-card\.jpg" alt="Angel" loading="eager" decoding="async" fetchpriority="high" \/>/,
     "The card back image should not rely on lazy loading inside the 3D flip layer",
   );
   assert.doesNotMatch(
     html,
-    /<img src="angle\.png" alt="Angel" loading="lazy"/,
+    /<img src="angle-card\.jpg" alt="Angel" loading="lazy"/,
     "Lazy loading can leave the card back image blank on mobile browsers",
+  );
+});
+
+test("memory card back uses an optimized image asset", () => {
+  const optimizedAsset = path.join(__dirname, "..", "angle-card.jpg");
+  const sourceAsset = path.join(__dirname, "..", "angle.png");
+
+  assert.ok(fs.existsSync(optimizedAsset), "Missing optimized memory card back asset");
+  assert.match(
+    html,
+    /<link rel="preload" as="image" href="angle-card\.jpg" \/>/,
+    "The card back should preload the optimized asset",
+  );
+  assert.match(
+    html,
+    /background:\s*#0f0c29 url\("angle-card\.jpg"\) center \/ cover no-repeat/,
+    "The CSS fallback should use the optimized asset",
+  );
+  assert.match(
+    html,
+    /<img src="angle-card\.jpg" alt="Angel" loading="eager" decoding="async" fetchpriority="high" \/>/,
+    "The eager card image should use the optimized asset",
+  );
+
+  const optimizedSize = fs.statSync(optimizedAsset).size;
+  const sourceSize = fs.statSync(sourceAsset).size;
+  assert.ok(
+    optimizedSize < sourceSize * 0.25,
+    `Expected optimized card asset to be under 25% of source size, got ${optimizedSize} of ${sourceSize} bytes`,
   );
 });
 

@@ -98,10 +98,13 @@ function loadStockLimitBoardEngine() {
     ${extractFunction("isStockWeakOrNegativeBar")}
     ${extractFunction("getStockRecentHigh")}
     ${extractFunction("getStockTechnicalSignals")}
+    let excludeStockLimitBoardSt = true;
+    let excludeStockLimitBoardGem = true;
+    ${extractFunction("stockPassesLimitBoardFilters")}
     ${extractFunction("getStockLimitBoardItem")}
     ${extractFunction("getStockLimitBoardGroups")}
     ${extractFunction("getHighestStockLimitBoardLevel")}
-    return { getStockLimitBoardItem, getStockLimitBoardGroups, getHighestStockLimitBoardLevel };
+    return { stockPassesLimitBoardFilters, getStockLimitBoardItem, getStockLimitBoardGroups, getHighestStockLimitBoardLevel };
   `)();
 }
 
@@ -486,8 +489,9 @@ function loadStockMiniChartDrawer() {
   `)();
 }
 
-function loadStockHistoryLoader(fetchItems = []) {
-  return new Function("fetchItems", `
+function loadStockHistoryLoader(fetchItems = [], responseOptions = {}) {
+  return new Function("fetchItems", "responseOptions", `
+    const STOCK_API_STALE_MESSAGE = "上游行情源暂时不可用，当前显示缓存行情。";
     let stockApiReady = true;
     let stockApiStatus = "live";
     let stockApiErrorMessage = "";
@@ -503,9 +507,9 @@ function loadStockHistoryLoader(fetchItems = []) {
     const stockDailyRanges = [
       { id: "60", label: "60日", days: 60 }
     ];
-    async function fetchStockApi() {
+    async function fetchFastMarketHistory() {
       fetchCalls += 1;
-      return { items: fetchItems, source: "xueqiu", updatedAt: "2026-06-09T02:44:47.566Z" };
+      return { items: fetchItems, source: "tencent", updatedAt: "2026-07-13T11:00:00.000Z", ...responseOptions };
     }
     function getStockApiErrorMessage(error) {
       return error?.message || "历史K线加载失败";
@@ -523,9 +527,261 @@ function loadStockHistoryLoader(fetchItems = []) {
       loadRealStockHistory,
       getStockDailyEmptyMessage,
       getStockHistoryLoadKey,
+      setApiReady(value) { stockApiReady = Boolean(value); },
       state() { return { stockApiStatus, stockApiErrorMessage, fetchCalls }; },
     };
-  `)(fetchItems);
+  `)(fetchItems, responseOptions);
+}
+
+function loadFastMarketHistoryClient({ directResponse, directError, backendResponse } = {}) {
+  return new Function("directResponse", "directError", "backendResponse", `
+    let backendCalls = 0;
+    let stockCalls = 0;
+    let etfCalls = 0;
+    const cacheWrites = [];
+    function getBrowserTencentProvider() {
+      return Promise.resolve({
+        getHistory() {
+          stockCalls += 1;
+          if (directError) return Promise.reject(directError);
+          return Promise.resolve(directResponse);
+        },
+        getEtfHistory() {
+          etfCalls += 1;
+          if (directError) return Promise.reject(directError);
+          return Promise.resolve(directResponse);
+        },
+      });
+    }
+    function getStockApiCacheRetentionMs() { return 30_000; }
+    function getStockApiCacheKey(path) { return "cache:" + path; }
+    function writeStockApiCache(key, value, retentionMs) {
+      cacheWrites.push({ key, value, retentionMs });
+      return Promise.resolve(true);
+    }
+    function fetchStockApi(path) {
+      backendCalls += 1;
+      return Promise.resolve({ ...backendResponse, path });
+    }
+    ${extractFunction("fetchFastMarketHistory")}
+    return {
+      fetchFastMarketHistory,
+      state() { return { backendCalls, stockCalls, etfCalls, cacheWrites }; },
+    };
+  `)(directResponse, directError, backendResponse);
+}
+
+test("browser history uses Tencent directly and retains the response", async () => {
+  const directResponse = {
+    items: [{ time: "2026-07-13", close: 11 }],
+    source: "tencent",
+  };
+  const client = loadFastMarketHistoryClient({ directResponse });
+  const path = "/v1/stocks/SH/600519/history?period=day&range=60d";
+
+  const response = await client.fetchFastMarketHistory(path, {
+    market: "SH",
+    code: "600519",
+    period: "day",
+    range: "60d",
+    type: "stock",
+  });
+  const state = client.state();
+
+  assert.equal(response.source, "tencent");
+  assert.equal(response.stale, false);
+  assert.equal(response.headers.get("x-data-source"), "tencent");
+  assert.equal(state.stockCalls, 1);
+  assert.equal(state.backendCalls, 0);
+  assert.deepEqual(state.cacheWrites, [{
+    key: `cache:${path}`,
+    value: directResponse,
+    retentionMs: 30_000,
+  }]);
+});
+
+test("browser ETF history uses the Tencent ETF method", async () => {
+  const client = loadFastMarketHistoryClient({
+    directResponse: {
+      items: [{ time: "2026-07-13", close: 4.74 }],
+      source: "tencent",
+    },
+  });
+
+  await client.fetchFastMarketHistory(
+    "/v1/etfs/SH/510300/history?period=day&range=60d",
+    { market: "SH", code: "510300", period: "day", range: "60d", type: "etf" },
+  );
+
+  assert.equal(client.state().etfCalls, 1);
+  assert.equal(client.state().stockCalls, 0);
+});
+
+test("browser history falls back to the existing backend once", async () => {
+  const backendResponse = {
+    items: [{ time: "2026-07-12", close: 10 }],
+    source: "eastmoney",
+  };
+  const client = loadFastMarketHistoryClient({
+    directError: new Error("cors blocked"),
+    backendResponse,
+  });
+  const path = "/v1/stocks/SH/600519/history?period=day&range=60d";
+
+  const response = await client.fetchFastMarketHistory(path, {
+    market: "SH",
+    code: "600519",
+    period: "day",
+    range: "60d",
+    type: "stock",
+  });
+
+  assert.equal(response.source, "eastmoney");
+  assert.equal(response.path, path);
+  assert.equal(client.state().backendCalls, 1);
+  assert.equal(client.state().cacheWrites.length, 0);
+});
+
+test("stock page lazily imports one browser Tencent provider", () => {
+  const loader = extractFunction("getBrowserTencentProvider");
+
+  assert.match(html, /const TENCENT_PROVIDER_MODULE_URL = "\.\/tencent-provider\.mjs"/);
+  assert.match(html, /let browserTencentProviderPromise = null/);
+  assert.match(loader, /import\(TENCENT_PROVIDER_MODULE_URL\)/);
+  assert.match(loader, /module\.createTencentProvider\(\)/);
+  assert.match(loader, /browserTencentProviderPromise = null/);
+});
+
+test("active stock history loads before the backend universe is ready", async () => {
+  const module = loadStockHistoryLoader([
+    {
+      time: "2026-07-13",
+      open: 10,
+      high: 12,
+      low: 9,
+      close: 11,
+      volume: 1000,
+      amount: 2000,
+    },
+  ]);
+  module.setApiReady(false);
+  const stock = {
+    id: "sh600519",
+    market: "SH",
+    code: "600519",
+    dailyK: [],
+    history: [],
+  };
+
+  const loaded = await module.loadRealStockHistory(stock);
+
+  assert.equal(loaded, true);
+  assert.equal(module.state().fetchCalls, 1);
+  assert.equal(stock.dailyK.length, 1);
+  assert.equal(stock.source, "tencent");
+});
+
+test("stock and ETF history loaders use the browser fast client", () => {
+  const stockLoader = extractFunction("loadRealStockHistory");
+  const etfLoader = extractFunction("loadRealEtfHistory");
+
+  assert.match(stockLoader, /fetchFastMarketHistory\(path, \{/);
+  assert.match(stockLoader, /type: "stock"/);
+  assert.match(etfLoader, /fetchFastMarketHistory\(path, \{/);
+  assert.match(etfLoader, /type: "etf"/);
+  assert.doesNotMatch(stockLoader, /!stockApiReady/);
+});
+
+function loadStockHistoryStateMerger() {
+  return new Function(`
+    ${extractFunction("mergeStockLoadedHistory")}
+    return mergeStockLoadedHistory;
+  `)();
+}
+
+test("canonical universe stocks retain history loaded on placeholders", () => {
+  const merge = loadStockHistoryStateMerger();
+  const canonical = {
+    id: "sh600519",
+    market: "SH",
+    code: "600519",
+    name: "贵州茅台",
+    dailyK: [],
+    history: [],
+  };
+  const placeholder = {
+    id: "sh600519",
+    market: "SH",
+    code: "600519",
+    source: "tencent",
+    dailyK: [{ time: "2026-07-13", close: 1210.99 }],
+    history: [{ open: 1200, high: 1220, low: 1190, close: 1210.99 }],
+    historyLoadKey: "SH600519:day:60d",
+    historyLoadEmptyKey: "",
+    historyLoadErrorKey: "",
+    historyLoadErrorMessage: "",
+    historyDataStale: false,
+  };
+
+  const result = merge(canonical, placeholder);
+
+  assert.equal(result, canonical);
+  assert.equal(canonical.name, "贵州茅台");
+  assert.equal(canonical.source, "tencent");
+  assert.deepEqual(canonical.dailyK, placeholder.dailyK);
+  assert.notEqual(canonical.dailyK, placeholder.dailyK);
+});
+
+test("real stock initialization starts active history before universe completion", () => {
+  const block = extractBlock(
+    /async function initializeRealStockData\(\) \{/,
+    /\n    \}\n\n    function getStockChangeClass/,
+  );
+
+  assert.ok(
+    block.indexOf("loadRealStockHistory(activeStock)")
+      < block.indexOf("loadRealStockUniverse({ notify: false })"),
+  );
+  assert.match(block, /Promise\.all\(\[historyRequest, universeRequest\]\)/);
+  assert.match(block, /stockWatchlist\[0\]/);
+  assert.match(block, /makeStockIdentityPlaceholder\(defaultStockWatchCodes\[0\]\)/);
+  assert.match(block, /mergeStockLoadedHistory\(canonical, activeStock\)/);
+  assert.match(block, /stockApiStatus = "chart-live"/);
+  assert.match(
+    html,
+    /async function loadRealStockUniverse\(\{ force = false, foreground = true, notify = true \} = \{\}\)/,
+  );
+});
+
+test("stock status distinguishes a direct chart from a loaded universe", () => {
+  const status = extractFunction("renderStockDataStatus");
+
+  assert.match(status, /stockApiStatus === "chart-live"/);
+  assert.match(status, /图表直连可用/);
+  assert.match(status, /股票列表暂不可用/);
+});
+
+function loadStockUniverseLoader(response) {
+  return new Function("response", `
+    const STOCK_API_STALE_MESSAGE = "上游行情源暂时不可用，当前显示缓存行情。";
+    const STOCK_UNIVERSE_LOAD_LIMIT = 6000;
+    const stockUniverse = [];
+    let stockApiReady = false;
+    let stockApiLoading = false;
+    let stockApiStatus = "loading";
+    let stockApiErrorMessage = "";
+    let activeFeature = "";
+    function fetchStockApi() { return Promise.resolve(response); }
+    function storeStockUniverse(value) { stockUniverse.splice(0, stockUniverse.length, ...(value.items || [])); }
+    function scheduleStockUniverseChartPreload() {}
+    function showToast() {}
+    function renderStockPage() {}
+    ${extractFunction("loadRealStockUniverse").replace("function loadRealStockUniverse", "async function loadRealStockUniverse")}
+    return {
+      loadRealStockUniverse,
+      state() { return { stockApiReady, stockApiStatus, stockApiErrorMessage, stockUniverse }; },
+    };
+  `)(response);
 }
 
 function loadStockQuoteRefresher(errorMessage = "Xueqiu outbound rate limit exceeded") {
@@ -560,6 +816,48 @@ function loadStockApiErrorFormatter() {
     ${extractFunction("getStockApiErrorMessage")}
     return getStockApiErrorMessage;
   `)();
+}
+
+function loadStockApiClient(responses) {
+  return new Function("responses", `
+    const STOCK_API_RETRY_ATTEMPTS = 2;
+    const STOCK_API_RETRY_DELAY_MS = 0;
+    const STOCK_API_UNIVERSE_CACHE_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+    const STOCK_API_HISTORY_CACHE_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+    const STOCK_API_CACHE_DB_NAME = "tool_web_stock_cache";
+    const STOCK_API_CACHE_DB_VERSION = 1;
+    const STOCK_API_CACHE_STORE = "responses";
+    const stockApiMemoryCache = new Map();
+    let stockApiCacheDbPromise = null;
+    let fetchCalls = 0;
+    const window = { indexedDB: null };
+    function getStockApiBaseUrl() { return "https://stock-api.test"; }
+    async function fetch() {
+      const next = responses[fetchCalls];
+      fetchCalls += 1;
+      if (next instanceof Error) throw next;
+      if (!next) throw new Error("Missing test response");
+      return next;
+    }
+    ${extractFunction("getStockApiCacheRetentionMs")}
+    ${extractFunction("getStockApiCacheKey")}
+    ${extractFunction("openStockApiCacheDb")}
+    ${extractFunction("readStockApiCache").replace("function readStockApiCache", "async function readStockApiCache")}
+    ${extractFunction("writeStockApiCache").replace("function writeStockApiCache", "async function writeStockApiCache")}
+    ${extractFunction("getStockApiCachedResponse")}
+    ${extractFunction("createStockApiError")}
+    ${extractFunction("isTransientStockApiError")}
+    ${extractFunction("shouldRetryStockApiRequest")}
+    ${extractFunction("waitForStockApiRetry")}
+    ${extractFunction("fetchStockApi").replace("function fetchStockApi", "async function fetchStockApi")}
+    return {
+      fetchStockApi,
+      getStockApiCacheKey,
+      readStockApiCache,
+      writeStockApiCache,
+      state() { return { fetchCalls }; },
+    };
+  `)(responses);
 }
 
 function renderStockDataStatusFixture({
@@ -671,6 +969,23 @@ test("stock limit-board view is registered and schedules candidate history loadi
   assert.match(html, /activeStockView === "limit-board"/);
 });
 
+test("stock ETF view is registered with independent state and rendering", () => {
+  const limitBoardUniverseBlock = extractFunction("getStockLimitBoardUniverse");
+
+  assert.match(html, /id: "etf"/);
+  assert.match(html, /name: "行业ETF"/);
+  assert.match(html, /let etfUniverse = \[\]/);
+  assert.match(html, /let activeEtfId = ""/);
+  assert.match(html, /function loadRealEtfUniverse\(\)/);
+  assert.match(html, /function loadRealEtfHistory\(/);
+  assert.match(html, /function renderStockEtfView\(\)/);
+  assert.match(html, /activeStockView === "etf"/);
+  assert.match(html, /data-stock-etf-row/);
+  assert.match(html, /data-stock-etf-category/);
+  assert.match(html, /data-stock-daily-chart/);
+  assert.doesNotMatch(limitBoardUniverseBlock, /etfUniverse/);
+});
+
 test("stocks logic supports search, filters, watchlist persistence, sorting, charts, and refresh", () => {
   const requiredFunctions = [
     "getStockApiBaseUrl",
@@ -730,7 +1045,7 @@ test("stocks logic supports search, filters, watchlist persistence, sorting, cha
 });
 
 test("stocks module requires the backend API and does not fall back to generated mock quotes", () => {
-  assert.match(html, /async function loadRealStockUniverse\(\{ force = false, foreground = true \} = \{\}\)/);
+  assert.match(html, /async function loadRealStockUniverse\(\{ force = false, foreground = true, notify = true \} = \{\}\)/);
   assert.match(html, /const STOCK_UNIVERSE_LOAD_LIMIT = 6000/);
   assert.match(html, /fetchStockApi\(`\/v1\/stocks\/universe\?limit=\$\{STOCK_UNIVERSE_LOAD_LIMIT\}`\)/);
   assert.doesNotMatch(html, /STOCK_REAL_SEARCH_SEEDS/);
@@ -749,18 +1064,193 @@ test("stocks module requires the backend API and does not fall back to generated
   assert.doesNotMatch(html, /makeMockStockUniverse/);
   assert.doesNotMatch(html, /STOCK_MOCK_TOTAL/);
   assert.doesNotMatch(html, /stockDataSource = "mock-a-share"/);
-  assert.match(html, /await loadRealStockUniverse\(\)/);
+  assert.match(html, /const universeRequest = loadRealStockUniverse\(\{ notify: false \}\)/);
 });
 
 test("stock API network errors are normalized before rendering", () => {
   const formatError = loadStockApiErrorFormatter();
   const networkMessage = "行情接口连接失败，请确认本地股票 API 已启动，或检查当前网络/隧道是否可访问。";
+  const providerMessage = "上游行情源暂时不可用，请稍后重试；已加载的数据会继续保留。";
 
   assert.equal(formatError(new TypeError("fetch failed")), networkMessage);
   assert.equal(formatError(new TypeError("Failed to fetch")), networkMessage);
   assert.equal(formatError(new Error("NetworkError when attempting to fetch resource.")), networkMessage);
+  assert.equal(formatError(Object.assign(new Error("fetch failed"), {
+    name: "StockApiError",
+    status: 502,
+    code: "MARKET_DATA_UNAVAILABLE",
+  })), providerMessage);
   assert.equal(formatError(new Error("XUEQIU_COOKIE is required")), "XUEQIU_COOKIE is required");
   assert.equal(formatError(null), "行情接口不可用，请检查后端服务和 Xueqiu 凭据配置。");
+});
+
+test("stock API client preserves structured upstream failures", async () => {
+  const makeFailure = () => new Response(JSON.stringify({
+    code: "MARKET_DATA_UNAVAILABLE",
+    message: "fetch failed",
+    traceId: "trace-provider",
+  }), {
+    status: 502,
+    headers: { "content-type": "application/json" },
+  });
+  const client = loadStockApiClient([makeFailure(), makeFailure()]);
+
+  await assert.rejects(
+    () => client.fetchStockApi("/v1/stocks/SH/600519/history?period=day&range=60d"),
+    error => error.name === "StockApiError" &&
+      error.status === 502 &&
+      error.code === "MARKET_DATA_UNAVAILABLE" &&
+      error.traceId === "trace-provider"
+  );
+  assert.equal(client.state().fetchCalls, 2);
+});
+
+test("stock API client retries one transient upstream failure", async () => {
+  const client = loadStockApiClient([
+    new Response(JSON.stringify({ code: "MARKET_DATA_UNAVAILABLE", message: "fetch failed" }), {
+      status: 502,
+      headers: { "content-type": "application/json" },
+    }),
+    new Response(JSON.stringify({ items: [{ code: "600519" }], source: "eastmoney" }), {
+      status: 200,
+      headers: { "content-type": "application/json", "x-data-source": "eastmoney" },
+    }),
+  ]);
+
+  const result = await client.fetchStockApi("/v1/stocks/universe?limit=6000");
+
+  assert.equal(client.state().fetchCalls, 2);
+  assert.equal(result.items[0].code, "600519");
+});
+
+test("stock API cache keeps retained values in memory when IndexedDB is unavailable", async () => {
+  const client = loadStockApiClient([]);
+
+  await client.writeStockApiCache("history-key", { items: [{ close: 1210.99 }] }, 100, 1_000);
+
+  assert.deepEqual(await client.readStockApiCache("history-key", 1_050), {
+    key: "history-key",
+    value: { items: [{ close: 1210.99 }] },
+    cachedAt: 1_000,
+    retainUntil: 1_100,
+  });
+  assert.equal(await client.readStockApiCache("history-key", 1_101), null);
+});
+
+test("stock API client stores fresh cacheable responses", async () => {
+  const path = "/v1/stocks/universe?limit=6000";
+  const client = loadStockApiClient([
+    new Response(JSON.stringify({ items: [{ code: "600519" }], source: "eastmoney" }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    }),
+  ]);
+
+  await client.fetchStockApi(path);
+  const cached = await client.readStockApiCache(client.getStockApiCacheKey(path));
+
+  assert.deepEqual(cached.value.items, [{ code: "600519" }]);
+});
+
+test("stock API client returns retained cache after transient attempts fail", async () => {
+  const path = "/v1/stocks/SH/600519/history?period=day&range=60d";
+  const failure = () => new Response(JSON.stringify({
+    code: "MARKET_DATA_UNAVAILABLE",
+    message: "fetch failed",
+    traceId: "trace-provider",
+  }), {
+    status: 502,
+    headers: { "content-type": "application/json" },
+  });
+  const client = loadStockApiClient([failure(), failure()]);
+  await client.writeStockApiCache(client.getStockApiCacheKey(path), {
+    items: [{ time: "2026-07-10", close: 1204.98 }],
+    source: "eastmoney",
+  }, 60_000);
+
+  const result = await client.fetchStockApi(path);
+
+  assert.equal(client.state().fetchCalls, 2);
+  assert.equal(result.stale, true);
+  assert.equal(result.headers.get("x-cache"), "CLIENT-STALE");
+  assert.equal(result.headers.get("x-data-stale"), "true");
+  assert.equal(result.items[0].close, 1204.98);
+});
+
+test("stock API client does not hide validation failures behind retained cache", async () => {
+  const path = "/v1/stocks/SH/600519/history?period=invalid&range=60d";
+  const client = loadStockApiClient([
+    new Response(JSON.stringify({
+      code: "VALIDATION_FAILED",
+      message: "period is invalid",
+      traceId: "trace-validation",
+    }), {
+      status: 400,
+      headers: { "content-type": "application/json" },
+    }),
+  ]);
+  await client.writeStockApiCache(client.getStockApiCacheKey(path), {
+    items: [{ time: "2026-07-10", close: 1204.98 }],
+  }, 60_000);
+
+  await assert.rejects(
+    () => client.fetchStockApi(path),
+    error => error.name === "StockApiError" &&
+      error.status === 400 &&
+      error.code === "VALIDATION_FAILED"
+  );
+  assert.equal(client.state().fetchCalls, 1);
+});
+
+test("stock API client retries a non-JSON 503 response", async () => {
+  const client = loadStockApiClient([
+    new Response("Service temporarily unavailable", {
+      status: 503,
+      headers: { "content-type": "text/html" },
+    }),
+    new Response(JSON.stringify({ items: [{ code: "600519" }], source: "eastmoney" }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    }),
+  ]);
+
+  const result = await client.fetchStockApi("/v1/stocks/universe?limit=6000");
+
+  assert.equal(client.state().fetchCalls, 2);
+  assert.equal(result.items[0].code, "600519");
+});
+
+test("stock universe treats retained cache as usable data with a warning", async () => {
+  const module = loadStockUniverseLoader({
+    items: [{ market: "SH", code: "600519", name: "贵州茅台" }],
+    source: "eastmoney",
+    stale: true,
+  });
+
+  const loaded = await module.loadRealStockUniverse();
+  const state = module.state();
+
+  assert.equal(loaded, true);
+  assert.equal(state.stockApiReady, true);
+  assert.equal(state.stockUniverse.length, 1);
+  assert.equal(state.stockApiStatus, "error");
+  assert.equal(state.stockApiErrorMessage, "上游行情源暂时不可用，当前显示缓存行情。");
+});
+
+test("stock history renders retained K lines and surfaces a stale warning", async () => {
+  const module = loadStockHistoryLoader([
+    { time: "2026-07-10", open: 1190, high: 1215, low: 1170, close: 1204.98, volume: 1804 },
+  ], { stale: true });
+  const stock = { market: "SH", code: "600519", dailyK: [], history: [] };
+
+  const loaded = await module.loadRealStockHistory(stock);
+  const state = module.state();
+
+  assert.equal(loaded, true);
+  assert.equal(stock.dailyK.length, 1);
+  assert.equal(state.stockApiStatus, "error");
+  assert.equal(state.stockApiErrorMessage, "上游行情源暂时不可用，当前显示缓存行情。");
+  assert.match(extractFunction("loadRealEtfHistory"), /STOCK_API_STALE_MESSAGE/);
 });
 
 test("stock status keeps loaded universe context after a later request failure", () => {
@@ -827,13 +1317,12 @@ test("stock daily list uses the unified loaded universe instead of paged univers
   assert.doesNotMatch(html, /function setStockUniversePage\(action\)/);
   assert.doesNotMatch(html, /const dailyPageButton = event\.target\.closest\("\[data-stock-daily-page\]"\)/);
   assert.doesNotMatch(html, /const dailyPageInput = event\.target\.closest\("\[data-stock-daily-page-input\]"\)/);
-  assert.match(html, /const source = stockUniverse/);
+  assert.match(html, /const source = stockUniverse\.length \? stockUniverse : stockWatchlist/);
 });
 
 test("stock universe background preload prepares chart history from the unified universe", () => {
-  assert.match(html, /const STOCK_UNIVERSE_CHART_PRELOAD_PAGE_SIZE = STOCK_DAILY_VIRTUAL_COUNT/);
-  assert.match(html, /const STOCK_UNIVERSE_CHART_PRELOAD_PAGE_RADIUS = 5/);
-  assert.match(html, /const STOCK_UNIVERSE_CHART_PRELOAD_LIMIT = STOCK_UNIVERSE_CHART_PRELOAD_PAGE_SIZE \* \(STOCK_UNIVERSE_CHART_PRELOAD_PAGE_RADIUS \* 2 \+ 1\) \+ 1/);
+  assert.match(html, /const STOCK_UNIVERSE_CHART_PRELOAD_LIMIT = STOCK_DAILY_VIRTUAL_COUNT \+ STOCK_DAILY_VIRTUAL_BUFFER/);
+  assert.doesNotMatch(html, /STOCK_UNIVERSE_CHART_PRELOAD_PAGE_RADIUS/);
   assert.match(html, /const stockHistoryLoads = new Map\(\)/);
   assert.match(html, /let stockUniverseChartPreloadRunning = false/);
   assert.match(html, /function getStockHistoryLoadKey\(stock\)/);
@@ -865,13 +1354,10 @@ test("stock universe chart preload prioritizes the active and visible daily stoc
   assert.match(candidatesBlock, /addStock\(getActiveDailyStock\(\)\)/);
   assert.match(candidatesBlock, /const sortedStocks = getSortedDailyStocks\(\)/);
   assert.match(candidatesBlock, /stockDailyVirtualStart/);
-  assert.match(candidatesBlock, /const currentPage = Math\.max\(0, Math\.min\(maxPage, Math\.floor\(start \/ pageSize\)\)\)/);
-  assert.match(candidatesBlock, /const pageOffsets = \[0\]/);
-  assert.match(candidatesBlock, /offset <= STOCK_UNIVERSE_CHART_PRELOAD_PAGE_RADIUS/);
-  assert.match(candidatesBlock, /pageOffsets\.push\(-offset, offset\)/);
-  assert.match(candidatesBlock, /const pageStart = pageIndex \* pageSize/);
-  assert.match(candidatesBlock, /sortedStocks\.slice\(pageStart, pageEnd\)\.forEach\(addStock\)/);
+  assert.match(candidatesBlock, /const end = Math\.min\(sortedStocks\.length, start \+ STOCK_UNIVERSE_CHART_PRELOAD_LIMIT\)/);
+  assert.match(candidatesBlock, /sortedStocks\.slice\(start, end\)\.forEach\(addStock\)/);
   assert.match(candidatesBlock, /return candidates\.slice\(0, STOCK_UNIVERSE_CHART_PRELOAD_LIMIT\)/);
+  assert.doesNotMatch(candidatesBlock, /const pageOffsets = \[0\]/);
   assert.doesNotMatch(candidatesBlock, /sortedStocks\.forEach\(addStock\)/);
 });
 
@@ -972,7 +1458,7 @@ test("stocks data starts loading when the app opens", () => {
     /\n  <\/script>/
   );
   const loadUniverseBlock = extractBlock(
-    /async function loadRealStockUniverse\(\{ force = false, foreground = true \} = \{\}\) \{/,
+    /async function loadRealStockUniverse\(\{ force = false, foreground = true, notify = true \} = \{\}\) \{/,
     /\n    \}\n\n    async function refreshRealStockQuotes/
   );
 
@@ -985,7 +1471,7 @@ test("stock daily K view fetches real history for the active stock", () => {
   assert.match(html, /async function loadRealStockHistory\(stock, \{ force = false, foreground = true \} = \{\}\)/);
   assert.match(html, /period=\$\{encodeURIComponent\(period\)\}&range=\$\{encodeURIComponent\(range\)\}/);
   assert.match(html, /stock\.dailyK = response\.items\.map\(mergeStockHistory\)/);
-  assert.match(html, /await loadRealStockHistory\(getActiveDailyStock\(\)\)/);
+  assert.match(html, /loadRealStockHistory\(activeStock\)\.then/);
   assert.match(html, /loadRealStockHistory\(stock\)\.then/);
   assert.match(html, /drawStockDailyCanvas\(\)/);
 });
@@ -1774,6 +2260,50 @@ test("stock limit-board history loading only targets quote limit-up candidates",
   assert.doesNotMatch(candidateBlock, /stockUniverse\.filter\(stock => !hasStockLimitBoardHistoryReady\(stock\)\)/);
 });
 
+test("stock limit-board filters default to excluding ST and Growth Enterprise Market stocks", () => {
+  const { stockPassesLimitBoardFilters } = loadStockLimitBoardEngine();
+
+  assert.equal(stockPassesLimitBoardFilters({
+    id: "SH:600001",
+    market: "SH",
+    code: "600001",
+    name: "ST样本",
+    status: "ST",
+    boardType: "main",
+  }), false);
+
+  assert.equal(stockPassesLimitBoardFilters({
+    id: "SZ:300001",
+    market: "SZ",
+    code: "300001",
+    name: "创业样本",
+    status: "normal",
+    boardType: "gem",
+  }), false);
+
+  assert.equal(stockPassesLimitBoardFilters({
+    id: "SH:600002",
+    market: "SH",
+    code: "600002",
+    name: "主板样本",
+    status: "normal",
+    boardType: "main",
+  }), true);
+});
+
+test("stock limit-board filter controls are rendered and applied before candidate loading", () => {
+  const universeBlock = extractFunction("getStockLimitBoardUniverse");
+
+  assert.match(html, /let excludeStockLimitBoardSt = true/);
+  assert.match(html, /let excludeStockLimitBoardGem = true/);
+  assert.match(html, /function stockPassesLimitBoardFilters\(stock\)/);
+  assert.match(html, /function renderStockLimitBoardFilters\(\)/);
+  assert.match(html, /data-stock-limit-board-filter="st"/);
+  assert.match(html, /data-stock-limit-board-filter="gem"/);
+  assert.match(universeBlock, /stockPassesLimitBoardFilters/);
+  assert.match(universeBlock, /stockLooksLimitUpFromQuote/);
+});
+
 test("stock limit-board sidebar rows omit industry while the chart header keeps it", () => {
   const listBlock = extractFunction("renderStockLimitBoardList");
   const viewBlock = extractFunction("renderStockLimitBoardView");
@@ -1790,6 +2320,12 @@ test("stock limit-board interaction handlers switch board level and selected cha
   assert.match(html, /setStockLimitBoardLevel\(limitBoardLevelButton\.dataset\.stockLimitBoardLevel\)/);
   assert.match(html, /data-stock-limit-board-row/);
   assert.match(html, /setActiveLimitBoardStock\(limitBoardRow\.dataset\.stockLimitBoardRow\)/);
+});
+
+test("stock limit-board filter interaction toggles the selected exclusion", () => {
+  assert.match(html, /function toggleStockLimitBoardFilter\(filter\)/);
+  assert.match(html, /data-stock-limit-board-filter/);
+  assert.match(html, /toggleStockLimitBoardFilter\(limitBoardFilterButton\.dataset\.stockLimitBoardFilter\)/);
 });
 
 test("stock search supports Chinese pinyin initials", () => {

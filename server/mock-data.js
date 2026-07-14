@@ -29,6 +29,13 @@ const seeds = [
   ["SH", "600036", "招商银行", "银行", "main", 38.6, -0.21, 13.6, 6.1, 0.8],
 ];
 
+const etfSeeds = [
+  ["SH", "510300", "沪深300ETF", "宽基", "沪深300", 4.12, 0.68],
+  ["SH", "512880", "证券ETF", "行业", "证券", 0.96, 1.24],
+  ["SH", "512480", "半导体ETF", "行业", "半导体", 0.88, -0.45],
+  ["SZ", "159915", "创业板ETF", "宽基", "创业板", 2.13, 0.31],
+];
+
 function round(value, digits = 2) {
   return Number(value.toFixed(digits));
 }
@@ -75,6 +82,41 @@ export function makeQuote(seed, index = 0) {
 
 export function createInitialStocks() {
   return seeds.map(makeQuote);
+}
+
+export function makeEtfQuote(seed, index = 0) {
+  const [market, code, name, category, theme, price, changePercent] = seed;
+  const previousClose = round(price / (1 + changePercent / 100));
+  const dir = direction(changePercent);
+  return {
+    id: `ETF:${market}:${code}`,
+    type: "etf",
+    market,
+    code,
+    name,
+    category,
+    theme,
+    fundType: "ETF",
+    price,
+    changePercent,
+    changeAmount: round(price - previousClose),
+    volume: 800_000 + index * 97_000,
+    amount: round((price * (800_000 + index * 97_000)) / 100_000_000),
+    detailUrl: `https://example.test/etfs/${market}/${code}`,
+    delayed: false,
+    source: "mock-a-share",
+    updatedAt: NOW,
+    open: round(previousClose * 1.001),
+    high: round(price * 1.012),
+    low: round(price * 0.988),
+    previousClose,
+    direction: dir,
+    colorRole: dir === "up" ? "stock-up" : dir === "down" ? "stock-down" : "stock-flat",
+  };
+}
+
+export function createInitialEtfs() {
+  return etfSeeds.map(makeEtfQuote);
 }
 
 export function mutateQuote(quote, tick = 1) {

@@ -92,6 +92,39 @@ test("mock server exposes health, auth, market data, cacheable quote routes, and
   }
 });
 
+test("mock server exposes ETF universe, search, quote, history, and missing errors", async () => {
+  const server = await startTestServer();
+  try {
+    const universe = await requestJson(server.url, "/v1/etfs/universe?limit=10");
+    assert.equal(universe.response.status, 200);
+    assert.equal(universe.response.headers.get("x-data-source"), "mock-a-share");
+    assert.ok(universe.body.items.length >= 2);
+    assert.equal(universe.body.items[0].type, "etf");
+
+    const search = await requestJson(server.url, "/v1/etfs/search?q=300&limit=5");
+    assert.equal(search.response.status, 200);
+    assert.ok(search.body.items.some(item => item.code === "510300"));
+
+    const quote = await requestJson(server.url, "/v1/etfs/SH/510300/quote");
+    assert.equal(quote.response.status, 200);
+    assert.equal(quote.response.headers.get("x-data-source"), "mock-a-share");
+    assert.equal(quote.body.id, "ETF:SH:510300");
+    assert.equal(quote.body.type, "etf");
+
+    const history = await requestJson(server.url, "/v1/etfs/SH/510300/history?period=day&range=30d");
+    assert.equal(history.response.status, 200);
+    assert.equal(history.response.headers.get("x-cache"), "MISS");
+    assert.equal(history.body.etf.id, "ETF:SH:510300");
+    assert.equal(history.body.items.length, 30);
+
+    const missing = await requestJson(server.url, "/v1/etfs/SH/000000/quote");
+    assert.equal(missing.response.status, 404);
+    assert.equal(missing.body.code, "NOT_FOUND");
+  } finally {
+    await server.stop();
+  }
+});
+
 test("screener and audit events support pagination and filtering", async () => {
   const server = await startTestServer();
   try {

@@ -136,6 +136,52 @@ export async function route(req, res, context) {
       return json(res, 200, cached.value, headers);
     }
 
+    if (method === "GET" && url.pathname === "/v1/etfs/universe") {
+      if (!provider.getEtfUniverse) {
+        const result = error(501, "MARKET_DATA_UNAVAILABLE", "ETF universe is not available for the configured provider", traceId);
+        return json(res, result.status, result.body, { "x-data-source": provider.id });
+      }
+      const limit = Math.max(1, Math.min(Number(url.searchParams.get("limit")) || 6000, 10000));
+      const offset = Math.max(Number(url.searchParams.get("offset")) || 0, 0);
+      const market = url.searchParams.get("market");
+      const category = url.searchParams.get("category");
+      const key = `etf-universe:${market || ""}:${category || ""}:${limit}:${offset}`;
+      const cached = await withCache(state, key, async () => provider.getEtfUniverse({ market, category, limit, offset }), context.universeCacheTtlMs);
+      audit.record("etf.universe", { traceId, target: `${cached.value.items.length}/${cached.value.total}` });
+      const dataSource = cached.value.source || provider.id;
+      const headers = {
+        "x-cache": cached.hit ? "HIT" : "MISS",
+        "x-data-source": dataSource,
+      };
+      if (provider.id === "mock-a-share") headers["x-mock-cache"] = headers["x-cache"];
+      return json(res, 200, cached.value, headers);
+    }
+
+    if (method === "GET" && url.pathname === "/v1/etfs/search") {
+      if (!provider.searchEtfs) {
+        const result = error(501, "MARKET_DATA_UNAVAILABLE", "ETF search is not available for the configured provider", traceId);
+        return json(res, result.status, result.body, { "x-data-source": provider.id });
+      }
+      const q = (url.searchParams.get("q") || "").trim().toLowerCase();
+      if (!q) {
+        const result = error(400, "VALIDATION_FAILED", "q query is required", traceId);
+        return json(res, result.status, result.body);
+      }
+      const key = `etf-search:${url.search}`;
+      const cached = await withCache(state, key, async () => {
+        const limit = Math.min(Number(url.searchParams.get("limit")) || 20, 100);
+        const market = url.searchParams.get("market");
+        return provider.searchEtfs({ q, market, limit });
+      });
+      audit.record("etf.search", { traceId, target: q });
+      const headers = {
+        "x-cache": cached.hit ? "HIT" : "MISS",
+        "x-data-source": provider.id,
+      };
+      if (provider.id === "mock-a-share") headers["x-mock-cache"] = headers["x-cache"];
+      return json(res, 200, cached.value, headers);
+    }
+
     if (method === "POST" && url.pathname === "/v1/quotes") {
       const body = await readJson(req);
       if (!Array.isArray(body.symbols) || body.symbols.length < 1 || body.symbols.length > 100) {
@@ -180,6 +226,42 @@ export async function route(req, res, context) {
           return json(res, result.status, result.body);
         }
         return json(res, 200, depth, { "x-data-source": provider.id });
+      }
+    }
+
+    if (parts[0] === "v1" && parts[1] === "etfs" && parts.length >= 5) {
+      const [, , market, code, action] = parts;
+      if (method === "GET" && action === "quote") {
+        if (!provider.getEtfQuote) {
+          const result = error(501, "MARKET_DATA_UNAVAILABLE", "ETF quotes are not available for the configured provider", traceId);
+          return json(res, result.status, result.body, { "x-data-source": provider.id });
+        }
+        const etf = await provider.getEtfQuote({ market, code });
+        if (!etf) {
+          const result = error(404, "NOT_FOUND", `ETF ${market}:${code} not found`, traceId);
+          return json(res, result.status, result.body);
+        }
+        return json(res, 200, etf, { "x-data-source": etf.source || provider.id });
+      }
+      if (method === "GET" && action === "history") {
+        if (!provider.getEtfHistory) {
+          const result = error(501, "MARKET_DATA_UNAVAILABLE", "ETF history is not available for the configured provider", traceId);
+          return json(res, result.status, result.body, { "x-data-source": provider.id });
+        }
+        const period = url.searchParams.get("period");
+        const range = url.searchParams.get("range");
+        const key = `etf-history:${market}:${code}:${period || ""}:${range || ""}`;
+        const cached = await withCache(state, key, async () => provider.getEtfHistory({ market, code, period, range }), context.historyCacheTtlMs);
+        const history = cached.value;
+        if (!history) {
+          const result = error(404, "NOT_FOUND", `ETF ${market}:${code} not found`, traceId);
+          return json(res, result.status, result.body);
+        }
+        audit.record("etf.history.read", { traceId, target: `${market}:${code}` });
+        return json(res, 200, history, {
+          "x-cache": cached.hit ? "HIT" : "MISS",
+          "x-data-source": history.source || provider.id,
+        });
       }
     }
 
