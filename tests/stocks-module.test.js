@@ -476,6 +476,9 @@ function loadStockMiniChartDrawer() {
       ];
       return true;
     }
+    function enqueueStockBackgroundHistory(stock) {
+      return loadRealStockHistory(stock);
+    }
     ${extractFunction("getStockIdentity")}
     ${extractFunction("getStockMiniChartHistory")}
     ${extractFunction("requestStockMiniChartHistory")}
@@ -489,8 +492,8 @@ function loadStockMiniChartDrawer() {
   `)();
 }
 
-function loadStockHistoryLoader(fetchItems = [], responseOptions = {}) {
-  return new Function("fetchItems", "responseOptions", `
+function loadStockHistoryLoader(fetchItems = [], responseOptions = {}, fetchHistory) {
+  return new Function("fetchItems", "responseOptions", "fetchHistory", `
     const STOCK_API_STALE_MESSAGE = "上游行情源暂时不可用，当前显示缓存行情。";
     let stockApiReady = true;
     let stockApiStatus = "live";
@@ -505,10 +508,12 @@ function loadStockHistoryLoader(fetchItems = [], responseOptions = {}) {
       { id: "day", label: "日K", mode: "k", groupSize: 1 }
     ];
     const stockDailyRanges = [
-      { id: "60", label: "60日", days: 60 }
+      { id: "60", label: "60日", days: 60 },
+      { id: "120", label: "半年", days: 120 }
     ];
-    async function fetchFastMarketHistory() {
+    async function fetchFastMarketHistory(path, params) {
       fetchCalls += 1;
+      if (fetchHistory) return fetchHistory(path, params);
       return { items: fetchItems, source: "tencent", updatedAt: "2026-07-13T11:00:00.000Z", ...responseOptions };
     }
     function getStockApiErrorMessage(error) {
@@ -519,6 +524,7 @@ function loadStockHistoryLoader(fetchItems = [], responseOptions = {}) {
     ${extractFunction("getStockDailyPeriod")}
     ${extractFunction("getStockHistoryRangeParam")}
     ${extractFunction("mergeStockHistory")}
+    ${extractFunction("normalizeStockHistoryItems")}
     ${extractFunction("getStockIdentity")}
     ${extractFunction("getStockHistoryLoadKey")}
     ${extractFunction("loadRealStockHistory")}
@@ -528,9 +534,38 @@ function loadStockHistoryLoader(fetchItems = [], responseOptions = {}) {
       getStockDailyEmptyMessage,
       getStockHistoryLoadKey,
       setApiReady(value) { stockApiReady = Boolean(value); },
+      setRange(value) { activeStockDailyRange = value; },
       state() { return { stockApiStatus, stockApiErrorMessage, fetchCalls }; },
     };
-  `)(fetchItems, responseOptions);
+  `)(fetchItems, responseOptions, fetchHistory);
+}
+
+function loadStockBackgroundHistoryQueue() {
+  return new Function(`
+    const STOCK_BACKGROUND_HISTORY_CONCURRENCY = 2;
+    const stockBackgroundHistoryQueue = [];
+    const stockBackgroundHistoryQueued = new Map();
+    let stockBackgroundHistoryRunning = 0;
+    const pending = [];
+    let active = 0;
+    let maxActive = 0;
+    function getStockHistoryLoadKey(stock) { return stock.id; }
+    function loadRealStockHistory(stock) {
+      active += 1;
+      maxActive = Math.max(maxActive, active);
+      return new Promise(resolve => pending.push(() => {
+        active -= 1;
+        resolve(stock.id);
+      }));
+    }
+    ${extractFunction("runStockBackgroundHistoryQueue")}
+    ${extractFunction("enqueueStockBackgroundHistory")}
+    return {
+      enqueueStockBackgroundHistory,
+      resolveNext() { pending.shift()?.(); },
+      stats() { return { active, maxActive, queued: stockBackgroundHistoryQueue.length, pending: pending.length }; },
+    };
+  `)();
 }
 
 function loadFastMarketHistoryClient({ directResponse, directError, backendResponse } = {}) {
@@ -932,7 +967,8 @@ test("stocks page defaults to the minute/K chart and omits the market dashboard 
   assert.match(html, /data-stock-filter-apply/);
   assert.match(html, /data-stock-filter="minPe"/);
   assert.match(html, /data-stock-filter="maxPe"/);
-  assert.match(html, /股票分时\/日K图/);
+  assert.match(html, /分时\/日K图/);
+  assert.doesNotMatch(html, /股票分时\/日K图/);
   assert.match(html, /分时、日K、周K、月K/);
   assert.doesNotMatch(html, /function renderStockMarketView/);
   assert.match(html, /class="stock-change-amount/);
@@ -965,7 +1001,7 @@ test("stock limit-board view is registered and schedules candidate history loadi
   assert.match(html, /let activeStockLimitBoardLevel = 0/);
   assert.match(html, /let stockLimitBoardHistoryLoading = false/);
   assert.match(html, /function scheduleStockLimitBoardHistoryLoad\(\)/);
-  assert.match(html, /loadRealStockHistory\(stock, \{ foreground: false \}\)/);
+  assert.match(html, /enqueueStockBackgroundHistory\(stock\)/);
   assert.match(html, /activeStockView === "limit-board"/);
 });
 
@@ -1327,7 +1363,7 @@ test("stock universe background preload prepares chart history from the unified 
   assert.match(html, /let stockUniverseChartPreloadRunning = false/);
   assert.match(html, /function getStockHistoryLoadKey\(stock\)/);
   assert.match(html, /async function loadRealStockHistory\(stock, \{ force = false, foreground = true \} = \{\}\)/);
-  assert.match(html, /loadRealStockHistory\(stock, \{ foreground: false \}\)/);
+  assert.match(html, /enqueueStockBackgroundHistory\(stock\)/);
 });
 
 test("stock universe chart preload follows the unified stock order", () => {
@@ -1361,7 +1397,7 @@ test("stock universe chart preload prioritizes the active and visible daily stoc
   assert.doesNotMatch(candidatesBlock, /sortedStocks\.forEach\(addStock\)/);
 });
 
-test("stock daily list changes do not schedule chart preload in fast daily mode", () => {
+test("stock daily list mutations preload immediately while scrolling defers preload", () => {
   const searchBlock = extractBlock(
     /function setStockDailySearch\(value\) \{/,
     /\n    \}\n\n    function setActiveDailyStock/
@@ -1382,7 +1418,7 @@ test("stock daily list changes do not schedule chart preload in fast daily mode"
   assert.match(searchBlock, /scheduleStockUniverseChartPreload\(\)/);
   assert.doesNotMatch(filterBlock, /scheduleStockUniverseChartPreload\(\)/);
   assert.doesNotMatch(sortBlock, /scheduleStockUniverseChartPreload\(\)/);
-  assert.match(scrollBlock, /scheduleStockUniverseChartPreload\(\)/);
+  assert.match(scrollBlock, /scheduleStockDailyPreload\(\)/);
 });
 
 test("stock chart preload queues a follow-up run when the visible window changes mid-preload", () => {
@@ -1470,7 +1506,8 @@ test("stock daily K view fetches real history for the active stock", () => {
   assert.match(html, /function getStockHistoryRangeParam\(\)/);
   assert.match(html, /async function loadRealStockHistory\(stock, \{ force = false, foreground = true \} = \{\}\)/);
   assert.match(html, /period=\$\{encodeURIComponent\(period\)\}&range=\$\{encodeURIComponent\(range\)\}/);
-  assert.match(html, /stock\.dailyK = response\.items\.map\(mergeStockHistory\)/);
+  assert.match(html, /const items = normalizeStockHistoryItems\(response\.items, response\.source\)/);
+  assert.match(html, /stock\.dailyK = items/);
   assert.match(html, /loadRealStockHistory\(activeStock\)\.then/);
   assert.match(html, /loadRealStockHistory\(stock\)\.then/);
   assert.match(html, /drawStockDailyCanvas\(\)/);
@@ -1524,6 +1561,42 @@ test("stock daily chart does not repeatedly request a known empty history respon
   assert.equal(secondLoaded, false);
   assert.equal(module.state().fetchCalls, 1);
   assert.equal(module.getStockDailyEmptyMessage(stock), "当前行情源未返回历史K线数据");
+});
+
+test("background history queue limits list-triggered history requests to two concurrent loads", async () => {
+  const queue = loadStockBackgroundHistoryQueue();
+  const requests = [1, 2, 3, 4].map(id => queue.enqueueStockBackgroundHistory({ id: `SH:${id}`, market: "SH", code: String(id) }));
+
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(queue.stats(), { active: 2, maxActive: 2, queued: 2, pending: 2 });
+
+  queue.resolveNext();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(queue.stats(), { active: 2, maxActive: 2, queued: 1, pending: 2 });
+
+  queue.resolveNext();
+  queue.resolveNext();
+  await new Promise(resolve => setImmediate(resolve));
+  queue.resolveNext();
+  await Promise.all(requests);
+  assert.equal(queue.stats().maxActive, 2);
+});
+
+test("stale history responses cannot overwrite the currently selected range", async () => {
+  const deferred = [];
+  const module = loadStockHistoryLoader([], {}, () => new Promise(resolve => deferred.push(resolve)));
+  const stock = { id: "SH600519", market: "SH", code: "600519", dailyK: [], history: [] };
+
+  const first = module.loadRealStockHistory(stock);
+  module.setRange("120");
+  const second = module.loadRealStockHistory(stock);
+  deferred[1]({ items: [{ time: "2026-07-13", open: 100, high: 121, low: 99, close: 120, volume: 1200 }] });
+  await second;
+  deferred[0]({ items: [{ time: "2026-07-13", open: 100, high: 101, low: 59, close: 60, volume: 600 }] });
+  await first;
+
+  assert.equal(stock.dailyK[0].close, 120);
+  assert.equal(stock.historyLoadKey, "SH600519:day:120d");
 });
 
 test("stock refresh updates existing nodes instead of rerendering the page", () => {
@@ -2085,7 +2158,7 @@ test("strategy history loading updates only filter results while K data is loadi
 
   assert.match(filterViewBlock, /scheduleStockStrategyHistoryLoad\(\)/);
   assert.match(loadBlock, /getStockStrategyHistoryCandidates\(strategy\)\.slice\(0, STOCK_STRATEGY_HISTORY_BATCH_SIZE\)/);
-  assert.match(loadBlock, /loadRealStockHistory\(stock, \{ foreground: false \}\)/);
+  assert.match(loadBlock, /batch\.map\(enqueueStockBackgroundHistory\)/);
   assert.match(loadBlock, /activeStockView === "filter"/);
   assert.match(loadBlock, /updateStockFilterResults\(\{ results: false \}\)/);
   assert.doesNotMatch(loadBlock, /renderStockPage\(\)/);
@@ -2094,6 +2167,15 @@ test("strategy history loading updates only filter results while K data is loadi
   assert.match(updateBlock, /if \(results && resultsPanel\)/);
   assert.match(updateBlock, /renderStockFilterResultsPanel\(filteredStocks\)/);
   assert.doesNotMatch(updateBlock, /scheduleStockStrategyHistoryLoad\(\)/);
+});
+
+test("background history loading is rate-limited and retries failed symbols after a cooldown", () => {
+  assert.match(html, /const STOCK_STRATEGY_HISTORY_BATCH_SIZE = 2;/);
+  assert.match(html, /const STOCK_HISTORY_BACKGROUND_BATCH_DELAY_MS = 600;/);
+  assert.match(html, /const STOCK_HISTORY_BACKGROUND_RETRY_COOLDOWN_MS = 30_000;/);
+  const loader = extractFunction("loadRealStockHistory");
+  assert.match(loader, /Date\.now\(\) - Number\(stock\.historyLoadErrorAt \|\| 0\) < STOCK_HISTORY_BACKGROUND_RETRY_COOLDOWN_MS/);
+  assert.match(loader, /stock\.historyLoadErrorAt = Date\.now\(\)/);
 });
 
 test("stock minute and K module renders virtual stock list, range controls, canvas, and tooltip", () => {
@@ -2124,7 +2206,8 @@ test("stock minute and K module renders virtual stock list, range controls, canv
   }
 
   assert.match(html, /id: "daily"/);
-  assert.match(html, /股票分时\/日K图/);
+  assert.match(html, /name: "分时\/日K图"/);
+  assert.match(html, /name: "自选"/);
   assert.doesNotMatch(html, /name: "全市场日K图"/);
   assert.match(html, /const stockUniverse = \[\]/);
   assert.doesNotMatch(html, /stockUniverse\.push\(\.\.\.makeMockStockUniverse/);
@@ -2232,6 +2315,77 @@ test("stock limit-board view renders grouped board levels and reuses daily K cha
   assert.match(html, /data-stock-daily-chart/);
 });
 
+test("limit-board overview groups every board and does not render a chart before a stock is selected", () => {
+  const renderGroups = new Function(`
+    let activeDailyStockId = "";
+    let activeStockLimitBoardStockId = "";
+    const STOCK_LIMIT_BOARD_INITIAL_COUNT = 12;
+    function isStockLimitBoardGroupExpanded() { return false; }
+    const stockWatchlist = [];
+    function getStockIdentity(stock) { return stock.id; }
+    function getStockChangeClass() { return "up"; }
+    function escapeHTML(value) { return String(value); }
+    ${extractFunction("renderStockLimitBoardGroups")}
+    return renderStockLimitBoardGroups;
+  `)();
+  const groups = [
+    {
+      level: 3,
+      count: 1,
+      items: [{ oneLineBoard: true, volumeRatio: 2.1, stock: { id: "SH600001", name: "三板样本", market: "SH", code: "600001", changePercent: 10 } }],
+    },
+    {
+      level: 1,
+      count: 2,
+      items: [
+        { oneLineBoard: false, volumeRatio: 1.3, stock: { id: "SZ000001", name: "首板甲", market: "SZ", code: "000001", changePercent: 9.9 } },
+        { oneLineBoard: false, volumeRatio: 1.1, stock: { id: "SZ000002", name: "首板乙", market: "SZ", code: "000002", changePercent: 10 } },
+      ],
+    },
+  ];
+
+  const rendered = renderGroups(groups);
+
+  assert.match(rendered, /3板/);
+  assert.match(rendered, /1板/);
+  assert.match(rendered, /三板样本/);
+  assert.match(rendered, /首板甲/);
+  assert.match(rendered, /首板乙/);
+  assert.doesNotMatch(rendered, /stock-daily-canvas/);
+});
+
+test("limit-board overview shows six cards per row, expands long board groups, and drills into a detail screen", () => {
+  const renderGroups = new Function(`
+    const STOCK_LIMIT_BOARD_INITIAL_COUNT = 12;
+    let activeStockLimitBoardStockId = "";
+    const stockLimitBoardExpandedLevels = new Set();
+    function isStockLimitBoardGroupExpanded(level) { return stockLimitBoardExpandedLevels.has(Number(level)); }
+    function escapeHTML(value) { return String(value); }
+    ${extractFunction("renderStockLimitBoardGroups")}
+    return { renderStockLimitBoardGroups, stockLimitBoardExpandedLevels };
+  `)();
+  const group = {
+    level: 1,
+    count: 13,
+    items: Array.from({ length: 13 }, (_, index) => ({
+      oneLineBoard: false,
+      volumeRatio: 1,
+      stock: { id: `SZ${index}`, name: `首板${index + 1}`, market: "SZ", code: String(index), changePercent: 10 },
+    })),
+  };
+
+  const collapsed = renderGroups.renderStockLimitBoardGroups([group]);
+  assert.doesNotMatch(collapsed, /首板13/);
+  assert.match(collapsed, /data-stock-limit-board-more="1"/);
+  assert.match(collapsed, /显示更多/);
+
+  renderGroups.stockLimitBoardExpandedLevels.add(1);
+  assert.match(renderGroups.renderStockLimitBoardGroups([group]), /首板13/);
+  assert.match(html, /grid-template-columns:\s*repeat\(6, minmax\(0, 1fr\)\)/);
+  assert.match(html, /data-stock-limit-board-back/);
+  assert.match(html, /stock-limit-board-overview/);
+});
+
 test("stock limit-board history loading updates only the limit-board panel", () => {
   const loadBlock = extractBlock(
     /async function loadStockLimitBoardHistories\(/,
@@ -2239,7 +2393,7 @@ test("stock limit-board history loading updates only the limit-board panel", () 
   );
   const updateBlock = extractFunction("updateStockLimitBoardResults");
 
-  assert.match(loadBlock, /loadRealStockHistory\(stock, \{ foreground: false \}\)/);
+  assert.match(loadBlock, /batch\.map\(enqueueStockBackgroundHistory\)/);
   assert.match(loadBlock, /activeStockView === "limit-board"/);
   assert.match(loadBlock, /updateStockLimitBoardResults\(\{ results: false \}\)/);
   assert.doesNotMatch(loadBlock, /renderStockPage\(\)/);
@@ -2664,10 +2818,10 @@ test("stock limit-board grouping separates first, second, and highest boards", (
   };
 
   const groups = getStockLimitBoardGroups([firstBoard, twoBoard, threeOneLine, nonLimit]);
-  assert.deepEqual(groups.map(group => [group.level, group.count]), [[1, 1], [2, 1], [3, 1]]);
-  assert.equal(groups[0].items[0].stock.name, "一板样本");
+  assert.deepEqual(groups.map(group => [group.level, group.count]), [[3, 1], [2, 1], [1, 1]]);
+  assert.equal(groups[0].items[0].stock.name, "三板一字样本");
   assert.equal(groups[1].items[0].stock.name, "二板样本");
-  assert.equal(groups[2].items[0].oneLineBoard, true);
+  assert.equal(groups[2].items[0].stock.name, "一板样本");
   assert.equal(getHighestStockLimitBoardLevel(groups), 3);
 });
 
@@ -2794,6 +2948,27 @@ test("stock daily technical chart exposes quote metrics, MA, volume, MACD, perio
   assert.match(html, /content\.addEventListener\("pointerup", event => \{/);
 });
 
+test("calendar K-line aggregation groups daily bars by calendar week and month", () => {
+  const aggregate = new Function(`
+    ${extractFunction("aggregateStockDailyK")}
+    return aggregateStockDailyK;
+  `)();
+  const bars = [
+    { date: "2026-01-29", open: 10, high: 12, low: 9, close: 11, volume: 100 },
+    { date: "2026-01-30", open: 11, high: 13, low: 10, close: 12, volume: 200 },
+    { date: "2026-02-02", open: 12, high: 15, low: 11, close: 14, volume: 300 },
+  ];
+
+  assert.deepEqual(aggregate(bars, "week"), [
+    { date: "2026-01-30", open: 10, high: 13, low: 9, close: 12, volume: 300 },
+    { date: "2026-02-02", open: 12, high: 15, low: 11, close: 14, volume: 300 },
+  ]);
+  assert.deepEqual(aggregate(bars, "month"), [
+    { date: "2026-01-30", open: 10, high: 13, low: 9, close: 12, volume: 300 },
+    { date: "2026-02-02", open: 12, high: 15, low: 11, close: 14, volume: 300 },
+  ]);
+});
+
 test("stock daily K chart supports Ctrl plus wheel range zoom", () => {
   assert.match(html, /let activeStockDailyRange = "60"/);
   assert.match(html, /let activeStockDailyPeriod = "day"/);
@@ -2853,9 +3028,93 @@ test("stock minute and K chart updates are local and do not rerender the whole p
     /function handleStockDailyListScroll\(list\) \{/,
     /\n    \}\n\n    function createCustomStockStrategy/
   );
-  assert.match(listScrollBlock, /renderStockDailyList\(\)/);
-  assert.match(listScrollBlock, /list\.innerHTML/);
+  assert.match(listScrollBlock, /scheduleStockDailyListRender\(list\)/);
+  assert.doesNotMatch(listScrollBlock, /list\.innerHTML/);
   assert.doesNotMatch(listScrollBlock, /renderStockPage\(\)/);
+});
+
+test("stock daily sidebar batches virtual rows per frame and defers chart preloading until scrolling stops", () => {
+  const scrollBlock = extractBlock(
+    /function handleStockDailyListScroll\(list\) \{/,
+    /\n    \}\n\n    function createCustomStockStrategy/
+  );
+  const renderBlock = extractBlock(
+    /function scheduleStockDailyListRender\(list\) \{/,
+    /\n    \}\n\n    function handleStockDailyListScroll/
+  );
+  const virtualListBlock = extractBlock(
+    /function updateStockDailyVirtualList\(list\) \{/,
+    /\n    \}\n\n    function renderEtfDataStatus/
+  );
+  const preloadBlock = extractBlock(
+    /function scheduleStockDailyPreload\(\) \{/,
+    /\n    \}\n\n    function createCustomStockStrategy/
+  );
+
+  assert.match(scrollBlock, /scheduleStockDailyListRender\(list\)/);
+  assert.match(scrollBlock, /scheduleStockDailyPreload\(\)/);
+  assert.doesNotMatch(scrollBlock, /list\.innerHTML/);
+  assert.match(renderBlock, /window\.requestAnimationFrame/);
+  assert.doesNotMatch(renderBlock, /list\.scrollTop\s*=/);
+  assert.doesNotMatch(renderBlock, /list\.innerHTML/);
+  assert.match(renderBlock, /updateStockDailyVirtualList\(list\)/);
+  assert.match(virtualListBlock, /const scrollTop = list\.scrollTop/);
+  assert.match(virtualListBlock, /list\.scrollTop\s*=\s*scrollTop/);
+  assert.doesNotMatch(virtualListBlock, /list\.innerHTML/);
+  assert.match(virtualListBlock, /data-stock-daily-virtual-rows/);
+  assert.match(virtualListBlock, /data-stock-daily-spacer="top"/);
+  assert.match(virtualListBlock, /data-stock-daily-spacer="bottom"/);
+  assert.match(preloadBlock, /window\.setTimeout/);
+  assert.match(preloadBlock, /scheduleStockUniverseChartPreload\(\)/);
+});
+
+test("stock daily virtual rows retain the sidebar scroll position during DOM updates", () => {
+  const updateVirtualList = new Function(`
+    const STOCK_DAILY_ROW_HEIGHT = 56;
+    const STOCK_DAILY_VIRTUAL_COUNT = 18;
+    const STOCK_DAILY_VIRTUAL_BUFFER = 6;
+    let stockDailyVirtualStart = 14;
+    let activeDailyStockId = "";
+    const stockWatchlist = [];
+    function getSortedDailyStocks() {
+      return Array.from({ length: 80 }, (_, index) => ({
+        id: "SH" + String(index).padStart(6, "0"),
+        name: "测试股票" + index,
+        market: "SH",
+        code: String(index).padStart(6, "0"),
+        changePercent: 0,
+      }));
+    }
+    function getStockChangeClass() { return "flat"; }
+    function getStockIdentity(stock) { return stock.id; }
+    function escapeHTML(value) { return String(value); }
+    function formatStockPercent(value) { return String(value); }
+    ${extractFunction("renderStockDailyVirtualRows")}
+    ${extractFunction("updateStockDailyVirtualList")}
+    return updateStockDailyVirtualList;
+  `)();
+
+  const list = { scrollTop: 717 };
+  const topSpacer = {
+    style: new Proxy({}, {
+      set(target, key, value) {
+        target[key] = value;
+        list.scrollTop = 0;
+        return true;
+      },
+    }),
+  };
+  const rows = { innerHTML: "" };
+  const bottomSpacer = { style: {} };
+  list.querySelector = selector => ({
+    '[data-stock-daily-spacer="top"]': topSpacer,
+    '[data-stock-daily-virtual-rows]': rows,
+    '[data-stock-daily-spacer="bottom"]': bottomSpacer,
+  })[selector] || null;
+
+  updateVirtualList(list);
+
+  assert.equal(list.scrollTop, 717);
 });
 
 test("stock daily technical chart is constrained inside the viewport", () => {

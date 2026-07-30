@@ -20,14 +20,15 @@ function round(value, digits = 2) {
 }
 
 function normalizeRows(rows) {
-  return rows.map((row, index) => {
-    if (!Array.isArray(row) || row.length < 6) return null;
+  const byTime = new Map();
+  for (const row of rows) {
+    if (!Array.isArray(row) || row.length < 6) continue;
     const time = String(row[0] || "");
     const [open, close, high, low, volume] = row.slice(1, 6).map(Number);
-    if (!time || ![open, close, high, low, volume].every(Number.isFinite)) return null;
-    const previousClose = index > 0 ? Number(rows[index - 1]?.[2]) : close;
-    const changeAmount = Number.isFinite(previousClose) ? close - previousClose : 0;
-    return {
+    if (!time || ![open, close, high, low, volume].every(Number.isFinite) ||
+      open <= 0 || close <= 0 || high <= 0 || low <= 0 || volume < 0 ||
+      low > Math.min(open, close) || high < Math.max(open, close)) continue;
+    byTime.set(time, {
       time,
       open: round(open, 4),
       high: round(high, 4),
@@ -35,10 +36,19 @@ function normalizeRows(rows) {
       close: round(close, 4),
       volume: Math.round(volume),
       amount: 0,
-      changeAmount: round(changeAmount),
-      changePercent: round(previousClose ? changeAmount / previousClose * 100 : 0),
-    };
-  }).filter(Boolean);
+    });
+  }
+  return [...byTime.values()]
+    .sort((a, b) => a.time.localeCompare(b.time))
+    .map((item, index, normalized) => {
+      const previousClose = normalized[index - 1]?.close ?? item.close;
+      const changeAmount = item.close - previousClose;
+      return {
+        ...item,
+        changeAmount: round(changeAmount),
+        changePercent: round(previousClose ? changeAmount / previousClose * 100 : 0),
+      };
+    });
 }
 
 export function createTencentProvider(options = {}) {

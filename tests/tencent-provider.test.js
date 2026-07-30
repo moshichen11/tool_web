@@ -135,6 +135,30 @@ test("tencent limits rows to the requested range", async () => {
   assert.equal(history.items[0].time, "2026-06-06");
 });
 
+test("tencent normalizes K-line rows before returning history", async () => {
+  const { createTencentProvider } = await import("../tencent-provider.mjs");
+  const provider = createTencentProvider({
+    fetchImpl: async () => jsonResponse({
+      code: 0,
+      data: {
+        sh600519: {
+          qfqday: [
+            ["2026-07-11", "11", "12", "13", "10", "1000"],
+            ["2026-07-09", "10", "12", "11", "9", "1000"],
+            ["2026-07-10", "10", "11", "12", "9", "1000"],
+            ["2026-07-11", "12", "13", "14", "11", "1200"],
+          ],
+        },
+      },
+    }),
+  });
+
+  const history = await provider.getHistory({ market: "SH", code: "600519", period: "day", range: "15d" });
+
+  assert.deepEqual(history.items.map(item => item.time), ["2026-07-10", "2026-07-11"]);
+  assert.equal(history.items[1].close, 13);
+});
+
 test("tencent rejects HTTP, upstream-code, and malformed-JSON responses", async () => {
   const responses = [
     jsonResponse({}, 503),

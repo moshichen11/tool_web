@@ -182,6 +182,7 @@ test("eastmoney provider maps public quote and kline responses into stock contra
   assert.equal(history.source, "eastmoney");
   assert.equal(history.stock.id, "SH:600519");
   assert.equal(history.items[0].time, "2026-05-11");
+  assert.equal(history.items[0].volume, 421);
   assert.equal(history.items[1].close, 1290.2);
   assert.equal(fetchImpl.calls.some(call => call.parsed.hostname === "push2.eastmoney.com"), true);
   assert.equal(fetchImpl.calls.some(call => call.parsed.hostname === "push2his.eastmoney.com"), true);

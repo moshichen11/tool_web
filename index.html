@@ -2051,6 +2051,211 @@
       font-weight: 760;
     }
 
+    .stock-limit-board-groups {
+      min-height: 0;
+      display: grid;
+      align-content: start;
+      gap: 10px;
+    }
+
+    .stock-limit-board-group {
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      background: rgba(0,0,0,0.14);
+    }
+
+    .stock-limit-board-group-head {
+      min-height: 42px;
+      padding: 8px 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.09);
+      background: rgba(255,255,255,0.045);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .stock-limit-board-group-title {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 780;
+    }
+
+    .stock-limit-board-level-badge,
+    .stock-limit-board-count-badge,
+    .stock-limit-board-one-line {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stock-limit-board-level-badge {
+      min-width: 38px;
+      padding: 3px 7px;
+      color: #ffbab9;
+      border: 1px solid rgba(255,116,116,0.38);
+      border-radius: 99px;
+      background: rgba(240,90,90,0.14);
+      font-size: 11px;
+    }
+
+    .stock-limit-board-count-badge {
+      padding: 3px 7px;
+      color: rgba(255,255,255,0.68);
+      border-radius: 99px;
+      background: rgba(255,255,255,0.08);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .stock-limit-board-stock-grid {
+      padding: 10px;
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 9px;
+    }
+
+    .stock-limit-board-stock {
+      min-width: 0;
+      padding: 8px;
+      color: rgba(255,255,255,0.78);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 9px;
+      background: rgba(255,255,255,0.045);
+      text-align: left;
+      cursor: pointer;
+      display: grid;
+      gap: 4px;
+      transition: border-color var(--ease), background var(--ease), transform var(--ease);
+    }
+
+    .stock-limit-board-overview {
+      min-height: calc(100vh - 192px);
+      padding: 16px;
+    }
+
+    .stock-limit-board-overview-head {
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .stock-limit-board-overview-head .stock-section-title {
+      margin: 0;
+    }
+
+    .stock-limit-board-more {
+      width: calc(100% - 20px);
+      min-height: 34px;
+      margin: 0 10px 10px;
+      color: rgba(255,255,255,0.76);
+      border: 1px dashed rgba(255,255,255,0.2);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.035);
+      cursor: pointer;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .stock-limit-board-more:hover,
+    .stock-limit-board-more:focus-visible {
+      color: #fff;
+      border-color: rgba(58,201,126,0.56);
+      background: rgba(58,201,126,0.12);
+      outline: 0;
+    }
+
+    .stock-limit-board-detail {
+      min-height: calc(100vh - 192px);
+    }
+
+    .stock-limit-board-detail-back {
+      min-height: 30px;
+      margin-bottom: 8px;
+      padding: 5px 9px;
+      color: rgba(255,255,255,0.78);
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 7px;
+      background: rgba(255,255,255,0.055);
+      cursor: pointer;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .stock-limit-board-detail-back:hover,
+    .stock-limit-board-detail-back:focus-visible {
+      color: #fff;
+      border-color: rgba(58,201,126,0.56);
+      background: rgba(58,201,126,0.12);
+      outline: 0;
+    }
+
+    .stock-limit-board-stock:hover,
+    .stock-limit-board-stock:focus-visible,
+    .stock-limit-board-stock.active {
+      color: #fff;
+      border-color: rgba(58,201,126,0.58);
+      background: rgba(58,201,126,0.13);
+      transform: translateY(-1px);
+      outline: 0;
+    }
+
+    .stock-limit-board-stock-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 13px;
+      font-weight: 760;
+    }
+
+    .stock-limit-board-stock-code,
+    .stock-limit-board-stock-meta {
+      color: rgba(255,255,255,0.52);
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stock-limit-board-stock-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 5px;
+    }
+
+    .stock-limit-board-one-line {
+      padding: 2px 5px;
+      color: #ffd79b;
+      border-radius: 5px;
+      background: rgba(255,184,107,0.14);
+      font-size: 10px;
+      font-weight: 760;
+    }
+
+    .stock-limit-board-chart-placeholder {
+      min-height: 280px;
+      padding: 28px;
+      color: rgba(255,255,255,0.62);
+      text-align: center;
+      display: grid;
+      place-content: center;
+      gap: 8px;
+    }
+
+    .stock-limit-board-chart-placeholder strong {
+      color: rgba(255,255,255,0.92);
+      font-size: 16px;
+    }
+
     .stock-daily-list {
       min-height: 0;
       overflow-y: auto;
@@ -3486,6 +3691,10 @@
         grid-template-columns: 1fr;
       }
 
+      .stock-limit-board-stock-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
       .stock-mobile-tabs {
         display: flex;
       }
@@ -3551,6 +3760,23 @@
         border: 0;
         border-radius: 0;
         box-shadow: none;
+      }
+
+      .stock-limit-board-overview {
+        min-height: 0;
+        padding: 10px;
+      }
+
+      .stock-limit-board-overview-head {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 5px;
+      }
+
+      .stock-limit-board-stock-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 7px;
+        padding: 8px;
       }
 
       .main-scroll {
@@ -3889,10 +4115,14 @@
     const STOCK_DAILY_VIRTUAL_BUFFER = 6;
     const STOCK_DAILY_VIRTUAL_COUNT = 18;
     const STOCK_UNIVERSE_CHART_PRELOAD_LIMIT = STOCK_DAILY_VIRTUAL_COUNT + STOCK_DAILY_VIRTUAL_BUFFER;
-    const STOCK_STRATEGY_HISTORY_BATCH_SIZE = 24;
+    const STOCK_DAILY_SCROLL_PRELOAD_DELAY_MS = 140;
+    const STOCK_STRATEGY_HISTORY_BATCH_SIZE = 2;
+    const STOCK_HISTORY_BACKGROUND_BATCH_DELAY_MS = 600;
+    const STOCK_HISTORY_BACKGROUND_RETRY_COOLDOWN_MS = 30_000;
+    const STOCK_BACKGROUND_HISTORY_CONCURRENCY = 2;
     const stockViews = [
-      { id: "daily", icon: "📈", name: "股票分时/日K图", desc: "分时、K线与盘口分布" },
-      { id: "watchlist", icon: "⭐", name: "自选股", desc: "添加、排序、刷新自选" },
+      { id: "daily", icon: "📈", name: "分时/日K图", desc: "分时、K线与盘口分布" },
+      { id: "watchlist", icon: "⭐", name: "自选", desc: "添加、排序、刷新自选" },
       { id: "filter", icon: "⚗️", name: "条件选股", desc: "多条件筛选自选股" },
       { id: "limit-board", icon: "♟", name: "连板", desc: "最新交易日涨停高度" },
       { id: "etf", icon: "▦", name: "行业ETF", desc: "ETF 实时行情与K线" }
@@ -3968,6 +4198,9 @@
     const marketIndices = [];
     const stockUniverse = [];
     const stockHistoryLoads = new Map();
+    const stockBackgroundHistoryQueue = [];
+    const stockBackgroundHistoryQueued = new Map();
+    let stockBackgroundHistoryRunning = 0;
     const etfHistoryLoads = new Map();
 
     const USER_CONFIG_KEY = "glass_nav_user_config";
@@ -4191,6 +4424,10 @@
     let stockStrategyHistoryTarget = 0;
     let stockStrategyHistoryStrategyId = "";
     let activeStockLimitBoardLevel = 0;
+    let activeStockLimitBoardStockId = "";
+    let stockLimitBoardDetailOpen = false;
+    const stockLimitBoardExpandedLevels = new Set();
+    const STOCK_LIMIT_BOARD_INITIAL_COUNT = 12;
     let stockLimitBoardHistoryLoading = false;
     let stockLimitBoardHistoryLoadToken = 0;
     let stockLimitBoardHistoryLoaded = 0;
@@ -4215,6 +4452,9 @@
     let stockSelectionContextCacheVersion = -1;
     let stockDailyVirtualStart = 0;
     let stockDailyListScrollTop = 0;
+    let stockDailySortedCache = null;
+    let stockDailyListRenderFrame = null;
+    let stockDailyPreloadTimer = null;
     let stockDailyViewportStart = -1;
     let stockDailyDragState = null;
     let stockDailyPinchState = null;
@@ -5185,6 +5425,7 @@
       if (watchIndex >= 0) stockWatchlist.splice(watchIndex, 1, cloneStock(stock));
       stockSelectionDataVersion += 1;
       stockSelectionContextCache = null;
+      invalidateStockDailyListCache();
       return stock;
     }
 
@@ -5203,6 +5444,7 @@
         "historyLoadKey",
         "historyLoadEmptyKey",
         "historyLoadErrorKey",
+        "historyLoadErrorAt",
         "historyLoadErrorMessage",
         "historyDataStale",
       ].forEach(key => {
@@ -5233,6 +5475,7 @@
       }
       stockSelectionDataVersion += 1;
       stockSelectionContextCache = null;
+      invalidateStockDailyListCache();
       return mapped;
     }
 
@@ -5318,8 +5561,7 @@
 
     async function loadRealEtfHistory(etf, { force = false, foreground = true } = {}) {
       if (!etf?.market || !etf?.code) return false;
-      const dailyPeriod = getStockDailyPeriod();
-      const period = dailyPeriod.mode === "k" ? dailyPeriod.id : "day";
+      const period = "day";
       const range = getStockHistoryRangeParam();
       const loadKey = getStockHistoryLoadKey(etf);
       if (!force && etf.historyLoadKey === loadKey && getStockDailyK(etf).length) return true;
@@ -5335,6 +5577,7 @@
         type: "etf",
       })
         .then(response => {
+          if (loadKey !== getStockHistoryLoadKey(etf)) return false;
           etf.source = response.source || etf.source;
           etf.updatedAt = response.updatedAt || etf.updatedAt;
           etf.delayed = Boolean(response.delayed ?? etf.delayed);
@@ -5343,7 +5586,8 @@
             etfApiStatus = response.stale ? "error" : "live";
             etfApiErrorMessage = response.stale ? STOCK_API_STALE_MESSAGE : "";
           }
-          if (!Array.isArray(response.items) || !response.items.length) {
+          const items = normalizeStockHistoryItems(response.items, response.source);
+          if (!items.length) {
             etf.dailyK = [];
             etf.history = [];
             etf.historyLoadKey = loadKey;
@@ -5352,7 +5596,7 @@
             etf.historyLoadErrorMessage = "";
             return false;
           }
-          etf.dailyK = response.items.map(mergeStockHistory);
+          etf.dailyK = items;
           etf.history = etf.dailyK.slice(-18).map(item => ({
             open: item.open,
             high: item.high,
@@ -5366,6 +5610,7 @@
           return true;
         })
         .catch(error => {
+          if (loadKey !== getStockHistoryLoadKey(etf)) return false;
           etf.historyLoadErrorKey = loadKey;
           etf.historyLoadErrorMessage = getStockApiErrorMessage(error);
           if (foreground) {
@@ -5413,7 +5658,7 @@
       try {
         const stocks = getStockUniverseChartPreloadStocks();
         for (const stock of stocks) {
-          await loadRealStockHistory(stock, { foreground: false });
+          await enqueueStockBackgroundHistory(stock);
         }
         if (activeFeature === "stocks") drawStockCanvases();
       } finally {
@@ -5492,22 +5737,35 @@
       };
     }
 
+    function normalizeStockHistoryItems(items, source = "") {
+      const byDate = new Map();
+      for (const raw of Array.isArray(items) ? items : []) {
+        const item = mergeStockHistory(raw);
+        if (source === "eastmoney") item.volume *= 100;
+        const values = [item.open, item.high, item.low, item.close, item.volume];
+        if (!item.date || !values.every(Number.isFinite) ||
+          item.open <= 0 || item.high <= 0 || item.low <= 0 || item.close <= 0 || item.volume < 0 ||
+          item.low > Math.min(item.open, item.close) || item.high < Math.max(item.open, item.close)) continue;
+        byDate.set(item.date, item);
+      }
+      return [...byDate.values()].sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    }
+
     function getStockHistoryLoadKey(stock) {
-      const dailyPeriod = getStockDailyPeriod();
-      const period = dailyPeriod.mode === "k" ? dailyPeriod.id : "day";
+      const period = "day";
       const range = getStockHistoryRangeParam();
       return `${getStockIdentity(stock)}:${period}:${range}`;
     }
 
     async function loadRealStockHistory(stock, { force = false, foreground = true } = {}) {
       if (!stock?.market || !stock?.code) return false;
-      const dailyPeriod = getStockDailyPeriod();
-      const period = dailyPeriod.mode === "k" ? dailyPeriod.id : "day";
+      const period = "day";
       const range = getStockHistoryRangeParam();
       const loadKey = getStockHistoryLoadKey(stock);
       if (!force && stock.historyLoadKey === loadKey && getStockDailyK(stock).length) return true;
       if (!force && stock.historyLoadEmptyKey === loadKey) return false;
-      if (!force && !foreground && stock.historyLoadErrorKey === loadKey) return false;
+      if (!force && !foreground && stock.historyLoadErrorKey === loadKey &&
+        Date.now() - Number(stock.historyLoadErrorAt || 0) < STOCK_HISTORY_BACKGROUND_RETRY_COOLDOWN_MS) return false;
       if (!force && stockHistoryLoads.has(loadKey)) return stockHistoryLoads.get(loadKey);
       const path = `/v1/stocks/${stock.market}/${stock.code}/history?period=${encodeURIComponent(period)}&range=${encodeURIComponent(range)}`;
       const request = fetchFastMarketHistory(path, {
@@ -5518,6 +5776,7 @@
         type: "stock",
       })
         .then(response => {
+          if (loadKey !== getStockHistoryLoadKey(stock)) return false;
           stock.source = response.source || stock.source;
           stock.updatedAt = response.updatedAt || stock.updatedAt;
           stock.delayed = Boolean(response.delayed ?? stock.delayed);
@@ -5526,18 +5785,20 @@
             stockApiStatus = response.stale ? "error" : "live";
             stockApiErrorMessage = response.stale ? STOCK_API_STALE_MESSAGE : "";
           }
-          if (!Array.isArray(response.items) || !response.items.length) {
+          const items = normalizeStockHistoryItems(response.items, response.source);
+          if (!items.length) {
             stock.dailyK = [];
             stock.history = [];
           stock.historyLoadKey = loadKey;
           stock.historyLoadEmptyKey = loadKey;
           stock.historyLoadErrorKey = "";
+          stock.historyLoadErrorAt = 0;
           stock.historyLoadErrorMessage = "";
           stockSelectionDataVersion += 1;
           stockSelectionContextCache = null;
           return false;
         }
-          stock.dailyK = response.items.map(mergeStockHistory);
+          stock.dailyK = items;
           stock.history = stock.dailyK.slice(-18).map(item => ({
             open: item.open,
             high: item.high,
@@ -5547,13 +5808,16 @@
           stock.historyLoadKey = loadKey;
           stock.historyLoadEmptyKey = "";
           stock.historyLoadErrorKey = "";
+          stock.historyLoadErrorAt = 0;
           stock.historyLoadErrorMessage = "";
           stockSelectionDataVersion += 1;
           stockSelectionContextCache = null;
           return true;
         })
         .catch(error => {
+          if (loadKey !== getStockHistoryLoadKey(stock)) return false;
           stock.historyLoadErrorKey = loadKey;
+          stock.historyLoadErrorAt = Date.now();
           stock.historyLoadErrorMessage = getStockApiErrorMessage(error);
           if (foreground) {
             stockApiStatus = "error";
@@ -5565,6 +5829,32 @@
           stockHistoryLoads.delete(loadKey);
         });
       stockHistoryLoads.set(loadKey, request);
+      return request;
+    }
+
+    function runStockBackgroundHistoryQueue() {
+      while (stockBackgroundHistoryRunning < STOCK_BACKGROUND_HISTORY_CONCURRENCY && stockBackgroundHistoryQueue.length) {
+        const next = stockBackgroundHistoryQueue.shift();
+        stockBackgroundHistoryRunning += 1;
+        Promise.resolve(loadRealStockHistory(next.stock, { foreground: false }))
+          .then(next.resolve, () => next.resolve(false))
+          .finally(() => {
+            stockBackgroundHistoryQueued.delete(next.loadKey);
+            stockBackgroundHistoryRunning -= 1;
+            runStockBackgroundHistoryQueue();
+          });
+      }
+    }
+
+    function enqueueStockBackgroundHistory(stock) {
+      if (!stock?.market || !stock?.code) return Promise.resolve(false);
+      const loadKey = getStockHistoryLoadKey(stock);
+      if (stockBackgroundHistoryQueued.has(loadKey)) return stockBackgroundHistoryQueued.get(loadKey);
+      const request = new Promise(resolve => {
+        stockBackgroundHistoryQueue.push({ stock, loadKey, resolve });
+      });
+      stockBackgroundHistoryQueued.set(loadKey, request);
+      runStockBackgroundHistoryQueue();
       return request;
     }
 
@@ -5639,12 +5929,12 @@
         while (token === stockStrategyHistoryLoadToken) {
           const batch = getStockStrategyHistoryCandidates(strategy).slice(0, STOCK_STRATEGY_HISTORY_BATCH_SIZE);
           if (!batch.length) break;
-          await Promise.all(batch.map(stock => loadRealStockHistory(stock, { foreground: false })));
+          await Promise.all(batch.map(enqueueStockBackgroundHistory));
           stockStrategyHistoryLoaded += batch.length;
           if (activeFeature === "stocks" && activeStockView === "filter" && activeStockStrategy === strategy.id) {
             updateStockFilterResults({ results: false });
           }
-          await new Promise(resolve => setTimeout(resolve, 0));
+          await new Promise(resolve => setTimeout(resolve, STOCK_HISTORY_BACKGROUND_BATCH_DELAY_MS));
         }
       } finally {
         if (token === stockStrategyHistoryLoadToken) {
@@ -5753,10 +6043,10 @@
         while (token === stockLimitBoardHistoryLoadToken) {
           const batch = getStockLimitBoardHistoryCandidates().slice(0, STOCK_STRATEGY_HISTORY_BATCH_SIZE);
           if (!batch.length) break;
-          await Promise.all(batch.map(stock => loadRealStockHistory(stock, { foreground: false })));
+          await Promise.all(batch.map(enqueueStockBackgroundHistory));
           stockLimitBoardHistoryLoaded += batch.length;
           if (activeFeature === "stocks" && activeStockView === "limit-board") updateStockLimitBoardResults({ results: false });
-          await new Promise(resolve => setTimeout(resolve, 0));
+          await new Promise(resolve => setTimeout(resolve, STOCK_HISTORY_BACKGROUND_BATCH_DELAY_MS));
         }
       } finally {
         if (token === stockLimitBoardHistoryLoadToken) {
@@ -5790,7 +6080,7 @@
           };
         })));
       } catch (error) {
-        showToast("自选股保存失败", "error");
+        showToast("自选保存失败", "error");
       }
     }
 
@@ -5872,7 +6162,7 @@
         repairStockWatchGroups(stockWatchGroups, stockWatchlist);
         localStorage.setItem(STOCK_WATCHLIST_GROUPS_KEY, JSON.stringify(stockWatchGroups));
       } catch (error) {
-        showToast("自选股分组保存失败", "error");
+        showToast("自选分组保存失败", "error");
       }
     }
 
@@ -5897,7 +6187,7 @@
       repairStockWatchGroups(stockWatchGroups, stockWatchlist);
       return `
         <div class="stock-watch-group-bar">
-          <div class="stock-watch-group-list" aria-label="自选股分组">
+          <div class="stock-watch-group-list" aria-label="自选分组">
             ${stockWatchGroups.map(group => `
               <button class="stock-watch-group ${group.id === activeStockWatchGroupId ? "active" : ""}" type="button" data-stock-watch-group="${escapeHTML(group.id)}" aria-pressed="${group.id === activeStockWatchGroupId}">
                 ${escapeHTML(group.name)} · ${getStockWatchGroupCount(group.id)}
@@ -6141,7 +6431,10 @@
     }
 
     function formatStockVolume(value) {
-      return `${Math.round(Number(value) || 0).toLocaleString("zh-CN")}万`;
+      const shares = Math.round(Number(value) || 0);
+      if (shares >= 100000000) return `${(shares / 100000000).toFixed(2)}亿股`;
+      if (shares >= 10000) return `${(shares / 10000).toFixed(2)}万股`;
+      return `${shares.toLocaleString("zh-CN")}股`;
     }
 
     function formatStockMarketCap(value) {
@@ -6550,7 +6843,7 @@
         buckets.get(item.level).push(item);
       });
       return [...buckets.entries()]
-        .sort((a, b) => a[0] - b[0])
+        .sort((a, b) => b[0] - a[0])
         .map(([level, items]) => ({
           level,
           label: `${level}板`,
@@ -7261,6 +7554,7 @@
       stockDailySearchTerm = String(value || "").trim();
       stockDailyVirtualStart = 0;
       stockDailyListScrollTop = 0;
+      invalidateStockDailyListCache();
       stockDailyViewportStart = -1;
       const nextStock = getActiveDailyStock();
       renderStockPage();
@@ -7338,12 +7632,32 @@
     function setActiveLimitBoardStock(id) {
       const stock = stockUniverse.find(item => item.id === id);
       if (!stock) return;
+      activeStockLimitBoardStockId = id;
+      stockLimitBoardDetailOpen = true;
       activeDailyStockId = id;
       stockDailyViewportStart = -1;
-      updateStockDailyChart();
+      renderStockPage();
       loadRealStockHistory(stock).then(() => {
         if (activeDailyStockId === id) updateStockDailyChart();
       });
+    }
+
+    function closeStockLimitBoardDetail() {
+      stockLimitBoardDetailOpen = false;
+      activeStockLimitBoardStockId = "";
+      renderStockPage();
+    }
+
+    function isStockLimitBoardGroupExpanded(level) {
+      return stockLimitBoardExpandedLevels.has(Number(level));
+    }
+
+    function toggleStockLimitBoardGroupExpanded(level) {
+      const normalizedLevel = Number(level);
+      if (!Number.isFinite(normalizedLevel)) return;
+      if (stockLimitBoardExpandedLevels.has(normalizedLevel)) stockLimitBoardExpandedLevels.delete(normalizedLevel);
+      else stockLimitBoardExpandedLevels.add(normalizedLevel);
+      renderStockPage();
     }
 
     function toggleStockLimitBoardFilter(filter) {
@@ -7355,6 +7669,9 @@
         return;
       }
       activeStockLimitBoardLevel = 0;
+      activeStockLimitBoardStockId = "";
+      stockLimitBoardDetailOpen = false;
+      stockLimitBoardExpandedLevels.clear();
       stockLimitBoardHistoryLoadToken += 1;
       stockLimitBoardHistoryLoading = false;
       stockLimitBoardHistoryLoaded = 0;
@@ -7403,18 +7720,35 @@
       stockDailySort = sort;
       stockDailyVirtualStart = 0;
       stockDailyListScrollTop = 0;
+      invalidateStockDailyListCache();
       const list = document.querySelector(".stock-daily-list");
       if (list) list.innerHTML = renderStockDailyList();
     }
 
+    function scheduleStockDailyListRender(list) {
+      if (stockDailyListRenderFrame !== null) return;
+      stockDailyListRenderFrame = window.requestAnimationFrame(() => {
+        stockDailyListRenderFrame = null;
+        if (!list.isConnected) return;
+        const nextStart = Math.max(0, Math.floor(stockDailyListScrollTop / STOCK_DAILY_ROW_HEIGHT) - STOCK_DAILY_VIRTUAL_BUFFER);
+        if (nextStart === stockDailyVirtualStart) return;
+        stockDailyVirtualStart = nextStart;
+        updateStockDailyVirtualList(list);
+      });
+    }
+
     function handleStockDailyListScroll(list) {
       stockDailyListScrollTop = list.scrollTop;
-      const nextStart = Math.max(0, Math.floor(list.scrollTop / STOCK_DAILY_ROW_HEIGHT) - STOCK_DAILY_VIRTUAL_BUFFER);
-      if (nextStart === stockDailyVirtualStart) return;
-      stockDailyVirtualStart = nextStart;
-      list.innerHTML = renderStockDailyList();
-      list.scrollTop = stockDailyListScrollTop;
-      scheduleStockUniverseChartPreload();
+      scheduleStockDailyListRender(list);
+      scheduleStockDailyPreload();
+    }
+
+    function scheduleStockDailyPreload() {
+      if (stockDailyPreloadTimer !== null) window.clearTimeout(stockDailyPreloadTimer);
+      stockDailyPreloadTimer = window.setTimeout(() => {
+        stockDailyPreloadTimer = null;
+        scheduleStockUniverseChartPreload();
+      }, STOCK_DAILY_SCROLL_PRELOAD_DELAY_MS);
     }
 
     function createCustomStockStrategy() {
@@ -7498,7 +7832,11 @@
       activeStockView = view;
       expandedStockIdentity = "";
       expandedStockFilterIdentity = "";
-      if (activeStockView === "limit-board") scheduleStockLimitBoardHistoryLoad();
+      if (activeStockView === "limit-board") {
+        stockLimitBoardDetailOpen = false;
+        activeStockLimitBoardStockId = "";
+        scheduleStockLimitBoardHistoryLoad();
+      }
       if (activeStockView === "etf") loadRealEtfUniverse();
       renderStockSideList();
       renderStockPage();
@@ -7612,11 +7950,11 @@
 
     function renderStockWatchlist(list = applyStockFilters(stockWatchlist), sourceList = stockWatchlist) {
       if (!stockWatchlist.length) {
-        return `<div class="stock-empty">还没有自选股，使用上方搜索添加第一只股票。</div>`;
+        return `<div class="stock-empty">还没有自选，使用上方搜索添加第一只。</div>`;
       }
 
       if (!sourceList.length) {
-        return `<div class="stock-empty">当前分组还没有股票，可从日K列表末尾的 + 添加。</div>`;
+        return `<div class="stock-empty">当前分组还没有内容，可从日K列表末尾的 + 添加。</div>`;
       }
 
       if (!list.length) {
@@ -7725,6 +8063,7 @@
         : [...activeStockDailyTags, id];
       stockDailyVirtualStart = 0;
       stockDailyListScrollTop = 0;
+      invalidateStockDailyListCache();
       stockDailyViewportStart = -1;
       const nextStock = getActiveDailyStock();
       renderStockPage();
@@ -7802,12 +8141,23 @@
       return stockDailyPeriods.find(item => item.id === id && item.mode !== "more") || stockDailyPeriods[0];
     }
 
-    function aggregateStockDailyK(data, groupSize = 1) {
-      if (!Array.isArray(data) || groupSize <= 1) return Array.isArray(data) ? data.map(item => ({ ...item })) : [];
+    function aggregateStockDailyK(data, periodId = "day") {
+      if (!Array.isArray(data)) return [];
+      if (periodId === "day") return data.map(item => ({ ...item }));
+      const calendarKey = dateText => {
+        const date = new Date(`${String(dateText).slice(0, 10)}T00:00:00Z`);
+        if (periodId === "month") return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+        const day = date.getUTCDay() || 7;
+        date.setUTCDate(date.getUTCDate() + 4 - day);
+        const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+        const week = Math.ceil(((date - yearStart) / 86400000 + 1) / 7);
+        return `${date.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
+      };
       const result = [];
-      for (let index = 0; index < data.length; index += groupSize) {
-        const group = data.slice(index, index + groupSize);
-        if (!group.length) continue;
+      let group = [];
+      let currentKey = "";
+      const appendGroup = () => {
+        if (!group.length) return;
         result.push({
           date: group[group.length - 1].date,
           open: group[0].open,
@@ -7816,14 +8166,24 @@
           low: Math.min(...group.map(item => item.low)),
           volume: group.reduce((sum, item) => sum + Number(item.volume || 0), 0)
         });
+      };
+      for (const item of data) {
+        const nextKey = calendarKey(item.date);
+        if (group.length && nextKey !== currentKey) {
+          appendGroup();
+          group = [];
+        }
+        currentKey = nextKey;
+        group.push(item);
       }
+      appendGroup();
       return result;
     }
 
     function getStockPeriodK(stock, periodId = activeStockDailyPeriod) {
-      const dailyK = getStockDailyK(stock);
+      const dailyK = normalizeStockHistoryItems(getStockDailyK(stock));
       const period = getStockDailyPeriod(periodId);
-      return aggregateStockDailyK(dailyK, period.groupSize);
+      return aggregateStockDailyK(dailyK, period.id);
     }
 
     function getRealStockMinuteSeries(stock, periodId = activeStockDailyPeriod) {
@@ -8019,11 +8379,17 @@
     }
 
     function getSortedDailyStocks() {
-      return [...getDailyFilteredStocks()].sort((a, b) => {
+      if (stockDailySortedCache) return stockDailySortedCache;
+      stockDailySortedCache = [...getDailyFilteredStocks()].sort((a, b) => {
         if (stockDailySort === "code") return `${a.market}${a.code}`.localeCompare(`${b.market}${b.code}`);
         if (stockDailySort === "change") return b.changePercent - a.changePercent;
         return a.name.localeCompare(b.name, "zh-CN");
       });
+      return stockDailySortedCache;
+    }
+
+    function invalidateStockDailyListCache() {
+      stockDailySortedCache = null;
     }
 
     function renderStockDailyVirtualRows(stocks, start, end) {
@@ -8039,7 +8405,7 @@
               <span class="stock-daily-code">${escapeHTML(stock.market)} ${escapeHTML(stock.code)}</span>
             </span>
             <span class="stock-daily-row-change stock-change ${changeClass}" data-stock-daily-change>${formatStockPercent(stock.changePercent)}</span>
-            <button class="stock-daily-add ${exists ? "is-added" : ""}" type="button" data-stock-daily-add="${escapeHTML(stock.code)}" data-stock-market="${escapeHTML(stock.market)}" aria-label="${exists ? `已在自选股中` : `添加${escapeHTML(stock.name)}到自选股`}">${exists ? "✓" : "+"}</button>
+            <button class="stock-daily-add ${exists ? "is-added" : ""}" type="button" data-stock-daily-add="${escapeHTML(stock.code)}" data-stock-market="${escapeHTML(stock.market)}" aria-label="${exists ? `已在自选中` : `添加${escapeHTML(stock.name)}到自选`}">${exists ? "✓" : "+"}</button>
           </div>
         `;
       }).join("");
@@ -8054,9 +8420,25 @@
       const bottomHeight = Math.max(0, (stocks.length - end) * STOCK_DAILY_ROW_HEIGHT);
       return `
         <div class="stock-daily-list-spacer" data-stock-daily-spacer="top" style="height:${topHeight}px"></div>
-        ${renderStockDailyVirtualRows(stocks, start, end)}
+        <div data-stock-daily-virtual-rows>${renderStockDailyVirtualRows(stocks, start, end)}</div>
         <div class="stock-daily-list-spacer" data-stock-daily-spacer="bottom" style="height:${bottomHeight}px"></div>
       `;
+    }
+
+    function updateStockDailyVirtualList(list) {
+      const scrollTop = list.scrollTop;
+      const stocks = getSortedDailyStocks();
+      const maxStart = Math.max(0, stocks.length - STOCK_DAILY_VIRTUAL_COUNT);
+      const start = Math.max(0, Math.min(maxStart, stockDailyVirtualStart));
+      const end = Math.min(stocks.length, start + STOCK_DAILY_VIRTUAL_COUNT + STOCK_DAILY_VIRTUAL_BUFFER);
+      const topSpacer = list.querySelector('[data-stock-daily-spacer="top"]');
+      const rows = list.querySelector('[data-stock-daily-virtual-rows]');
+      const bottomSpacer = list.querySelector('[data-stock-daily-spacer="bottom"]');
+      if (!topSpacer || !rows || !bottomSpacer) return;
+      topSpacer.style.height = `${start * STOCK_DAILY_ROW_HEIGHT}px`;
+      rows.innerHTML = renderStockDailyVirtualRows(stocks, start, end);
+      bottomSpacer.style.height = `${Math.max(0, (stocks.length - end) * STOCK_DAILY_ROW_HEIGHT)}px`;
+      list.scrollTop = scrollTop;
     }
 
     function renderEtfDataStatus() {
@@ -8323,7 +8705,7 @@
               <div class="stock-daily-toolbar">
                 ${renderStockDailySearch()}
                 ${renderStockDailyFilters()}
-                <select class="stock-select" data-stock-daily-sort aria-label="日K股票排序">
+                <select class="stock-select" data-stock-daily-sort aria-label="日K排序">
                   <option value="name" ${stockDailySort === "name" ? "selected" : ""}>按名称</option>
                   <option value="code" ${stockDailySort === "code" ? "selected" : ""}>按代码</option>
                   <option value="change" ${stockDailySort === "change" ? "selected" : ""}>按涨幅</option>
@@ -8349,7 +8731,7 @@
               <div class="stock-daily-toolbar">
                 ${renderStockDailySearch()}
                 ${renderStockDailyFilters()}
-                <select class="stock-select" data-stock-daily-sort aria-label="日K股票排序">
+                <select class="stock-select" data-stock-daily-sort aria-label="日K排序">
                   <option value="name" ${stockDailySort === "name" ? "selected" : ""}>按名称</option>
                   <option value="code" ${stockDailySort === "code" ? "selected" : ""}>按代码</option>
                   <option value="change" ${stockDailySort === "change" ? "selected" : ""}>按涨幅</option>
@@ -8377,7 +8759,7 @@
             <div class="stock-daily-toolbar">
               ${renderStockDailySearch()}
               ${renderStockDailyFilters()}
-              <select class="stock-select" data-stock-daily-sort aria-label="日K股票排序">
+              <select class="stock-select" data-stock-daily-sort aria-label="日K排序">
                 <option value="name" ${stockDailySort === "name" ? "selected" : ""}>按名称</option>
                 <option value="code" ${stockDailySort === "code" ? "selected" : ""}>按代码</option>
                 <option value="change" ${stockDailySort === "change" ? "selected" : ""}>按涨幅</option>
@@ -8448,11 +8830,62 @@
       `;
     }
 
+    function renderStockLimitBoardGroups(groups = getStockLimitBoardGroups()) {
+      if (!groups.length) return `<div class="stock-empty">最新交易日暂无涨停连板数据。</div>`;
+      return `
+        <div class="stock-limit-board-groups" aria-label="按连板高度分组的股票">
+          ${groups.map(group => `
+            ${(() => {
+              const expanded = isStockLimitBoardGroupExpanded(group.level);
+              const hasMore = group.items.length > STOCK_LIMIT_BOARD_INITIAL_COUNT;
+              const items = expanded ? group.items : group.items.slice(0, STOCK_LIMIT_BOARD_INITIAL_COUNT);
+              return `
+            <section class="stock-limit-board-group" aria-label="${group.level}板，${group.count}只">
+              <div class="stock-limit-board-group-head">
+                <div class="stock-limit-board-group-title">
+                  <span class="stock-limit-board-level-badge">${group.level}板</span>
+                  <span>连板股票</span>
+                </div>
+                <span class="stock-limit-board-count-badge">${group.count}只</span>
+              </div>
+              <div class="stock-limit-board-stock-grid">
+                ${items.map(item => {
+                  const stock = item.stock;
+                  const selected = stock.id === activeStockLimitBoardStockId;
+                  return `
+                    <button class="stock-limit-board-stock ${selected ? "active" : ""}" type="button" data-stock-limit-board-row="${escapeHTML(stock.id)}" aria-pressed="${selected}">
+                      <span class="stock-limit-board-stock-name">${escapeHTML(stock.name)}</span>
+                      <span class="stock-limit-board-stock-code">${escapeHTML(stock.market)} ${escapeHTML(stock.code)}</span>
+                      <span class="stock-limit-board-stock-meta">
+                        <span>量比 ${Number(item.volumeRatio || 0).toFixed(1)}</span>
+                        ${item.oneLineBoard ? `<span class="stock-limit-board-one-line">一字板</span>` : ""}
+                      </span>
+                    </button>
+                  `;
+                }).join("")}
+              </div>
+              ${hasMore ? `<button class="stock-limit-board-more" type="button" data-stock-limit-board-more="${group.level}" aria-expanded="${expanded}">${expanded ? "收起" : `显示更多（剩余 ${group.items.length - STOCK_LIMIT_BOARD_INITIAL_COUNT} 只）`}</button>` : ""}
+            </section>
+              `;
+            })()}
+          `).join("")}
+        </div>
+      `;
+    }
+
     function getActiveStockLimitBoardGroup(groups = getStockLimitBoardGroups()) {
       if (!activeStockLimitBoardLevel || !groups.some(group => group.level === activeStockLimitBoardLevel)) {
         activeStockLimitBoardLevel = groups[0]?.level || 0;
       }
       return groups.find(group => group.level === activeStockLimitBoardLevel) || groups[groups.length - 1] || null;
+    }
+
+    function getSelectedStockLimitBoardStock(groups = getStockLimitBoardGroups()) {
+      for (const group of groups) {
+        const item = group.items?.find(candidate => candidate.stock.id === activeStockLimitBoardStockId);
+        if (item) return item.stock;
+      }
+      return null;
     }
 
     function renderStockLimitBoardList(group = getActiveStockLimitBoardGroup()) {
@@ -8469,7 +8902,7 @@
               <span class="stock-daily-code">${escapeHTML(stock.market)} ${escapeHTML(stock.code)}</span>
             </span>
             <span class="stock-daily-row-change stock-change ${changeClass}">${item.level}板 · 量比 ${Number(item.volumeRatio || 0).toFixed(1)}</span>
-            <button class="stock-daily-add ${exists ? "is-added" : ""}" type="button" data-stock-daily-add="${escapeHTML(stock.code)}" data-stock-market="${escapeHTML(stock.market)}" aria-label="${exists ? "已在自选股中" : `添加${escapeHTML(stock.name)}到自选股`}">${exists ? "✓" : "+"}</button>
+            <button class="stock-daily-add ${exists ? "is-added" : ""}" type="button" data-stock-daily-add="${escapeHTML(stock.code)}" data-stock-market="${escapeHTML(stock.market)}" aria-label="${exists ? "已在自选中" : `添加${escapeHTML(stock.name)}到自选`}">${exists ? "✓" : "+"}</button>
           </div>
         `;
       }).join("");
@@ -8484,17 +8917,16 @@
       return `最新交易日 · 涨停候选 ${candidateCount} 只 · 已评估 ${stockUniverse.length} 只`;
     }
 
-    function renderStockLimitBoardPanel(groups = getStockLimitBoardGroups(), group = getActiveStockLimitBoardGroup(groups)) {
+    function renderStockLimitBoardPanel(groups = getStockLimitBoardGroups()) {
       return `
-        <aside class="stock-card stock-daily-sidebar" id="stockLimitBoardPanel" data-stock-limit-board-panel>
-          <div class="stock-section-head">
-            <h2 class="stock-section-title">连板高度</h2>
+        <section class="stock-card stock-limit-board-overview" id="stockLimitBoardPanel" data-stock-limit-board-panel>
+          <div class="stock-limit-board-overview-head">
+            <h2 class="stock-section-title">连板股票</h2>
             <span class="stock-refresh-note">${escapeHTML(getStockLimitBoardStatusText())}</span>
           </div>
           ${renderStockLimitBoardFilters()}
-          ${renderStockLimitBoardLevels(groups)}
-          <div class="stock-daily-list" data-stock-limit-board-list aria-label="连板股票列表">${renderStockLimitBoardList(group)}</div>
-        </aside>
+          ${renderStockLimitBoardGroups(groups)}
+        </section>
       `;
     }
 
@@ -8509,24 +8941,11 @@
 
     function renderStockLimitBoardView() {
       const groups = getStockLimitBoardGroups();
-      const group = getActiveStockLimitBoardGroup(groups);
-      const stock = group?.items?.find(item => item.stock.id === activeDailyStockId)?.stock || group?.items?.[0]?.stock || getActiveDailyStock();
-      if (stock) activeDailyStockId = stock.id;
-      if (!stock) {
-        return `
-          <div class="stock-daily-layout stock-limit-board-layout">
-            ${renderStockLimitBoardPanel(groups, group)}
-            <section class="stock-card stock-daily-chart-card">
-              <div class="stock-empty">正在等待涨停候选日K数据。</div>
-            </section>
-          </div>
-        `;
-      }
+      const stock = getSelectedStockLimitBoardStock(groups);
+      if (!stockLimitBoardDetailOpen || !stock) return renderStockLimitBoardPanel(groups);
       return `
-        <div class="stock-daily-layout stock-limit-board-layout">
-          ${renderStockLimitBoardPanel(groups, group)}
-
-          <section class="stock-card stock-daily-chart-card">
+        <section class="stock-card stock-daily-chart-card stock-limit-board-detail">
+            <button class="stock-limit-board-detail-back" type="button" data-stock-limit-board-back>← 返回连板总览</button>
             <div class="stock-section-head">
               <div>
                 <h2 class="stock-section-title" data-stock-daily-title>${escapeHTML(stock.name)} 日K图</h2>
@@ -8554,8 +8973,7 @@
             </div>
             ${renderStockDailyScrollbar()}
             ${renderStockDailyDepth(stock)}
-          </section>
-        </div>
+        </section>
       `;
     }
 
@@ -8806,7 +9224,7 @@
       return `
         <section class="stock-card" id="stockWatchlist">
           <div class="stock-section-head">
-            <h2 class="stock-section-title">自选股列表</h2>
+            <h2 class="stock-section-title">自选列表</h2>
             <div class="stock-section-tools">
               <span class="stock-refresh-note" data-stock-watch-count>${filteredStocks.length}/${groupStocks.length} 只</span>
               <button class="stock-action primary" type="button" data-stock-refresh>刷新</button>
@@ -8961,10 +9379,10 @@
       content.className = "content stock-content";
       content.innerHTML = `
         <section class="stock-page">
-          ${activeStockView === "filter" || activeStockView === "etf" ? "" : `<div class="stock-topbar">
+          ${activeStockView === "filter" || activeStockView === "etf" || activeStockView === "limit-board" ? "" : `<div class="stock-topbar">
             <div class="stock-title-block">
               <div class="stock-kicker">A 股行情 · 分时/K线</div>
-              <h1 class="stock-title">股票分时/日K图</h1>
+              <h1 class="stock-title">分时/日K图</h1>
               <p class="stock-subtitle">左侧选择股票，右侧联动查看分时、日K、周K、月K、成交量、MACD 与盘口分布，价格会按 5 到 15 秒节奏动态刷新。</p>
             </div>
             <div class="stock-search-zone">
@@ -9012,7 +9430,7 @@
         button.classList.toggle("is-added", exists);
         button.classList.toggle("primary", !exists && !isDailyButton);
         button.textContent = exists ? "✓" : "+";
-        button.setAttribute("aria-label", exists ? (isDailyButton ? "已在自选股中" : "已添加") : `添加${stock.name}到自选${isDailyButton ? "股" : ""}`);
+        button.setAttribute("aria-label", exists ? (isDailyButton ? "已在自选中" : "已添加") : `添加${stock.name}到自选`);
       };
       document.querySelectorAll("[data-stock-daily-add]").forEach(button => updateButton(button, "stockDailyAdd"));
       document.querySelectorAll("[data-stock-add]").forEach(button => updateButton(button, "stockAdd"));
@@ -9336,7 +9754,7 @@
       const identity = getStockIdentity(stock);
       if (!stockApiReady || !identity || stockMiniHistoryLoading.has(identity)) return;
       stockMiniHistoryLoading.add(identity);
-      loadRealStockHistory(stock).then(loaded => {
+      enqueueStockBackgroundHistory(stock).then(loaded => {
         if (loaded && activeFeature === "stocks") drawStockCanvases();
       }).finally(() => {
         stockMiniHistoryLoading.delete(identity);
@@ -10163,6 +10581,17 @@
       const limitBoardFilterButton = event.target.closest("[data-stock-limit-board-filter]");
       if (limitBoardFilterButton) {
         toggleStockLimitBoardFilter(limitBoardFilterButton.dataset.stockLimitBoardFilter);
+        return;
+      }
+
+      if (event.target.closest("[data-stock-limit-board-back]")) {
+        closeStockLimitBoardDetail();
+        return;
+      }
+
+      const limitBoardMoreButton = event.target.closest("[data-stock-limit-board-more]");
+      if (limitBoardMoreButton) {
+        toggleStockLimitBoardGroupExpanded(limitBoardMoreButton.dataset.stockLimitBoardMore);
         return;
       }
 
@@ -11257,7 +11686,7 @@
         const group = getStockWatchGroupById(modalState.groupId);
         if (!group || group.id === DEFAULT_STOCK_WATCH_GROUP_ID) return closeModal();
         modalShell("删除自选分组", `
-          <p class="confirm-copy">确定删除「${escapeHTML(group.name)}」吗？该分组里的股票不会从自选股中删除，未归属其他分组的股票会移到默认分组。</p>
+          <p class="confirm-copy">确定删除「${escapeHTML(group.name)}」吗？该分组里的内容不会从自选中删除，未归属其他分组的内容会移到默认分组。</p>
         `, `
           <button class="modal-btn" type="button" data-modal-close>取消</button>
           <button class="modal-btn danger" type="button" data-confirm-stock-watch-group-delete>确认删除</button>
