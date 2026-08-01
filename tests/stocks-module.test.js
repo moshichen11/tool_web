@@ -914,17 +914,17 @@ function renderStockDataStatusFixture({
   `)({ status, loaded, total, source, error });
 }
 
-function loadStockApiBaseUrl({ hostname = "127.0.0.1", stored = "", override = "" } = {}) {
-  return new Function("hostname", "stored", "override", `
+function loadStockApiBaseUrl({ hostname = "127.0.0.1", stored = "", override = "", desktopApi = "" } = {}) {
+  return new Function("hostname", "stored", "override", "desktopApi", `
     const STOCK_API_BASE_URL_KEY = "glass_nav_stock_api_base_url";
     const STOCK_DEFAULT_API_BASE_URL = "https://tool-web-stock-api.onrender.com";
     const STOCK_LOCAL_API_BASE_URL = "http://127.0.0.1:8787";
     const localStorage = { getItem(key) { return key === STOCK_API_BASE_URL_KEY ? stored : ""; } };
-    const window = { location: { hostname }, STOCK_API_BASE_URL: override };
+    const window = { location: { hostname }, STOCK_API_BASE_URL: override, desktopConfig: { stockApiBaseUrl: desktopApi } };
     ${extractFunction("getDefaultStockApiBaseUrl")}
     ${extractFunction("getStockApiBaseUrl")}
     return getStockApiBaseUrl();
-  `)(hostname, stored, override);
+  `)(hostname, stored, override, desktopApi);
 }
 
 test("stocks module is registered and routed from the existing feature shell", () => {
@@ -1338,6 +1338,7 @@ test("stocks local static pages use the local API server by default", () => {
   assert.equal(loadStockApiBaseUrl({ hostname: "kid1412.dpdns.org" }), "https://tool-web-stock-api.onrender.com");
   assert.equal(loadStockApiBaseUrl({ hostname: "127.0.0.1", stored: "http://example.test/api/" }), "http://example.test/api");
   assert.equal(loadStockApiBaseUrl({ hostname: "127.0.0.1", override: "http://window.test/api/" }), "http://window.test/api");
+  assert.equal(loadStockApiBaseUrl({ hostname: "tool-web-desktop", desktopApi: "http://127.0.0.1:45678/" }), "http://127.0.0.1:45678");
 });
 
 test("stock daily list uses the unified loaded universe instead of paged universe loading", () => {

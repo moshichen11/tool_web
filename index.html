@@ -5000,6 +5000,8 @@
     }
 
     function getDefaultStockApiBaseUrl() {
+      const desktopApiBaseUrl = String(window.desktopConfig?.stockApiBaseUrl || "").trim();
+      if (desktopApiBaseUrl) return desktopApiBaseUrl;
       const hostname = String(window.location?.hostname || "").toLowerCase();
       if (hostname === "127.0.0.1" || hostname === "localhost") return STOCK_LOCAL_API_BASE_URL;
       return STOCK_DEFAULT_API_BASE_URL;
