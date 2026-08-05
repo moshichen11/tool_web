@@ -25,3 +25,4 @@ pyinstaller-cache/
 # Local/runtime files
 *.log
 .env
+.worktrees/
