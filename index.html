@@ -4123,7 +4123,7 @@
     const stockViews = [
       { id: "daily", icon: "📈", name: "分时/日K图", desc: "分时、K线与盘口分布" },
       { id: "watchlist", icon: "⭐", name: "自选", desc: "添加、排序、刷新自选" },
-      { id: "filter", icon: "⚗️", name: "条件选股", desc: "多条件筛选自选股" },
+      { id: "filter", icon: "⚗️", name: "策略选股", desc: "收盘后策略候选" },
       { id: "limit-board", icon: "♟", name: "连板", desc: "最新交易日涨停高度" },
       { id: "etf", icon: "▦", name: "行业ETF", desc: "ETF 实时行情与K线" }
     ];
@@ -4402,6 +4402,10 @@
     let activeStockTags = [];
     let activeStockStrategy = defaultStockStrategies[0]?.id || "";
     let stockFilterSearchTerm = "";
+    let strategySnapshot = null;
+    let strategySnapshotStatus = null;
+    let strategySnapshotLoading = false;
+    let strategySnapshotError = "";
     let customStockStrategies = [];
     let stockResultPage = 1;
     let stockResultSort = { field: "changePercent", direction: "desc" };
@@ -7840,6 +7844,7 @@
         scheduleStockLimitBoardHistoryLoad();
       }
       if (activeStockView === "etf") loadRealEtfUniverse();
+      if (activeStockView === "filter") loadStrategySnapshot();
       renderStockSideList();
       renderStockPage();
     }
@@ -9238,7 +9243,41 @@
       `;
     }
 
+    async function loadStrategySnapshot() {
+      if (strategySnapshotLoading) return;
+      strategySnapshotLoading = true;
+      strategySnapshotError = "";
+      try {
+        const [snapshotResponse, statusResponse] = await Promise.all([
+          fetch("./data/strategy-selection/latest.json", { cache: "no-store" }),
+          fetch("./data/strategy-selection/status.json", { cache: "no-store" })
+        ]);
+        strategySnapshot = snapshotResponse.ok ? await snapshotResponse.json() : null;
+        strategySnapshotStatus = statusResponse.ok ? await statusResponse.json() : null;
+      } catch (error) {
+        strategySnapshotError = "策略快照暂时无法加载。";
+      } finally {
+        strategySnapshotLoading = false;
+        if (activeFeature === "stocks" && activeStockView === "filter") renderStockPage();
+      }
+    }
+
+    function renderStrategyCandidates(items, title) {
+      if (!items?.length) return `<section class="stock-card stock-filter-results"><h2 class="stock-section-title">${title}</h2><p class="stock-refresh-note">当前快照暂无符合该策略组的研究候选。</p></section>`;
+      return `<section class="stock-card stock-filter-results"><div class="stock-section-head"><h2 class="stock-section-title">${title}</h2><span class="stock-refresh-note">研究候选，非交易指令</span></div><div class="stock-watchlist-table-wrap"><table class="stock-watchlist-table"><thead><tr><th>名称</th><th>策略</th><th>评分</th><th>命中理由</th><th>失效条件</th><th>操作</th></tr></thead><tbody>${items.map(item => `<tr><td><strong>${escapeHTML(item.name)}</strong><br><span class="stock-code">${escapeHTML(item.market)} ${escapeHTML(item.code)} · ${escapeHTML(item.industry)}</span></td><td>${escapeHTML(item.strategyName)}</td><td>${Number(item.score || 0).toFixed(1)}</td><td>${escapeHTML((item.reasonCodes || []).join(" · "))}</td><td>${escapeHTML(item.invalidation || "")}</td><td><button class="stock-table-action" type="button" data-strategy-candidate="${escapeHTML(item.market)}:${escapeHTML(item.code)}">↗</button></td></tr>`).join("")}</tbody></table></div></section>`;
+    }
+
+    function renderStrategySelectionView() {
+      const state = strategySnapshotStatus?.state || "loading";
+      if (strategySnapshotLoading || state === "loading") return `<section class="stock-card stock-filter-results"><h2 class="stock-section-title">策略选股</h2><p class="stock-refresh-note">正在读取收盘后策略快照…</p></section>`;
+      if (!strategySnapshot) return `<section class="stock-card stock-filter-results"><h2 class="stock-section-title">策略选股</h2><p class="stock-refresh-note">${escapeHTML(strategySnapshotError || strategySnapshotStatus?.message || "尚未生成收盘策略快照。")}</p></section>`;
+      const stale = state !== "ready" ? `<p class="stock-refresh-note">${escapeHTML(strategySnapshotStatus?.message || "当前显示最近有效快照。")}</p>` : "";
+      return `<div class="stock-filter-layout"><section class="stock-card stock-filter-results"><h1 class="stock-section-title">策略选股</h1><p class="stock-refresh-note">数据日期：${escapeHTML(strategySnapshot.dataDate || "未知")} · 覆盖 ${Number(strategySnapshot.coverage?.evaluated || 0)} 只高流动性主板股票 · 停牌、ST 与非主板股票不参与。</p>${stale}</section>${renderStrategyCandidates(strategySnapshot.shortTerm, "短线候选（1–5 日）")}${renderStrategyCandidates(strategySnapshot.swing, "波段候选（1–4 周）")}</div>`;
+    }
+
     function renderStockFilterView() {
+      return renderStrategySelectionView();
+      /* legacy condition renderer retained below for source compatibility */
       const filteredStocks = getStockFilterResults();
       scheduleStockStrategyHistoryLoad();
       return `
@@ -11881,6 +11920,18 @@
     });
 
     content.addEventListener("click", event => {
+      const strategyCandidate = event.target.closest("[data-strategy-candidate]");
+      if (strategyCandidate) {
+        const [market, code] = String(strategyCandidate.dataset.strategyCandidate || "").split(":");
+        const stock = getStockByCode(code, market) || makeStockIdentityPlaceholder(code, market);
+        activeStockView = "daily";
+        activeDailyStockId = stock.id;
+        loadRealStockHistory(stock).finally(() => {
+          renderStockSideList();
+          renderStockPage();
+        });
+        return;
+      }
       if (activeFeature === "settings") {
         const unlockBtn = event.target.closest("#unlockBtn");
         if (unlockBtn) {

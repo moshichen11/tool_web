@@ -1,0 +1,14 @@
+{
+  "version": "1.0",
+  "prefilter": { "maxStocks": 600, "minAmount": 1000000000 },
+  "output": { "maxPerIndustry": 2, "maxPerHorizon": 10 },
+  "windows": { "ma5": 5, "ma10": 10, "ma20": 20, "high20": 20, "volume": 5 },
+  "thresholds": { "volumeExpansion": 1.3, "leaderReturn5d": 0.03, "pullbackMinDays": 2, "pullbackMaxDays": 8, "pullbackMax": 0.12 },
+  "strategies": [
+    { "id": "leader_reacceleration", "horizon": "shortTerm", "name": "龙头转强", "riskLabel": "高波动" },
+    { "id": "upper_shadow_reversal", "horizon": "shortTerm", "name": "反包确认", "riskLabel": "高波动" },
+    { "id": "strong_pullback_reclaim", "horizon": "shortTerm", "name": "强势回踩转强", "riskLabel": "进攻" },
+    { "id": "trend_breakout", "horizon": "swing", "name": "趋势突破", "riskLabel": "趋势" },
+    { "id": "trend_pullback", "horizon": "swing", "name": "趋势回踩", "riskLabel": "趋势" }
+  ]
+}
