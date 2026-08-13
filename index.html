@@ -81,20 +81,6 @@
       animation: pageFade var(--ease) both;
     }
 
-    @media (min-width: 921px) {
-      .app.game-mode {
-        grid-template-columns: 72px minmax(0, 1fr);
-      }
-
-      .app.game-mode .category-sidebar {
-        display: none;
-      }
-
-      .app.game-mode .game-picker-mobile {
-        display: flex;
-      }
-    }
-
     .glass {
       background: var(--glass);
       backdrop-filter: blur(20px) saturate(160%);
@@ -1102,6 +1088,161 @@
 
     .game-card {
       padding: clamp(16px, 2.4vw, 24px);
+    }
+
+    .wheel-layout {
+      display: grid;
+      grid-template-columns: minmax(260px, 0.9fr) minmax(280px, 1.1fr);
+      align-items: center;
+      gap: clamp(22px, 4vw, 54px);
+    }
+
+    .wheel-stage {
+      position: relative;
+      width: min(100%, 440px);
+      aspect-ratio: 1;
+      margin: 12px auto;
+      display: grid;
+      place-items: center;
+    }
+
+    .wheel-pointer {
+      position: absolute;
+      z-index: 2;
+      top: -3px;
+      left: 50%;
+      width: 0;
+      height: 0;
+      border-right: 18px solid transparent;
+      border-left: 18px solid transparent;
+      border-top: 42px solid #fff;
+      filter: drop-shadow(0 4px 5px rgba(0,0,0,0.35));
+      transform: translateX(-50%);
+    }
+
+    .wheel-disc {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      border: 7px solid rgba(255,255,255,0.82);
+      border-radius: 50%;
+      background: #1e2859;
+      box-shadow: 0 18px 46px rgba(0,0,0,0.34), inset 0 0 0 4px rgba(10,12,43,0.32);
+      transform: rotate(0deg);
+      transition: transform 4.4s cubic-bezier(0.12, 0.74, 0.08, 1);
+    }
+
+    .wheel-disc svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .wheel-disc text {
+      fill: #fff;
+      font-size: 4.25px;
+      font-weight: 700;
+      text-anchor: middle;
+      dominant-baseline: middle;
+      paint-order: stroke;
+      stroke: rgba(17, 22, 58, 0.38);
+      stroke-width: 0.65px;
+    }
+
+    .wheel-center {
+      position: absolute;
+      z-index: 1;
+      width: 25%;
+      aspect-ratio: 1;
+      color: #fff;
+      border: 5px solid rgba(255,255,255,0.9);
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 28%, #80d7ff, #4f53d8 62%, #24235c);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.38);
+      display: grid;
+      place-items: center;
+      font-size: clamp(20px, 4vw, 32px);
+      pointer-events: none;
+    }
+
+    .wheel-config {
+      display: grid;
+      gap: 14px;
+    }
+
+    .wheel-config h2 {
+      font-size: clamp(26px, 3.5vw, 38px);
+      line-height: 1.1;
+    }
+
+    .wheel-config > p,
+    .wheel-result-copy {
+      color: rgba(255,255,255,0.68);
+      line-height: 1.7;
+    }
+
+    .wheel-options-input {
+      width: 100%;
+      min-height: 190px;
+      resize: vertical;
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 12px;
+      outline: 0;
+      background: rgba(8,12,38,0.36);
+      padding: 12px;
+      line-height: 1.6;
+    }
+
+    .wheel-options-input:focus {
+      border-color: rgba(128,215,255,0.85);
+      box-shadow: 0 0 0 3px rgba(128,215,255,0.16);
+    }
+
+    .wheel-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .wheel-spin-btn {
+      min-width: 138px;
+      background: linear-gradient(135deg, #67d6ff, #6657e8);
+    }
+
+    .wheel-result {
+      min-height: 78px;
+      padding: 13px 15px;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.07);
+      display: grid;
+      gap: 3px;
+    }
+
+    .wheel-result strong {
+      color: #9ce7ff;
+      font-size: clamp(18px, 2.2vw, 26px);
+      overflow-wrap: anywhere;
+    }
+
+    .wheel-option-summary {
+      max-height: 130px;
+      padding-left: 20px;
+      color: rgba(255,255,255,0.6);
+      overflow: auto;
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    @media (max-width: 760px) {
+      .wheel-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .wheel-stage {
+        width: min(86vw, 390px);
+      }
     }
 
     .schulte-panel {
@@ -4033,7 +4174,7 @@
     const defaultFeatures = [
       { id: "wallpaper", label: "壁纸", icon: "🖼️" },
       { id: "science", label: "科普", icon: "🔬" },
-      { id: "game", label: "游戏", icon: "🎮" },
+      { id: "game", label: "趣味", icon: "🎮" },
       { id: "navigation", label: "导航", icon: "🧭" },
       { id: "stocks", label: "股市", icon: "📈" },
       { id: "settings", label: "设置", icon: "⚙️" }
@@ -4046,6 +4187,13 @@
     ];
 
     const games = [
+      {
+        id: "wheel",
+        name: "幸运轮盘",
+        icon: "🎡",
+        desc: "自定义选项，随机帮你做个决定",
+        render: renderWheelGame
+      },
       {
         id: "schulte",
         name: "苏尔特方格",
@@ -4088,6 +4236,8 @@
     ];
 
     const STOCK_WATCHLIST_KEY = "glass_nav_stock_watchlist";
+    const WHEEL_OPTIONS_KEY = "glass_nav_wheel_options";
+    const DEFAULT_WHEEL_OPTIONS = ["今天吃什么", "看一部电影", "出门散步", "来杯咖啡"];
     const STOCK_WATCHLIST_GROUPS_KEY = "glass_nav_stock_watchlist_groups";
     const DEFAULT_STOCK_WATCH_GROUP_ID = "default";
     const STOCK_STRATEGY_KEY = "glass_nav_stock_strategies";
@@ -4390,6 +4540,13 @@
       elapsed: 0,
       timerId: null,
       locked: false
+    };
+
+    const wheelState = {
+      options: loadWheelOptions(),
+      rotation: 0,
+      spinning: false,
+      result: ""
     };
 
     let stockWatchlist = [];
@@ -4796,7 +4953,7 @@
     function renderFeatureSidePlaceholder(feature) {
       categoryList.className = "category-list";
       categoryList.innerHTML = `
-        <li class="empty-mini">${escapeHTML(feature.label)}模块正在打磨中，导航和游戏功能可继续使用。</li>
+        <li class="empty-mini">${escapeHTML(feature.label)}模块正在打磨中，导航和趣味功能可继续使用。</li>
       `;
     }
 
@@ -4907,7 +5064,7 @@
           <div class="coming-card glass">
             <div class="coming-icon" aria-hidden="true">${escapeHTML(feature.icon)}</div>
             <h1>${escapeHTML(feature.label)} 即将接入</h1>
-            <p>这个功能正在规划中。当前可以继续使用导航站和游戏中心，后续会在这里接入更完整的内容体验。</p>
+            <p>这个功能正在规划中。当前可以继续使用导航站和趣味中心，后续会在这里接入更完整的内容体验。</p>
           </div>
         </section>
       `;
@@ -4945,7 +5102,7 @@
                 <strong style="font-size: 15px;">${isUnlocked ? "已解锁" : "解锁"}</strong>
               </button>
             </div>
-            ${isUnlocked ? '<p style="margin-top: 12px; color: #4caf50; font-size: 14px;">已成功开启隐藏模块：游戏</p>' : ""}
+            ${isUnlocked ? '<p style="margin-top: 12px; color: #4caf50; font-size: 14px;">已成功开启隐藏模块：趣味</p>' : ""}
           </div>
         </section>
       `;
@@ -11012,7 +11169,7 @@
       }
 
       if (activeFeature === "game") {
-        sidePanelTitle.textContent = "游戏列表";
+        sidePanelTitle.textContent = "趣味列表";
         addCategoryBtn.classList.add("is-hidden");
         searchShell.classList.add("is-hidden");
         mainScroll.classList.add("no-search");
@@ -11295,6 +11452,137 @@
           <div class="game-controls">
             <button class="schulte-btn" type="button" data-memory-restart>重新开始</button>
             <button class="schulte-btn" type="button" data-memory-shuffle>换一局</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function loadWheelOptions() {
+      try {
+        const stored = JSON.parse(localStorage.getItem(WHEEL_OPTIONS_KEY) || "null");
+        if (Array.isArray(stored)) {
+          const options = stored.map(item => String(item).trim()).filter(Boolean);
+          if (options.length) return options;
+        }
+      } catch (error) {
+        // Use the examples if browser storage is unavailable or malformed.
+      }
+      return [...DEFAULT_WHEEL_OPTIONS];
+    }
+
+    function saveWheelOptions(options) {
+      try {
+        localStorage.setItem(WHEEL_OPTIONS_KEY, JSON.stringify(options));
+      } catch (error) {
+        // The wheel remains usable when storage is disabled.
+      }
+    }
+
+    function updateWheelOptions() {
+      if (wheelState.spinning) return;
+      const input = document.querySelector("[data-wheel-options]");
+      const options = String(input?.value || "").split(/\r?\n/).map(item => item.trim()).filter(Boolean);
+      if (!options.length) {
+        showToast("请至少填写一个轮盘选项", "error");
+        return;
+      }
+      wheelState.options = options;
+      wheelState.rotation = 0;
+      wheelState.result = "";
+      saveWheelOptions(options);
+      renderGamePage();
+      showToast(`已保存 ${options.length} 个轮盘选项`);
+    }
+
+    function resetWheelOptions() {
+      if (wheelState.spinning) return;
+      wheelState.options = [...DEFAULT_WHEEL_OPTIONS];
+      wheelState.rotation = 0;
+      wheelState.result = "";
+      saveWheelOptions(wheelState.options);
+      renderGamePage();
+    }
+
+    function getWheelPoint(angle, radius = 48) {
+      const radians = angle * Math.PI / 180;
+      return [50 + radius * Math.cos(radians), 50 + radius * Math.sin(radians)];
+    }
+
+    function renderWheelSvg(options) {
+      const colors = ["#6d5eea", "#4b9fe8", "#3cbf9b", "#81bd45", "#e4a338", "#e46f62", "#ca5cb4", "#8f6de1"];
+      if (options.length === 1) {
+        return `<svg viewBox="0 0 100 100" aria-label="轮盘"><circle cx="50" cy="50" r="50" fill="${colors[0]}" /><text x="50" y="50">${escapeHTML(options[0])}</text></svg>`;
+      }
+      const sliceAngle = 360 / options.length;
+      const segments = options.map((option, index) => {
+        const start = -90 + index * sliceAngle;
+        const end = start + sliceAngle;
+        const [x1, y1] = getWheelPoint(start);
+        const [x2, y2] = getWheelPoint(end);
+        const [textX, textY] = getWheelPoint(start + sliceAngle / 2, 30);
+        const label = option.length > 12 ? `${option.slice(0, 11)}…` : option;
+        return `<path d="M 50 50 L ${x1.toFixed(3)} ${y1.toFixed(3)} A 48 48 0 ${sliceAngle > 180 ? 1 : 0} 1 ${x2.toFixed(3)} ${y2.toFixed(3)} Z" fill="${colors[index % colors.length]}" stroke="rgba(255,255,255,0.56)" stroke-width="0.45" /><text x="${textX.toFixed(3)}" y="${textY.toFixed(3)}" transform="rotate(${(start + sliceAngle / 2).toFixed(3)} ${textX.toFixed(3)} ${textY.toFixed(3)})">${escapeHTML(label)}</text>`;
+      }).join("");
+      return `<svg viewBox="0 0 100 100" role="img" aria-label="共 ${options.length} 个选项的轮盘">${segments}</svg>`;
+    }
+
+    function spinWheel() {
+      const options = wheelState.options;
+      if (wheelState.spinning) return;
+      if (options.length < 2) {
+        showToast("至少需要两个选项才能转动轮盘", "error");
+        return;
+      }
+      const selectedIndex = Math.floor(Math.random() * options.length);
+      const sliceAngle = 360 / options.length;
+      const currentRotation = ((wheelState.rotation % 360) + 360) % 360;
+      const desiredRotation = ((360 - (selectedIndex + 0.5) * sliceAngle) % 360 + 360) % 360;
+      const rotationDelta = (desiredRotation - currentRotation + 360) % 360;
+      wheelState.rotation += 1440 + rotationDelta;
+      wheelState.spinning = true;
+
+      const disc = document.querySelector("[data-wheel-disc]");
+      const button = document.querySelector("[data-wheel-spin]");
+      if (!disc) return;
+      if (button) button.disabled = true;
+      disc.style.transform = `rotate(${wheelState.rotation}deg)`;
+      window.setTimeout(() => {
+        wheelState.spinning = false;
+        wheelState.result = options[selectedIndex];
+        const resultNode = document.querySelector("[data-wheel-result]");
+        if (resultNode) resultNode.textContent = wheelState.result;
+        if (button) button.disabled = false;
+      }, 4450);
+    }
+
+    function renderWheelGame() {
+      const options = wheelState.options;
+      return `
+        <div class="game-card glass">
+          <div class="wheel-layout">
+            <div class="wheel-stage" aria-label="幸运轮盘">
+              <div class="wheel-pointer" aria-hidden="true"></div>
+              <div class="wheel-disc" data-wheel-disc style="transform: rotate(${wheelState.rotation}deg)">${renderWheelSvg(options)}</div>
+              <div class="wheel-center" aria-hidden="true">🎡</div>
+            </div>
+            <section class="wheel-config">
+              <div>
+                <h2>幸运轮盘</h2>
+                <p>趣味中心的随机小助手：每行一个选项，数量不做限制。</p>
+              </div>
+              <label for="wheelOptions">轮盘选项</label>
+              <textarea class="wheel-options-input" id="wheelOptions" data-wheel-options placeholder="每行输入一个选项">${escapeHTML(options.join("\n"))}</textarea>
+              <div class="wheel-actions">
+                <button class="schulte-btn" type="button" data-wheel-save>更新选项</button>
+                <button class="schulte-btn" type="button" data-wheel-reset>恢复示例</button>
+                <button class="schulte-btn wheel-spin-btn" type="button" data-wheel-spin>转动轮盘</button>
+              </div>
+              <div class="wheel-result" aria-live="polite">
+                <span class="wheel-result-copy">${wheelState.result ? "本次抽中" : "准备好后，点击转动轮盘"}</span>
+                <strong data-wheel-result>${escapeHTML(wheelState.result || "等待选择")}</strong>
+              </div>
+              <ol class="wheel-option-summary" aria-label="当前轮盘选项">${options.map(option => `<li>${escapeHTML(option)}</li>`).join("")}</ol>
+            </section>
           </div>
         </div>
       `;
@@ -11967,6 +12255,21 @@
           activeGame = gameButton.dataset.game;
           renderAppShell();
           return;
+        }
+
+        if (activeGame === "wheel") {
+          if (event.target.closest("[data-wheel-save]")) {
+            updateWheelOptions();
+            return;
+          }
+          if (event.target.closest("[data-wheel-reset]")) {
+            resetWheelOptions();
+            return;
+          }
+          if (event.target.closest("[data-wheel-spin]")) {
+            spinWheel();
+            return;
+          }
         }
 
         // Memory Game Handlers

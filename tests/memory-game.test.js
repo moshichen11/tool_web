@@ -107,23 +107,14 @@ test("memory grid uses one unified card width for all four modes", () => {
   assert.doesNotMatch(html, /getMemoryGridMaxWidth/);
 });
 
-test("memory game uses the widest non-scrolling desktop game area", () => {
+test("fun pages keep the desktop fun list visible", () => {
   assert.match(html, /const appShell = document\.querySelector\("\.app"\)/);
   assert.match(html, /appShell\.classList\.toggle\("game-mode", activeFeature === "game"\)/);
   assert.match(html, /content\.className = game\.id === "memory" \? "content memory-content" : "content"/);
 
-  assert.match(
-    html,
-    /@media \(min-width: 921px\) \{[\s\S]*?\.app\.game-mode\s*\{[\s\S]*?grid-template-columns:\s*72px minmax\(0,\s*1fr\)/,
-  );
-  assert.match(
-    html,
-    /@media \(min-width: 921px\) \{[\s\S]*?\.app\.game-mode \.category-sidebar\s*\{[\s\S]*?display:\s*none/,
-  );
-  assert.match(
-    html,
-    /@media \(min-width: 921px\) \{[\s\S]*?\.app\.game-mode \.game-picker-mobile\s*\{[\s\S]*?display:\s*flex/,
-  );
+  assert.doesNotMatch(html, /\.app\.game-mode\s*\{[\s\S]*?grid-template-columns:\s*72px minmax\(0,\s*1fr\)/);
+  assert.doesNotMatch(html, /\.app\.game-mode \.category-sidebar\s*\{[\s\S]*?display:\s*none/);
+  assert.match(html, /\.app\s*\{[\s\S]*?grid-template-columns:\s*72px 220px minmax\(0,\s*1fr\)/);
   assert.match(
     html,
     /\.memory-content\s*\{[\s\S]*?padding-inline:\s*8px/,
