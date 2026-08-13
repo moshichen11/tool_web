@@ -26,3 +26,5 @@ pyinstaller-cache/
 *.log
 .env
 .worktrees/
+dist/
+node_modules/

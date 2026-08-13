@@ -24,3 +24,29 @@ test("schulte finish captures elapsed time before marking the game finished", ()
     "getSchulteElapsed returns the stored elapsed value after finished=true, so capture elapsed first",
   );
 });
+
+test("苏尔特方格开始前隐藏数字并在中央显示开始按钮", () => {
+  assert.match(html, /schulte-grid[^"\n]*\$\{!schulteState\.started \? "is-waiting" : ""\}/);
+  assert.match(html, /data-schulte-start/);
+  assert.match(html, /schulte-start-overlay/);
+  assert.match(html, /disabled aria-disabled="true" aria-label="数字暂未显示"/);
+  assert.match(html, /\.schulte-grid\.is-waiting \.schulte-cell\s*\{[\s\S]*?filter:\s*blur\(/);
+  assert.match(html, /\.schulte-start-overlay\s*\{[\s\S]*?position:\s*absolute[\s\S]*?place-items:\s*center/);
+});
+
+test("点击开始按钮后才启动苏尔特计时和数字交互", () => {
+  const startBody = extractFunction("startSchulteGame");
+  const cellBody = html.slice(
+    html.indexOf("function handleSchulteCellClick(event)"),
+    html.indexOf("function renderSchulteGame()"),
+  );
+
+  assert.match(startBody, /schulteState\.started = true/);
+  assert.match(startBody, /schulteState\.startTime = performance\.now\(\)/);
+  assert.match(startBody, /startSchulteTimer\(\)/);
+  assert.match(startBody, /classList\.remove\("is-waiting"\)/);
+  assert.match(startBody, /cell\.disabled = false/);
+  assert.match(cellBody, /if \(!cell \|\| !schulteState\.started \|\| schulteState\.finished\) return/);
+  assert.doesNotMatch(cellBody, /if \(!schulteState\.started\)\s*\{/);
+  assert.match(html, /event\.target\.closest\("\[data-schulte-start\]"\)[\s\S]*?startSchulteGame\(\)/);
+});

@@ -8,6 +8,8 @@ const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
 test("game entry is presented as the fun feature", () => {
   assert.match(html, /\{ id: "game", label: "趣味", icon: "🎮" \}/);
   assert.match(html, /趣味中心/);
+  assert.match(html, /fallback\.id === "game" \? fallback\.label/);
+  assert.match(html, /sidePanelTitle\.textContent = "趣味列表"/);
 });
 
 test("fun feature includes a custom spin wheel without an option count cap", () => {

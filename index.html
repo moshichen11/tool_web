@@ -1367,6 +1367,45 @@
       box-shadow: inset 0 1px 0 rgba(255,255,255,0.13), 0 18px 42px rgba(0,0,0,0.2);
     }
 
+    .schulte-grid.is-waiting .schulte-cell {
+      filter: blur(8px);
+      opacity: 0.72;
+      pointer-events: none;
+      cursor: default;
+    }
+
+    .schulte-start-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      display: grid;
+      place-items: center;
+      pointer-events: none;
+    }
+
+    .schulte-start-btn {
+      min-width: 150px;
+      min-height: 54px;
+      padding: 0 26px;
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.62);
+      border-radius: 999px;
+      background: linear-gradient(135deg, rgba(76,181,255,0.96), rgba(107,76,232,0.96));
+      box-shadow: 0 14px 34px rgba(25,24,92,0.48), 0 0 0 6px rgba(255,255,255,0.1);
+      cursor: pointer;
+      font-size: 17px;
+      font-weight: 800;
+      pointer-events: auto;
+      transition: transform var(--ease), box-shadow var(--ease);
+    }
+
+    .schulte-start-btn:hover,
+    .schulte-start-btn:focus-visible {
+      transform: translateY(-2px) scale(1.03);
+      box-shadow: 0 18px 38px rgba(25,24,92,0.54), 0 0 0 7px rgba(255,255,255,0.14);
+      outline: 0;
+    }
+
     .schulte-cell {
       aspect-ratio: 1;
       min-width: 0;
@@ -4354,6 +4393,8 @@
     const etfHistoryLoads = new Map();
 
     const USER_CONFIG_KEY = "glass_nav_user_config";
+    const STOCKS_UNLOCKED_KEY = "glass_nav_stocks_unlocked";
+    let isStocksUnlocked = localStorage.getItem(STOCKS_UNLOCKED_KEY) === "true";
     const defaultCategories = [
       {
         emoji: "🔥",
@@ -4750,7 +4791,7 @@
         seen.add(fallback.id);
         normalized.push({
           id: fallback.id,
-          label: String(feature.label || fallback.label).trim() || fallback.label,
+          label: fallback.id === "game" ? fallback.label : String(feature.label || fallback.label).trim() || fallback.label,
           icon: String(feature.icon || fallback.icon).trim() || fallback.icon
         });
       });
@@ -4888,7 +4929,7 @@
     }
 
     function getVisibleFeatures() {
-      return features;
+      return features.filter(item => item.id !== "stocks" || isStocksUnlocked);
     }
 
     function renderFeatureList() {
@@ -5085,6 +5126,18 @@
                 <span>清除本地配置并回到默认数据。</span>
               </button>
             </div>
+          </div>
+
+          <div class="settings-card glass" style="margin-top: 24px;">
+            <h1>股市功能</h1>
+            <p>输入通行密码后显示股市入口；趣味功能无需解锁。</p>
+            <div class="unlock-panel" style="display: flex; gap: 12px; margin-top: 16px;">
+              <input type="password" id="unlockStocksPassword" placeholder="输入密码" style="flex: 1; padding: 10px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); color: #fff; outline: none;" />
+              <button class="settings-action" type="button" id="unlockStocksBtn" style="margin: 0; padding: 0 24px; min-width: 100px; height: 42px; min-height: auto; display: flex; align-items: center; justify-content: center; text-align: center;">
+                <strong style="font-size: 15px;">${isStocksUnlocked ? "已解锁" : "解锁"}</strong>
+              </button>
+            </div>
+            ${isStocksUnlocked ? '<p style="margin-top: 12px; color: #4caf50; font-size: 14px;">股市功能已解锁</p>' : ""}
           </div>
 
         </section>
@@ -11633,6 +11686,24 @@
       updateSchulteTimer();
     }
 
+    function startSchulteGame() {
+      if (schulteState.started || schulteState.finished) return;
+      schulteState.started = true;
+      schulteState.startTime = performance.now();
+      schulteState.elapsed = 0;
+
+      const grid = document.querySelector(".schulte-grid");
+      grid?.classList.remove("is-waiting");
+      grid?.querySelectorAll("[data-schulte-cell]").forEach(cell => {
+        cell.disabled = false;
+        cell.removeAttribute("aria-disabled");
+        cell.setAttribute("aria-label", `数字 ${cell.dataset.number}`);
+      });
+      document.querySelector("[data-schulte-start-overlay]")?.classList.add("is-hidden");
+      updateSchulteStats();
+      startSchulteTimer();
+    }
+
     function updateSchulteStats() {
       const max = schulteState.size * schulteState.size;
       const targetNode = document.getElementById("schulteTarget");
@@ -11697,7 +11768,7 @@
       event.stopPropagation();
 
       const cell = event.target.closest(".schulte-cell");
-      if (!cell || schulteState.finished) return;
+      if (!cell || !schulteState.started || schulteState.finished) return;
 
       const value = Number(cell.dataset.number);
       if (!value || schulteState.done.has(value)) return;
@@ -11708,12 +11779,6 @@
         cell.classList.add("wrong");
         setTimeout(() => cell.classList.remove("wrong"), 180);
         return;
-      }
-
-      if (!schulteState.started) {
-        schulteState.started = true;
-        schulteState.startTime = performance.now();
-        startSchulteTimer();
       }
 
       schulteState.done.add(value);
@@ -11739,12 +11804,13 @@
       `).join("");
       const cells = schulteState.numbers.map(value => {
         const done = schulteState.done.has(value);
+        const waiting = !schulteState.started;
         const classes = [
           "schulte-cell",
           done ? "done" : ""
         ].filter(Boolean).join(" ");
         return `
-          <button class="${classes}" type="button" data-schulte-cell="${value}" data-number="${value}" ${done ? "aria-disabled='true' aria-label='已完成'" : `aria-label="数字 ${value}"`}>
+          <button class="${classes}" type="button" data-schulte-cell="${value}" data-number="${value}" ${waiting ? 'disabled aria-disabled="true" aria-label="数字暂未显示"' : done ? "aria-disabled='true' aria-label='已完成'" : `aria-label="数字 ${value}"`}>
             ${done ? "✓" : value}
           </button>
         `;
@@ -11755,7 +11821,7 @@
           <div class="schulte-panel">
             <div class="schulte-topbar schulte-intro">
               <h2>苏尔特方格</h2>
-              <p>按顺序从 1 找到最后一个数字，训练专注力与视觉搜索速度。</p>
+              <p>点击开始后，按顺序从 1 找到最后一个数字，训练专注力与视觉搜索速度。</p>
               <div class="schulte-stats">
                 <div class="schulte-stat">
                   <span>寻找数字</span>
@@ -11787,8 +11853,11 @@
               </div>
             </div>
             <div class="schulte-board-wrap">
-              <div class="schulte-grid size-${schulteState.size}" style="--schulte-size:${schulteState.size}" aria-label="苏尔特方格">
+              <div class="schulte-grid size-${schulteState.size} ${!schulteState.started ? "is-waiting" : ""}" style="--schulte-size:${schulteState.size}" aria-label="苏尔特方格">
                 ${cells}
+              </div>
+              <div class="schulte-start-overlay ${schulteState.started ? "is-hidden" : ""}" data-schulte-start-overlay>
+                <button class="schulte-start-btn" type="button" data-schulte-start>开始挑战</button>
               </div>
               <div class="schulte-complete ${schulteState.finished ? "" : "is-hidden"}" id="schulteComplete">
                 <h3>挑战完成</h3>
@@ -12204,6 +12273,25 @@
         return;
       }
       if (activeFeature === "settings") {
+        const unlockStocksBtn = event.target.closest("#unlockStocksBtn");
+        if (unlockStocksBtn) {
+          if (isStocksUnlocked) {
+            showToast("股市功能已解锁，无需重复输入");
+            return;
+          }
+          const password = document.getElementById("unlockStocksPassword")?.value;
+          if (password === "1412") {
+            isStocksUnlocked = true;
+            localStorage.setItem(STOCKS_UNLOCKED_KEY, "true");
+            showToast("股市功能已解锁", "success");
+            renderFeatureList();
+            renderMobileTabbar();
+            renderSettingsPage();
+          } else {
+            showToast("密码错误", "error");
+          }
+          return;
+        }
         handleConfigAction(event);
         return;
       }
@@ -12254,6 +12342,13 @@
             resetMemoryGame();
             return;
           }
+        }
+
+        if (event.target.closest("[data-schulte-start]")) {
+          event.preventDefault();
+          event.stopPropagation();
+          startSchulteGame();
+          return;
         }
 
         const sizeButton = event.target.closest("[data-schulte-size]");

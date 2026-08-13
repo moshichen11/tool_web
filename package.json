@@ -1,0 +1,10 @@
+{
+  "name": "tool-web-production-build",
+  "private": true,
+  "scripts": {
+    "build:production": "node scripts/build-production.mjs"
+  },
+  "devDependencies": {
+    "javascript-obfuscator": "^4.2.2"
+  }
+}

@@ -937,10 +937,13 @@ test("stocks module is registered and routed from the existing feature shell", (
   assert.match(html, /renderStockPage\(\)/);
 });
 
-test("stocks and fun tabs are visible through the shared desktop and mobile feature lists", () => {
+test("fun tab is visible while stocks remains password-gated", () => {
   assert.doesNotMatch(html, /item\.id === "game" \|\| item\.id === "stocks"/);
-  assert.match(html, /function getVisibleFeatures\(\)\s*\{\s*return features;\s*\}/);
-  assert.doesNotMatch(html, /UNLOCKED_KEY|unlockPassword|unlockBtn/);
+  assert.match(html, /const STOCKS_UNLOCKED_KEY = "glass_nav_stocks_unlocked"/);
+  assert.match(html, /return features\.filter\(item => item\.id !== "stocks" \|\| isStocksUnlocked\)/);
+  assert.match(html, /id="unlockStocksPassword"/);
+  assert.match(html, /id="unlockStocksBtn"/);
+  assert.doesNotMatch(html, /item\.id === "game" \|\| isStocksUnlocked/);
 });
 
 test("stocks page defaults to the minute/K chart and omits the market dashboard module", () => {
