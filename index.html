@@ -4354,9 +4354,6 @@
     const etfHistoryLoads = new Map();
 
     const USER_CONFIG_KEY = "glass_nav_user_config";
-    const UNLOCKED_KEY = "glass_nav_unlocked";
-    let isUnlocked = localStorage.getItem(UNLOCKED_KEY) === "true";
-
     const defaultCategories = [
       {
         emoji: "🔥",
@@ -4891,10 +4888,7 @@
     }
 
     function getVisibleFeatures() {
-      return features.filter(item => {
-        if (!isUnlocked && item.id === "game") return false;
-        return true;
-      });
+      return features;
     }
 
     function renderFeatureList() {
@@ -5093,17 +5087,6 @@
             </div>
           </div>
 
-          <div class="settings-card glass" style="margin-top: 24px;">
-            <h1>高级功能</h1>
-            <p>输入通行密码以解锁隐藏的功能模块。</p>
-            <div class="unlock-panel" style="display: flex; gap: 12px; margin-top: 16px;">
-              <input type="password" id="unlockPassword" placeholder="输入密码" style="flex: 1; padding: 10px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); color: #fff; outline: none;" />
-              <button class="settings-action" type="button" id="unlockBtn" style="margin: 0; padding: 0 24px; min-width: 100px; height: 42px; min-height: auto; display: flex; align-items: center; justify-content: center; text-align: center;">
-                <strong style="font-size: 15px;">${isUnlocked ? "已解锁" : "解锁"}</strong>
-              </button>
-            </div>
-            ${isUnlocked ? '<p style="margin-top: 12px; color: #4caf50; font-size: 14px;">已成功开启隐藏模块：趣味</p>' : ""}
-          </div>
         </section>
       `;
     }
@@ -11465,7 +11448,7 @@
           if (options.length) return options;
         }
       } catch (error) {
-        // Use the examples if browser storage is unavailable or malformed.
+        // 浏览器存储不可用或数据格式异常时，使用示例选项。
       }
       return [...DEFAULT_WHEEL_OPTIONS];
     }
@@ -11474,7 +11457,7 @@
       try {
         localStorage.setItem(WHEEL_OPTIONS_KEY, JSON.stringify(options));
       } catch (error) {
-        // The wheel remains usable when storage is disabled.
+        // 浏览器禁用存储时，轮盘仍可在当前页面正常使用。
       }
     }
 
@@ -12221,25 +12204,6 @@
         return;
       }
       if (activeFeature === "settings") {
-        const unlockBtn = event.target.closest("#unlockBtn");
-        if (unlockBtn) {
-          if (isUnlocked) {
-            showToast("功能已解锁，无需重复输入");
-            return;
-          }
-          const pwd = document.getElementById("unlockPassword")?.value;
-          if (pwd === "1412") {
-            isUnlocked = true;
-            localStorage.setItem(UNLOCKED_KEY, "true");
-            showToast("隐藏功能已解锁", "success");
-            renderFeatureList();
-            renderMobileTabbar();
-            renderSettingsPage();
-          } else {
-            showToast("密码错误", "error");
-          }
-          return;
-        }
         handleConfigAction(event);
         return;
       }
@@ -12463,14 +12427,6 @@
     });
 
     content.addEventListener("keydown", event => {
-      if (activeFeature === "settings" && event.key === "Enter") {
-        const input = event.target.closest("#unlockPassword");
-        if (input) {
-          event.preventDefault();
-          document.getElementById("unlockBtn")?.click();
-          return;
-        }
-      }
       if (activeFeature === "stocks") {
         const result = event.target.closest(".stock-result");
         if (result && ["Enter", " "].includes(event.key)) {

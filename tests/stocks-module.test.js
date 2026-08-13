@@ -937,9 +937,10 @@ test("stocks module is registered and routed from the existing feature shell", (
   assert.match(html, /renderStockPage\(\)/);
 });
 
-test("stocks tab is visible through the shared desktop and mobile feature lists", () => {
+test("stocks and fun tabs are visible through the shared desktop and mobile feature lists", () => {
   assert.doesNotMatch(html, /item\.id === "game" \|\| item\.id === "stocks"/);
-  assert.match(html, /if \(!isUnlocked && item\.id === "game"\) return false/);
+  assert.match(html, /function getVisibleFeatures\(\)\s*\{\s*return features;\s*\}/);
+  assert.doesNotMatch(html, /UNLOCKED_KEY|unlockPassword|unlockBtn/);
 });
 
 test("stocks page defaults to the minute/K chart and omits the market dashboard module", () => {
