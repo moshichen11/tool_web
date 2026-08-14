@@ -15,23 +15,52 @@
     }
 
     :root {
-      --bg-start: #0f0c29;
-      --bg-mid: #302b63;
-      --bg-end: #24243e;
-      --glass: rgba(255,255,255,0.08);
-      --glass-hover: rgba(255,255,255,0.13);
-      --glass-strong: rgba(255,255,255,0.16);
-      --border: rgba(255,255,255,0.15);
-      --border-bright: rgba(255,255,255,0.32);
-      --text: rgba(255,255,255,0.94);
-      --muted: rgba(255,255,255,0.6);
-      --green: #83c341;
-      --green-active: rgba(99,153,34,0.35);
-      --danger: rgba(180,40,40,0.4);
-      --danger-bright: rgba(235,92,92,0.72);
+      /* Semi Design 语义色：深色星空的基础层级与交互状态。 */
+      --semi-color-primary: #8f8de8;
+      --semi-color-primary-hover: #aaa8f5;
+      --semi-color-secondary: #75b9e7;
+      --semi-color-tertiary: #c49be2;
+      --semi-color-success: #89b99a;
+      --semi-color-warning: #d8b978;
+      --semi-color-danger: #d48e98;
+      --semi-color-bg-0: #0b0d1c;
+      --semi-color-bg-1: rgba(24, 27, 61, 0.62);
+      --semi-color-bg-2: rgba(34, 38, 83, 0.52);
+      --semi-color-text-0: #f4f2ff;
+      --semi-color-text-1: rgba(224, 226, 248, 0.8);
+      --semi-color-text-2: rgba(188, 194, 226, 0.6);
+      --semi-color-border: rgba(173, 184, 255, 0.2);
+      --starlight: #8f8de8;
+      --starlight-bright: #aaa8f5;
+      --starlight-soft: rgba(143, 141, 232, 0.22);
+      --nebula-pink: #d99bd0;
+      --nebula-soft: rgba(217, 155, 208, 0.18);
+      --sky-blue: #75b9e7;
+      --sky-soft: rgba(117, 185, 231, 0.18);
+      --lavender: #c49be2;
+      --warm-yellow: #d8b978;
+      --cream: #eeeaff;
+      --mist-green: #202652;
+      --bg-start: #090b18;
+      --bg-mid: #11152d;
+      --bg-end: #1c1740;
+      --glass: rgba(24, 27, 65, 0.48);
+      --glass-hover: rgba(51, 57, 113, 0.62);
+      --glass-strong: rgba(43, 48, 99, 0.74);
+      --glass-blur: 26px;
+      --glass-highlight: rgba(255, 255, 255, 0.1);
+      --border: var(--semi-color-border);
+      --border-bright: rgba(177, 190, 255, 0.46);
+      --text: var(--semi-color-text-0);
+      --muted: var(--semi-color-text-1);
+      --green: var(--semi-color-success);
+      --green-active: rgba(143, 141, 232, 0.22);
+      --danger: rgba(212, 142, 152, 0.16);
+      --danger-bright: rgba(224, 158, 168, 0.58);
+      --focus-ring: 0 0 0 4px rgba(143, 141, 232, 0.24);
       --search-h: 56px;
-      --shadow: 0 18px 48px rgba(0,0,0,0.28);
-      --ease: 0.2s ease;
+      --shadow: 0 20px 56px rgba(2, 4, 18, 0.4), inset 0 1px 0 var(--glass-highlight);
+      --ease: 0.24s cubic-bezier(0.22, 1, 0.36, 1);
     }
 
     html,
@@ -41,10 +70,17 @@
     }
 
     body {
+      position: relative;
+      isolation: isolate;
       overflow: hidden;
       color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft YaHei", sans-serif;
-      background: linear-gradient(135deg, var(--bg-start) 0%, var(--bg-mid) 52%, var(--bg-end) 100%);
+      background:
+        radial-gradient(ellipse at 8% 10%, rgba(85, 104, 214, 0.38), transparent 38%),
+        radial-gradient(ellipse at 90% 6%, rgba(190, 99, 190, 0.28), transparent 34%),
+        radial-gradient(ellipse at 76% 94%, rgba(76, 143, 221, 0.25), transparent 42%),
+        radial-gradient(ellipse at 48% 48%, rgba(126, 91, 194, 0.14), transparent 38%),
+        linear-gradient(145deg, #090b18 0%, #11152d 48%, #1c1740 100%);
     }
 
     body::before {
@@ -52,12 +88,28 @@
       position: fixed;
       inset: 0;
       pointer-events: none;
-      opacity: 0.24;
+      z-index: -2;
+      opacity: 0.5;
       background-image:
-        linear-gradient(rgba(255,255,255,0.045) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.045) 1px, transparent 1px);
-      background-size: 46px 46px;
-      mask-image: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent 85%);
+        radial-gradient(circle at 12% 18%, rgba(255, 255, 255, 0.74) 0 1px, transparent 1.5px),
+        radial-gradient(circle at 72% 28%, rgba(177, 190, 255, 0.62) 0 1px, transparent 1.6px),
+        radial-gradient(circle at 36% 78%, rgba(225, 188, 255, 0.52) 0 1px, transparent 1.5px);
+      background-size: 190px 190px, 260px 260px, 330px 330px;
+      mask-image: linear-gradient(to bottom, rgba(0,0,0,0.72), transparent 96%);
+    }
+
+    body::after {
+      content: "";
+      position: fixed;
+      z-index: -1;
+      inset: -18%;
+      pointer-events: none;
+      background:
+        radial-gradient(ellipse at 22% 36%, var(--sky-soft), transparent 24%),
+        radial-gradient(ellipse at 78% 24%, var(--nebula-soft), transparent 25%),
+        radial-gradient(ellipse at 58% 78%, var(--starlight-soft), transparent 28%);
+      filter: blur(54px);
+      animation: gentleBreeze 18s ease-in-out infinite alternate;
     }
 
     button,
@@ -71,6 +123,8 @@
     }
 
     .app {
+      position: relative;
+      z-index: 0;
       width: 100%;
       height: 100vh;
       padding: 14px;
@@ -82,11 +136,13 @@
     }
 
     .glass {
-      background: var(--glass);
-      backdrop-filter: blur(20px) saturate(160%);
-      -webkit-backdrop-filter: blur(20px) saturate(160%);
-      border: 1px solid var(--border);
-      border-radius: 12px;
+      border: 1px solid transparent;
+      background:
+        linear-gradient(145deg, rgba(28, 31, 69, 0.58), rgba(12, 14, 35, 0.4)) padding-box,
+        linear-gradient(135deg, rgba(164, 177, 255, 0.4), rgba(255, 255, 255, 0.07), rgba(217, 155, 208, 0.28)) border-box;
+      backdrop-filter: blur(var(--glass-blur)) saturate(128%);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(128%);
+      border-radius: 18px;
       box-shadow: var(--shadow);
     }
 
@@ -197,12 +253,14 @@
     }
 
     .feature-button.active {
-      color: #fff;
-      background: var(--green-active);
+      color: var(--text);
+      background: linear-gradient(135deg, rgba(143, 141, 232, 0.36), rgba(83, 97, 190, 0.2));
+      box-shadow: inset 0 0 0 1px rgba(208, 211, 255, 0.14), 0 10px 26px rgba(2, 4, 18, 0.3);
     }
 
     .feature-button.active::before {
-      background: var(--green);
+      background: linear-gradient(180deg, var(--nebula-pink), var(--starlight));
+      box-shadow: none;
     }
 
     .feature-icon {
@@ -533,6 +591,7 @@
       border-color: rgba(143,125,255,0.86);
       background: rgba(255,255,255,0.11);
       box-shadow:
+        var(--focus-ring),
         0 0 0 4px rgba(104,147,255,0.14),
         0 0 34px rgba(116,97,255,0.34);
     }
@@ -697,7 +756,7 @@
       transform: translateY(-4px);
       border-color: var(--border-bright);
       background: var(--glass-hover);
-      box-shadow: 0 20px 42px rgba(0,0,0,0.34);
+      box-shadow: 0 14px 32px rgba(7, 9, 28, 0.3), 0 0 24px var(--starlight-soft);
       outline: 0;
     }
 
@@ -1108,7 +1167,7 @@
 
     .wheel-pointer {
       position: absolute;
-      z-index: 2;
+      z-index: 4;
       top: -3px;
       left: 50%;
       width: 0;
@@ -1117,6 +1176,36 @@
       border-left: 18px solid transparent;
       border-top: 42px solid #fff;
       filter: drop-shadow(0 4px 5px rgba(0,0,0,0.35));
+      transform: translateX(-50%);
+    }
+
+    .wheel-center-pointer {
+      position: absolute;
+      z-index: 2;
+      top: 50%;
+      left: 50%;
+      width: clamp(5px, 1.5%, 8px);
+      height: 18%;
+      border: 1px solid rgba(255,255,255,0.42);
+      border-radius: 999px 999px 4px 4px;
+      background: linear-gradient(180deg, #fff 0%, var(--nebula-pink) 42%, var(--starlight) 100%);
+      box-shadow: 0 5px 18px rgba(217,155,208,0.42), inset 1px 0 rgba(255,255,255,0.34);
+      transform: translate(-50%, -100%);
+      transform-origin: 50% 100%;
+      pointer-events: none;
+    }
+
+    .wheel-center-pointer::before {
+      content: "";
+      position: absolute;
+      top: -15px;
+      left: 50%;
+      width: 0;
+      height: 0;
+      border-right: 10px solid transparent;
+      border-bottom: 16px solid #fff;
+      border-left: 10px solid transparent;
+      filter: drop-shadow(0 -3px 5px rgba(217,155,208,0.32));
       transform: translateX(-50%);
     }
 
@@ -1129,7 +1218,8 @@
       background: #1e2859;
       box-shadow: 0 18px 46px rgba(0,0,0,0.34), inset 0 0 0 4px rgba(10,12,43,0.32);
       transform: rotate(0deg);
-      transition: transform 4.4s cubic-bezier(0.12, 0.74, 0.08, 1);
+      transition: transform var(--wheel-spin-duration, 4s) cubic-bezier(0.12, 0.74, 0.08, 1);
+      will-change: transform;
     }
 
     .wheel-disc svg {
@@ -1151,7 +1241,7 @@
 
     .wheel-center {
       position: absolute;
-      z-index: 1;
+      z-index: 3;
       width: 25%;
       aspect-ratio: 1;
       color: #fff;
@@ -1411,7 +1501,6 @@
       min-width: 0;
       touch-action: manipulation;
       user-select: none;
-      will-change: transform;
       color: #fff;
       border: 1px solid rgba(255,255,255,0.16);
       border-radius: clamp(10px, 1.8vw, 16px);
@@ -1420,16 +1509,21 @@
       font-size: clamp(17px, 3.1vw, 30px);
       font-weight: 800;
       box-shadow: inset 0 1px 0 rgba(255,255,255,0.16);
-      transition: transform 0.16s ease, background var(--ease), border-color var(--ease), opacity var(--ease);
+      transition: transform 80ms ease-out, border-color 90ms ease-out, opacity 90ms ease-out;
     }
 
     .schulte-cell:hover:not(.done),
     .schulte-cell:focus-visible:not(.done) {
-      transform: translateY(-2px);
+      transform: translateY(-1px);
       border-color: rgba(143,229,255,0.5);
       background: rgba(255,255,255,0.16);
       box-shadow: 0 0 18px rgba(104,203,255,0.14), inset 0 1px 0 rgba(255,255,255,0.2);
       outline: 0;
+    }
+
+    .schulte-cell:active:not(.done) {
+      transform: scale(0.96);
+      transition-duration: 40ms;
     }
 
     .schulte-cell.done {
@@ -1437,14 +1531,6 @@
       border-color: rgba(255,255,255,0.08);
       background: rgba(255,255,255,0.045);
       opacity: 0.58;
-    }
-
-    .schulte-cell.correct {
-      animation: schulteCorrect 0.2s ease both;
-    }
-
-    .schulte-cell.wrong {
-      animation: schulteWrong 0.18s ease both;
     }
 
     .schulte-grid.size-6 .schulte-cell,
@@ -3242,26 +3328,39 @@
       min-width: 0;
       position: relative;
       cursor: pointer;
-      transform-style: preserve-3d;
-      transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+      perspective: 1000px;
     }
 
-    .memory-card.is-flipped {
+    .memory-card-inner {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      transform-style: preserve-3d;
+      transition: transform 0.62s cubic-bezier(0.22, 1, 0.36, 1);
+      will-change: transform;
+    }
+
+    .memory-card.is-flipped .memory-card-inner {
       transform: rotateY(180deg);
     }
 
     .memory-card.is-matched {
-      transform: rotateY(180deg) scale(0.95);
       opacity: 0.6;
       cursor: default;
       pointer-events: none;
     }
 
+    .memory-card.is-matched .memory-card-inner {
+      transform: rotateY(180deg) scale(0.95);
+    }
+
     .card-face {
       position: absolute;
+      inset: 0;
       width: 100%;
       height: 100%;
       backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
       border-radius: var(--memory-card-radius);
       display: flex;
       align-items: center;
@@ -3470,38 +3569,6 @@
       margin: 10px 0 16px;
       color: rgba(255,255,255,0.72);
       line-height: 1.7;
-    }
-
-    @keyframes schulteCorrect {
-      0% {
-        transform: scale(1);
-      }
-      45% {
-        transform: scale(1.04);
-        border-color: rgba(87,255,190,0.82);
-        background: rgba(54,220,164,0.34);
-        box-shadow: 0 0 18px rgba(54,220,164,0.28);
-      }
-      100% {
-        transform: scale(1);
-      }
-    }
-
-    @keyframes schulteWrong {
-      0%, 100% {
-        transform: translateX(0);
-      }
-      25% {
-        transform: translateX(-4px);
-        border-color: rgba(255,100,100,0.6);
-        background: rgba(255,60,60,0.18);
-      }
-      50% {
-        transform: translateX(4px);
-      }
-      75% {
-        transform: translateX(-2px);
-      }
     }
 
     .modal-root:empty {
@@ -3739,6 +3806,252 @@
     .modal-btn.danger:hover {
       border-color: var(--danger-bright);
       background: rgba(180,40,40,0.58);
+    }
+
+    /* Semi Design 自然语义体系 + 治愈系玻璃视觉层。 */
+    ::selection {
+      color: #fff;
+      background: rgba(139, 124, 255, 0.62);
+    }
+
+    .feature-sidebar,
+    .category-sidebar,
+    .main-panel {
+      border-color: rgba(171, 161, 255, 0.22);
+    }
+
+    .feature-sidebar {
+      background:
+        linear-gradient(180deg, rgba(31, 36, 78, 0.84), rgba(11, 15, 39, 0.78)),
+        var(--glass);
+      box-shadow: 0 26px 70px rgba(2, 4, 20, 0.48), inset 1px 0 0 rgba(86, 220, 255, 0.09);
+    }
+
+    .category-sidebar {
+      background:
+        linear-gradient(155deg, rgba(28, 33, 72, 0.78), rgba(13, 17, 43, 0.74)),
+        var(--glass);
+    }
+
+    .main-panel {
+      background:
+        linear-gradient(145deg, rgba(21, 26, 61, 0.72), rgba(10, 13, 35, 0.72)),
+        var(--glass);
+    }
+
+    .feature-button:hover,
+    .category-item:hover,
+    .game-list-item:hover,
+    .mobile-tab-button:hover {
+      background: linear-gradient(135deg, rgba(139, 124, 255, 0.2), rgba(86, 220, 255, 0.1));
+    }
+
+    .feature-button.active .feature-icon,
+    .mobile-tab-button.active .mobile-tab-icon {
+      filter: drop-shadow(0 0 9px rgba(86, 220, 255, 0.72));
+    }
+
+    .category-item.active,
+    .game-list-item.active,
+    .mobile-tab-button.active,
+    .game-pill.active {
+      color: #fff;
+      border-color: rgba(155, 203, 255, 0.28);
+      background: linear-gradient(135deg, rgba(139, 124, 255, 0.34), rgba(86, 220, 255, 0.15));
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035), 0 10px 24px rgba(9, 8, 36, 0.24);
+    }
+
+    .category-item.active {
+      color: #fff;
+    }
+
+    .category-item.active::after {
+      color: var(--starlight-bright);
+      filter: none;
+    }
+
+    .category-title,
+    .section-title,
+    .stock-section-title,
+    .wheel-config h2,
+    .settings-card h1 {
+      color: #fff;
+      letter-spacing: 0.02em;
+      text-shadow: 0 0 22px rgba(139, 124, 255, 0.2);
+    }
+
+    .section-title::first-letter,
+    .stock-section-title::first-letter {
+      color: var(--starlight-bright);
+    }
+
+    .search-shell {
+      background: linear-gradient(180deg, rgba(9, 12, 34, 0.94), rgba(15, 19, 48, 0.84));
+      border-bottom-color: rgba(160, 179, 255, 0.16);
+      box-shadow: 0 18px 42px rgba(2, 4, 20, 0.42);
+    }
+
+    .search-box,
+    .stock-search-form,
+    .stock-filter-search,
+    .engine-tabs {
+      border-color: rgba(171, 161, 255, 0.2);
+      background: linear-gradient(135deg, rgba(37, 43, 87, 0.56), rgba(14, 18, 45, 0.66));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    }
+
+    .engine-tab.active {
+      color: #fff;
+      background: linear-gradient(135deg, rgba(139, 124, 255, 0.72), rgba(75, 163, 220, 0.54));
+      box-shadow: 0 6px 20px rgba(107, 92, 242, 0.24);
+    }
+
+    .count-badge,
+    .stock-badge {
+      color: rgba(225, 244, 255, 0.88);
+      border-color: rgba(86, 220, 255, 0.18);
+      background: linear-gradient(135deg, rgba(86, 220, 255, 0.13), rgba(139, 124, 255, 0.12));
+    }
+
+    .site-card {
+      isolation: isolate;
+      border-color: rgba(171, 161, 255, 0.18);
+      background: linear-gradient(145deg, rgba(37, 43, 87, 0.58), rgba(15, 19, 47, 0.66));
+      box-shadow: 0 15px 36px rgba(2, 4, 20, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    }
+
+    .site-card::before {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      top: -60%;
+      right: -34%;
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: radial-gradient(circle, var(--nebula-soft), transparent 68%);
+      transition: transform var(--ease), opacity var(--ease);
+      opacity: 0.56;
+      pointer-events: none;
+    }
+
+    .site-card:hover::before,
+    .site-card:focus-visible::before {
+      opacity: 1;
+      transform: translate(-18px, 18px) scale(1.28);
+    }
+
+    .add-site-card {
+      border-color: rgba(86, 220, 255, 0.2);
+      background: rgba(86, 220, 255, 0.025);
+    }
+
+    .add-site-card:hover,
+    .add-site-card:focus-visible {
+      color: #fff;
+      border-color: rgba(86, 220, 255, 0.54);
+      background: rgba(86, 220, 255, 0.08);
+      box-shadow: 0 12px 28px rgba(73, 94, 78, 0.1);
+    }
+
+    .settings-card,
+    .game-card,
+    .stock-card,
+    .stock-strategy-card,
+    .wheel-result {
+      border-color: rgba(171, 161, 255, 0.18);
+      background: linear-gradient(145deg, rgba(34, 39, 82, 0.62), rgba(13, 17, 43, 0.7));
+      box-shadow: 0 20px 52px rgba(2, 4, 20, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.045);
+    }
+
+    .game-page::before {
+      background: rgba(86, 220, 255, 0.24);
+    }
+
+    .game-page::after {
+      background: rgba(255, 120, 189, 0.18);
+    }
+
+    .wheel-disc {
+      border-color: rgba(225, 248, 255, 0.88);
+      box-shadow: 0 18px 42px rgba(73, 94, 78, 0.16), inset 0 0 0 4px rgba(255, 255, 255, 0.28);
+    }
+
+    .wheel-center {
+      background: radial-gradient(circle at 35% 28%, #f8f5ff, var(--nebula-pink) 58%, var(--starlight));
+      box-shadow: 0 10px 28px rgba(73, 94, 78, 0.16);
+    }
+
+    .wheel-spin-btn,
+    .modal-btn.primary,
+    .stock-action.primary,
+    .schulte-btn.active {
+      color: #fff;
+      border-color: rgba(177, 220, 255, 0.3);
+      background: linear-gradient(135deg, var(--starlight), #75b9e7);
+      box-shadow: 0 10px 28px rgba(99, 89, 226, 0.3);
+    }
+
+    .wheel-spin-btn:hover,
+    .modal-btn.primary:hover,
+    .stock-action.primary:hover,
+    .schulte-btn.active:hover {
+      background: linear-gradient(135deg, var(--semi-color-primary-hover), #65cce9);
+      box-shadow: 0 12px 32px rgba(86, 220, 255, 0.22);
+    }
+
+    .input,
+    .textarea,
+    .wheel-options-input,
+    .stock-input,
+    .stock-select {
+      color: var(--semi-color-text-0);
+      border-color: rgba(171, 161, 255, 0.2);
+      background: rgba(8, 12, 35, 0.56);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+    }
+
+    .input:focus,
+    .textarea:focus,
+    .wheel-options-input:focus,
+    .stock-input:focus,
+    .stock-select:focus {
+      border-color: rgba(86, 220, 255, 0.66);
+      background: rgba(17, 23, 54, 0.78);
+      box-shadow: var(--focus-ring), 0 8px 22px rgba(73, 94, 78, 0.08);
+    }
+
+    .modal-backdrop {
+      background: rgba(3, 5, 18, 0.72);
+    }
+
+    .modal-card {
+      border-color: rgba(177, 169, 255, 0.28);
+      background:
+        radial-gradient(circle at 88% 2%, rgba(255, 120, 189, 0.12), transparent 28%),
+        linear-gradient(145deg, rgba(27, 32, 72, 0.98), rgba(9, 12, 34, 0.98));
+      box-shadow: 0 34px 100px rgba(1, 2, 14, 0.62), 0 0 46px rgba(139, 124, 255, 0.12);
+    }
+
+    .toast {
+      border-color: rgba(86, 220, 255, 0.24);
+      background: linear-gradient(145deg, rgba(27, 32, 72, 0.94), rgba(11, 15, 39, 0.94));
+    }
+
+    .category-list::-webkit-scrollbar-thumb,
+    .main-scroll::-webkit-scrollbar-thumb {
+      background: linear-gradient(180deg, rgba(139, 124, 255, 0.62), rgba(86, 220, 255, 0.48));
+    }
+
+    @keyframes gentleBreeze {
+      from {
+        transform: translate3d(-1.5%, -1%, 0) scale(0.98);
+        opacity: 0.72;
+      }
+      to {
+        transform: translate3d(1.5%, 1%, 0) scale(1.04);
+        opacity: 1;
+      }
     }
 
     @keyframes pageFade {
@@ -4165,6 +4478,838 @@
         --memory-card-radius: 7px;
       }
     }
+
+    /* Semi 深色玻璃组件状态覆盖层。 */
+    ::selection {
+      color: var(--text);
+      background: rgba(143, 180, 154, 0.42);
+    }
+
+    .feature-sidebar,
+    .category-sidebar,
+    .main-panel {
+      border-color: rgba(196, 218, 197, 0.17);
+    }
+
+    .feature-sidebar {
+      background:
+        linear-gradient(180deg, rgba(26, 39, 31, 0.48), rgba(11, 20, 14, 0.26)) padding-box,
+        linear-gradient(180deg, rgba(180, 211, 187, 0.34), rgba(255, 255, 255, 0.045)) border-box;
+      box-shadow: 0 22px 56px rgba(2, 8, 4, 0.3), inset 1px 0 0 rgba(255, 255, 255, 0.08);
+    }
+
+    .category-sidebar {
+      background:
+        linear-gradient(155deg, rgba(31, 46, 36, 0.44), rgba(12, 22, 16, 0.24)) padding-box,
+        linear-gradient(145deg, rgba(180, 211, 187, 0.3), rgba(217, 163, 173, 0.12)) border-box;
+    }
+
+    .main-panel {
+      background:
+        linear-gradient(145deg, rgba(29, 44, 34, 0.36), rgba(10, 18, 13, 0.2)) padding-box,
+        linear-gradient(135deg, rgba(180, 211, 187, 0.26), rgba(255, 255, 255, 0.04), rgba(217, 163, 173, 0.16)) border-box;
+    }
+
+    .feature-button,
+    .category-item,
+    .game-list-item,
+    .mobile-tab-button,
+    .game-pill {
+      color: var(--muted);
+    }
+
+    .feature-button:hover,
+    .category-item:hover,
+    .game-list-item:hover,
+    .mobile-tab-button:hover {
+      color: var(--text);
+      background: linear-gradient(135deg, rgba(143, 180, 154, 0.18), rgba(255, 255, 255, 0.055));
+    }
+
+    .feature-button.active .feature-icon,
+    .mobile-tab-button.active .mobile-tab-icon {
+      filter: none;
+    }
+
+    .category-item.active,
+    .game-list-item.active,
+    .mobile-tab-button.active,
+    .game-pill.active {
+      color: var(--text);
+      border-color: rgba(180, 211, 187, 0.24);
+      background: linear-gradient(135deg, rgba(143, 180, 154, 0.28), rgba(91, 124, 102, 0.14));
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07), 0 10px 24px rgba(2, 8, 4, 0.18);
+    }
+
+    .feature-button:focus-visible,
+    .category-item:focus-visible,
+    .game-list-item:focus-visible,
+    .game-pill:focus-visible,
+    .mobile-tab-button:focus-visible {
+      color: var(--text);
+      border-color: var(--sage-dark);
+      box-shadow: var(--focus-ring);
+      outline: 0;
+    }
+
+    .category-title,
+    .section-title,
+    .stock-section-title,
+    .wheel-config h2,
+    .settings-card h1,
+    .schulte-intro h2 {
+      color: var(--text);
+      text-shadow: none;
+    }
+
+    .section-title::first-letter,
+    .stock-section-title::first-letter {
+      color: var(--sage-dark);
+    }
+
+    .search-shell {
+      background: linear-gradient(180deg, rgba(16, 27, 20, 0.72), rgba(17, 29, 22, 0.48));
+      border-bottom-color: rgba(196, 218, 197, 0.14);
+      box-shadow: 0 16px 36px rgba(2, 8, 4, 0.22);
+    }
+
+    .search-box,
+    .stock-search-form,
+    .stock-filter-search,
+    .engine-tabs {
+      border-color: rgba(196, 218, 197, 0.16);
+      background: linear-gradient(135deg, rgba(44, 62, 50, 0.46), rgba(17, 28, 21, 0.3));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.075);
+    }
+
+    .search-box:focus-within,
+    .stock-search-form:focus-within,
+    .stock-filter-search:focus-within {
+      border-color: var(--sage);
+      background: rgba(43, 61, 49, 0.52);
+      box-shadow: var(--focus-ring), 0 10px 24px rgba(2, 8, 4, 0.18);
+    }
+
+    .search-input,
+    .stock-search-input {
+      color: var(--text);
+    }
+
+    .search-input::placeholder,
+    .stock-search-input::placeholder {
+      color: var(--semi-color-text-2);
+    }
+
+    .engine-tab {
+      color: var(--muted);
+    }
+
+    .engine-tab:hover,
+    .engine-tab.active {
+      color: var(--text);
+      background: linear-gradient(135deg, rgba(143, 180, 154, 0.36), rgba(152, 182, 191, 0.14));
+      box-shadow: 0 8px 18px rgba(2, 8, 4, 0.16);
+    }
+
+    .config-btn,
+    .icon-add,
+    .site-action.edit,
+    .stock-icon-button,
+    .stock-action,
+    .stock-table-action,
+    .schulte-btn,
+    .modal-btn,
+    .modal-close,
+    .emoji-auto,
+    .emoji-choice,
+    .stock-daily-filter,
+    .stock-daily-add,
+    .stock-watch-group {
+      color: var(--text);
+      border-color: rgba(196, 218, 197, 0.16);
+      background: rgba(43, 61, 49, 0.38);
+    }
+
+    .config-btn:hover,
+    .icon-add:hover,
+    .site-action.edit:hover,
+    .stock-icon-button:hover,
+    .stock-action:hover,
+    .stock-table-action:hover,
+    .schulte-btn:hover,
+    .modal-btn:hover,
+    .modal-close:hover,
+    .emoji-auto:hover,
+    .emoji-choice:hover {
+      color: var(--text);
+      border-color: rgba(180, 211, 187, 0.38);
+      background: rgba(65, 86, 71, 0.48);
+    }
+
+    .count-badge,
+    .stock-badge {
+      color: var(--muted);
+      border-color: rgba(143, 180, 154, 0.2);
+      background: linear-gradient(135deg, rgba(143, 180, 154, 0.14), rgba(255, 255, 255, 0.045));
+    }
+
+    .site-card {
+      border-color: transparent;
+      background:
+        linear-gradient(145deg, rgba(35, 51, 41, 0.42), rgba(14, 24, 18, 0.24)) padding-box,
+        linear-gradient(135deg, rgba(180, 211, 187, 0.25), rgba(255, 255, 255, 0.035), rgba(217, 163, 173, 0.14)) border-box;
+      box-shadow: 0 14px 34px rgba(2, 8, 4, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.075);
+    }
+
+    .site-card::before {
+      background: radial-gradient(circle, var(--sakura-soft), transparent 68%);
+    }
+
+    .site-card:hover,
+    .site-card:focus-visible {
+      border-color: transparent;
+      background:
+        linear-gradient(145deg, rgba(54, 75, 61, 0.52), rgba(23, 36, 27, 0.32)) padding-box,
+        linear-gradient(135deg, rgba(189, 222, 197, 0.46), rgba(217, 163, 173, 0.24)) border-box;
+      box-shadow: 0 18px 40px rgba(2, 8, 4, 0.26), 0 0 0 1px rgba(217, 163, 173, 0.1);
+    }
+
+    .site-name {
+      color: var(--text);
+    }
+
+    .site-desc,
+    .game-list-desc,
+    .wheel-config > p,
+    .wheel-result-copy,
+    .schulte-intro p,
+    .stock-result-meta,
+    .stock-code,
+    .stock-refresh-note,
+    .stock-field label,
+    .stock-limit-board-stock-meta,
+    .stock-limit-board-chart-placeholder,
+    .stock-daily-code,
+    .stock-daily-index,
+    .stock-daily-ma-legend,
+    .stock-daily-depth-title,
+    .stock-chip span {
+      color: var(--muted);
+    }
+
+    .add-site-card {
+      color: var(--muted);
+      border-color: rgba(143, 180, 154, 0.34);
+      background: rgba(47, 67, 55, 0.2);
+    }
+
+    .add-site-card:hover,
+    .add-site-card:focus-visible {
+      color: var(--text);
+      border-color: var(--sage);
+      background: rgba(64, 86, 71, 0.42);
+      box-shadow: 0 14px 32px rgba(2, 8, 4, 0.2);
+    }
+
+    .settings-card,
+    .game-card,
+    .stock-card,
+    .stock-strategy-card,
+    .wheel-result,
+    .schulte-stat {
+      color: var(--text);
+      border-color: rgba(196, 218, 197, 0.15);
+      background: linear-gradient(145deg, rgba(38, 55, 44, 0.48), rgba(14, 24, 18, 0.3));
+      box-shadow: 0 16px 38px rgba(2, 8, 4, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.075);
+    }
+
+    .game-page::before {
+      background: rgba(157, 189, 206, 0.2);
+    }
+
+    .game-page::after {
+      background: rgba(223, 166, 174, 0.16);
+    }
+
+    .wheel-disc {
+      border-color: rgba(235, 241, 231, 0.72);
+      background: var(--mist-green);
+      box-shadow: 0 18px 44px rgba(2, 8, 4, 0.28), inset 0 0 0 4px rgba(255, 255, 255, 0.12);
+    }
+
+    .wheel-center {
+      background: radial-gradient(circle at 35% 28%, #e6e5d7, var(--sakura-pink) 58%, #56725e);
+      box-shadow: 0 12px 30px rgba(2, 8, 4, 0.24);
+    }
+
+    .wheel-result strong {
+      color: var(--sage-dark);
+    }
+
+    .wheel-spin-btn,
+    .modal-btn.primary,
+    .stock-action.primary,
+    .schulte-btn.active,
+    .schulte-start-btn {
+      color: #f5f7f1;
+      border-color: rgba(180, 211, 187, 0.28);
+      background: linear-gradient(135deg, #70947b, #8cae96 58%, #8ba8ad);
+      box-shadow: 0 11px 26px rgba(2, 8, 4, 0.22);
+    }
+
+    .wheel-spin-btn:hover,
+    .modal-btn.primary:hover,
+    .stock-action.primary:hover,
+    .schulte-btn.active:hover,
+    .schulte-start-btn:hover {
+      color: #fff;
+      background: linear-gradient(135deg, #7fa58a, #9ab8a2 58%, #98b6bf);
+      box-shadow: 0 13px 30px rgba(2, 8, 4, 0.26);
+    }
+
+    .input,
+    .textarea,
+    .wheel-options-input,
+    .stock-input,
+    .stock-select {
+      color: var(--text);
+      border-color: rgba(196, 218, 197, 0.17);
+      background: rgba(19, 31, 23, 0.42);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.065);
+    }
+
+    .stock-select,
+    .stock-select option {
+      color: var(--text);
+      background: #1b2a20;
+      color-scheme: dark;
+    }
+
+    .input:focus,
+    .textarea:focus,
+    .wheel-options-input:focus,
+    .stock-input:focus,
+    .stock-select:focus {
+      border-color: var(--sage);
+      background: rgba(38, 55, 44, 0.58);
+      box-shadow: var(--focus-ring), 0 10px 24px rgba(2, 8, 4, 0.2);
+    }
+
+    .schulte-grid {
+      border-color: rgba(196, 218, 197, 0.14);
+      background: rgba(19, 32, 24, 0.34);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 16px 36px rgba(2, 8, 4, 0.2);
+    }
+
+    .schulte-cell {
+      color: var(--text);
+      border-color: rgba(196, 218, 197, 0.15);
+      background: linear-gradient(145deg, rgba(45, 63, 51, 0.5), rgba(18, 30, 22, 0.34));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+    }
+
+    .schulte-cell:focus-visible:not(.done) {
+      border-color: var(--sage);
+      background: rgba(54, 74, 60, 0.62);
+      box-shadow: var(--focus-ring);
+    }
+
+    .schulte-cell.done {
+      color: var(--semi-color-text-2);
+      border-color: rgba(196, 218, 197, 0.08);
+      background: rgba(24, 38, 28, 0.36);
+    }
+
+    .schulte-stat span,
+    .stock-daily-stat span {
+      color: var(--muted);
+    }
+
+    .schulte-stat strong,
+    .stock-daily-quote-name strong,
+    .stock-daily-quote-price strong,
+    .stock-daily-stat strong,
+    .stock-chip strong {
+      color: var(--text);
+    }
+
+    .stock-search-results {
+      border-color: rgba(196, 218, 197, 0.18);
+      background: rgba(17, 28, 21, 0.9);
+      box-shadow: 0 24px 60px rgba(2, 8, 4, 0.34);
+    }
+
+    .stock-result,
+    .stock-daily-row,
+    .stock-watch-group,
+    .stock-watch-group-choice,
+    .stock-chip {
+      color: var(--text);
+    }
+
+    .stock-result:hover,
+    .stock-result:focus-visible,
+    .stock-daily-row:hover,
+    .stock-daily-row:focus-visible,
+    .stock-daily-row.active {
+      color: var(--text);
+      border-color: rgba(143, 180, 154, 0.3);
+      background: rgba(55, 76, 62, 0.4);
+    }
+
+    .stock-daily-sidebar,
+    .stock-daily-chart-card,
+    .stock-daily-quote,
+    .stock-daily-quote-grid,
+    .stock-daily-stat,
+    .stock-daily-canvas-wrap,
+    .stock-daily-depth-card,
+    .stock-watchlist-table-wrap,
+    .stock-chart {
+      border-color: rgba(196, 218, 197, 0.13);
+      background: linear-gradient(145deg, rgba(32, 48, 38, 0.42), rgba(12, 22, 16, 0.28));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.055);
+    }
+
+    .stock-daily-period-row .stock-action,
+    .stock-daily-range-row .stock-action {
+      color: var(--muted);
+      border-color: transparent;
+      background: transparent;
+    }
+
+    .stock-daily-period-row .stock-action:hover,
+    .stock-daily-range-row .stock-action:hover,
+    .stock-daily-period-row .stock-action.active,
+    .stock-daily-range-row .stock-action.active {
+      color: var(--sage-dark);
+      border-color: rgba(127, 165, 138, 0.28);
+      background: rgba(58, 80, 65, 0.46);
+    }
+
+    .stock-daily-tooltip {
+      color: var(--text);
+      border-color: rgba(196, 218, 197, 0.2);
+      background: rgba(16, 27, 20, 0.92);
+      box-shadow: 0 14px 32px rgba(2, 8, 4, 0.3);
+    }
+
+    .stock-daily-depth-row {
+      color: var(--muted);
+    }
+
+    .stock-daily-depth-bar {
+      background: rgba(196, 218, 197, 0.09);
+    }
+
+    .modal-backdrop {
+      background: rgba(3, 9, 5, 0.48);
+    }
+
+    .modal-card {
+      color: var(--text);
+      border-color: rgba(196, 218, 197, 0.18);
+      background:
+        radial-gradient(circle at 88% 2%, rgba(217, 163, 173, 0.12), transparent 30%),
+        linear-gradient(145deg, rgba(35, 51, 40, 0.88), rgba(12, 22, 16, 0.84));
+      box-shadow: 0 28px 80px rgba(2, 8, 4, 0.42);
+    }
+
+    .field label,
+    .emoji-label,
+    .confirm-copy {
+      color: var(--muted);
+    }
+
+    .toast {
+      color: var(--text);
+      border-color: rgba(196, 218, 197, 0.18);
+      background: linear-gradient(145deg, rgba(37, 54, 43, 0.88), rgba(13, 23, 17, 0.84));
+      box-shadow: 0 18px 44px rgba(2, 8, 4, 0.34);
+    }
+
+    .toast.error {
+      color: #f0cdd2;
+      border-color: rgba(212, 142, 152, 0.28);
+      background: rgba(68, 35, 42, 0.88);
+    }
+
+    .settings-card p,
+    .settings-action span,
+    .stock-kicker,
+    .stock-subtitle {
+      color: var(--muted);
+    }
+
+    .settings-action {
+      color: var(--text);
+      border-color: rgba(196, 218, 197, 0.14);
+      background: linear-gradient(145deg, rgba(39, 57, 45, 0.46), rgba(15, 26, 19, 0.3));
+      box-shadow: 0 10px 26px rgba(2, 8, 4, 0.18);
+    }
+
+    .settings-action:hover,
+    .settings-action:focus-visible {
+      color: var(--text);
+      border-color: rgba(180, 211, 187, 0.34);
+      background: rgba(59, 81, 66, 0.5);
+      box-shadow: 0 14px 32px rgba(2, 8, 4, 0.24);
+    }
+
+    .settings-action.danger {
+      border-color: rgba(212, 142, 152, 0.24);
+      background: rgba(76, 39, 46, 0.4);
+    }
+
+    .stock-title {
+      color: var(--text);
+    }
+
+    .memory-stat-card,
+    .card-front {
+      color: var(--text);
+      border-color: rgba(196, 218, 197, 0.13);
+      background: rgba(35, 51, 41, 0.4);
+      box-shadow: 0 8px 22px rgba(2, 8, 4, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    }
+
+    .memory-stat-value {
+      color: var(--text);
+    }
+
+    .memory-complete,
+    .schulte-complete {
+      color: var(--text);
+      border-color: rgba(196, 218, 197, 0.18);
+      background:
+        radial-gradient(circle at 86% 8%, rgba(217, 163, 173, 0.14), transparent 32%),
+        linear-gradient(145deg, rgba(38, 55, 44, 0.88), rgba(13, 23, 17, 0.84));
+      backdrop-filter: blur(var(--glass-blur)) saturate(124%);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(124%);
+      box-shadow: 0 24px 64px rgba(2, 8, 4, 0.38);
+    }
+
+    .memory-complete h2 {
+      color: var(--text);
+      background: none;
+      -webkit-background-clip: initial;
+      -webkit-text-fill-color: currentColor;
+    }
+
+    .memory-complete-value,
+    .schulte-complete h3 {
+      color: var(--text);
+    }
+
+    .schulte-complete p {
+      color: var(--muted);
+    }
+
+    .category-list::-webkit-scrollbar-thumb,
+    .main-scroll::-webkit-scrollbar-thumb,
+    .stock-daily-list::-webkit-scrollbar-thumb {
+      background: linear-gradient(180deg, rgba(127, 165, 138, 0.5), rgba(157, 189, 206, 0.38));
+    }
+
+    .mobile-tabbar {
+      border-color: rgba(196, 218, 197, 0.15);
+      background: rgba(18, 30, 22, 0.78);
+      box-shadow: 0 -12px 32px rgba(2, 8, 4, 0.28);
+    }
+
+    /* 深色星空玻璃主题最终覆盖层。 */
+    ::selection {
+      background: rgba(143, 141, 232, 0.48);
+    }
+
+    .feature-sidebar,
+    .category-sidebar,
+    .main-panel {
+      border-color: rgba(173, 184, 255, 0.2);
+    }
+
+    .feature-sidebar {
+      background:
+        linear-gradient(180deg, rgba(24, 27, 65, 0.5), rgba(9, 11, 31, 0.3)) padding-box,
+        linear-gradient(180deg, rgba(164, 177, 255, 0.42), rgba(255, 255, 255, 0.05)) border-box;
+      box-shadow: 0 22px 58px rgba(2, 4, 18, 0.42), inset 1px 0 0 rgba(255, 255, 255, 0.09);
+    }
+
+    .category-sidebar {
+      background:
+        linear-gradient(155deg, rgba(27, 31, 73, 0.48), rgba(10, 12, 34, 0.28)) padding-box,
+        linear-gradient(145deg, rgba(155, 170, 255, 0.36), rgba(217, 155, 208, 0.18)) border-box;
+    }
+
+    .main-panel {
+      background:
+        linear-gradient(145deg, rgba(23, 27, 66, 0.4), rgba(8, 10, 29, 0.24)) padding-box,
+        linear-gradient(135deg, rgba(151, 166, 255, 0.3), rgba(255, 255, 255, 0.045), rgba(217, 155, 208, 0.2)) border-box;
+    }
+
+    .feature-button:hover,
+    .category-item:hover,
+    .game-list-item:hover,
+    .mobile-tab-button:hover {
+      background: linear-gradient(135deg, rgba(143, 141, 232, 0.22), rgba(117, 185, 231, 0.08));
+    }
+
+    .category-item.active,
+    .game-list-item.active,
+    .mobile-tab-button.active,
+    .game-pill.active {
+      border-color: rgba(173, 184, 255, 0.3);
+      background: linear-gradient(135deg, rgba(143, 141, 232, 0.34), rgba(89, 105, 207, 0.18));
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08), 0 10px 26px rgba(2, 4, 18, 0.3);
+    }
+
+    .feature-button:focus-visible,
+    .category-item:focus-visible,
+    .game-list-item:focus-visible,
+    .game-pill:focus-visible,
+    .mobile-tab-button:focus-visible {
+      border-color: var(--starlight-bright);
+    }
+
+    .section-title::first-letter,
+    .stock-section-title::first-letter,
+    .wheel-option-count,
+    .memory-stat-value {
+      color: var(--starlight-bright);
+    }
+
+    .search-shell {
+      border-bottom-color: rgba(173, 184, 255, 0.16);
+      background: linear-gradient(180deg, rgba(13, 16, 43, 0.78), rgba(15, 18, 50, 0.52));
+      box-shadow: 0 16px 38px rgba(2, 4, 18, 0.34);
+    }
+
+    .search-box,
+    .stock-search-form,
+    .stock-filter-search,
+    .engine-tabs {
+      border-color: rgba(173, 184, 255, 0.2);
+      background: linear-gradient(135deg, rgba(40, 45, 98, 0.5), rgba(15, 18, 49, 0.34));
+    }
+
+    .search-box:focus-within,
+    .stock-search-form:focus-within,
+    .stock-filter-search:focus-within {
+      border-color: var(--starlight);
+      background: rgba(38, 43, 94, 0.56);
+      box-shadow: var(--focus-ring), 0 10px 26px rgba(2, 4, 18, 0.28);
+    }
+
+    .engine-tab:hover,
+    .engine-tab.active {
+      background: linear-gradient(135deg, rgba(143, 141, 232, 0.4), rgba(117, 185, 231, 0.16));
+      box-shadow: 0 8px 20px rgba(2, 4, 18, 0.28);
+    }
+
+    .config-btn,
+    .icon-add,
+    .site-action.edit,
+    .stock-icon-button,
+    .stock-action,
+    .stock-table-action,
+    .schulte-btn,
+    .modal-btn,
+    .modal-close,
+    .emoji-auto,
+    .emoji-choice,
+    .stock-daily-filter,
+    .stock-daily-add,
+    .stock-watch-group {
+      border-color: rgba(173, 184, 255, 0.2);
+      background: rgba(40, 45, 98, 0.42);
+    }
+
+    .config-btn:hover,
+    .icon-add:hover,
+    .site-action.edit:hover,
+    .stock-icon-button:hover,
+    .stock-action:hover,
+    .stock-table-action:hover,
+    .schulte-btn:hover,
+    .modal-btn:hover,
+    .emoji-auto:hover,
+    .emoji-choice:hover,
+    .stock-daily-filter:hover,
+    .stock-daily-add:hover {
+      border-color: rgba(177, 190, 255, 0.46);
+      background: rgba(65, 72, 143, 0.56);
+    }
+
+    .content-section,
+    .stock-section,
+    .game-header,
+    .schulte-panel,
+    .settings-card {
+      border-color: rgba(173, 184, 255, 0.2);
+      background: linear-gradient(135deg, rgba(32, 36, 82, 0.44), rgba(12, 15, 42, 0.28));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.055);
+    }
+
+    .site-card {
+      border-color: transparent;
+      background:
+        linear-gradient(145deg, rgba(31, 35, 78, 0.44), rgba(12, 15, 40, 0.28)) padding-box,
+        linear-gradient(135deg, rgba(159, 172, 255, 0.32), rgba(255, 255, 255, 0.04), rgba(217, 155, 208, 0.22)) border-box;
+      box-shadow: 0 14px 36px rgba(2, 4, 18, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+
+    .site-card::after {
+      background: radial-gradient(circle, var(--nebula-soft), transparent 68%);
+    }
+
+    .site-card:hover {
+      border-color: transparent;
+      background:
+        linear-gradient(145deg, rgba(49, 55, 112, 0.62), rgba(20, 23, 59, 0.42)) padding-box,
+        linear-gradient(135deg, rgba(177, 190, 255, 0.54), rgba(217, 155, 208, 0.38)) border-box;
+      box-shadow: 0 18px 44px rgba(2, 4, 18, 0.38), 0 0 0 1px rgba(217, 155, 208, 0.12);
+    }
+
+    .add-card {
+      border-color: rgba(143, 141, 232, 0.4);
+      background: linear-gradient(145deg, rgba(143, 141, 232, 0.17), rgba(117, 185, 231, 0.055));
+    }
+
+    .game-card,
+    .wheel-config,
+    .wheel-stage,
+    .stock-overview-card,
+    .stock-chart-card,
+    .strategy-card,
+    .strategy-summary-card,
+    .strategy-stock-card,
+    .stock-daily-row,
+    .stock-quote-table-wrap,
+    .stock-empty,
+    .strategy-empty,
+    .empty-state {
+      border-color: rgba(173, 184, 255, 0.18);
+      background: rgba(27, 31, 72, 0.42);
+      box-shadow: 0 14px 34px rgba(2, 4, 18, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.065);
+    }
+
+    .wheel-option-item,
+    .wheel-result,
+    .schulte-board-wrap,
+    .schulte-stat,
+    .memory-stat-card,
+    .card-front {
+      border-color: rgba(173, 184, 255, 0.17);
+      background: rgba(31, 35, 78, 0.44);
+      box-shadow: 0 8px 24px rgba(2, 4, 18, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.065);
+    }
+
+    .wheel-pointer {
+      border-color: transparent transparent var(--nebula-pink);
+      filter: drop-shadow(0 7px 10px rgba(2, 4, 18, 0.42));
+    }
+
+    .wheel-center {
+      background: radial-gradient(circle at 35% 28%, #f4f1ff, var(--nebula-pink) 58%, #6268cb);
+      box-shadow: 0 12px 32px rgba(2, 4, 18, 0.34);
+    }
+
+    .primary-btn,
+    .schulte-btn.primary,
+    .modal-btn.primary,
+    .settings-card .primary-btn {
+      background: linear-gradient(135deg, var(--starlight), #6d7de0);
+      box-shadow: 0 12px 28px rgba(55, 61, 151, 0.34);
+    }
+
+    .primary-btn:hover,
+    .schulte-btn.primary:hover,
+    .modal-btn.primary:hover {
+      background: linear-gradient(135deg, var(--starlight-bright), #8295ef);
+    }
+
+    .input,
+    .textarea,
+    .select,
+    .stock-select,
+    .stock-filter-input,
+    .wheel-option-input,
+    .settings-input {
+      border-color: rgba(173, 184, 255, 0.2);
+      background: rgba(14, 17, 47, 0.62);
+    }
+
+    .input:focus,
+    .textarea:focus,
+    .select:focus,
+    .stock-select:focus,
+    .stock-filter-input:focus,
+    .wheel-option-input:focus,
+    .settings-input:focus {
+      border-color: var(--starlight);
+      background: rgba(24, 28, 68, 0.74);
+    }
+
+    .stock-quote-table th,
+    .stock-quote-table td {
+      border-color: rgba(173, 184, 255, 0.09);
+    }
+
+    .stock-quote-table tbody tr:hover,
+    .stock-daily-row:hover {
+      background: rgba(143, 141, 232, 0.1);
+    }
+
+    .modal-backdrop,
+    .memory-complete,
+    .schulte-complete {
+      background: rgba(4, 5, 18, 0.64);
+    }
+
+    .modal,
+    .toast,
+    .memory-complete,
+    .schulte-complete {
+      border-color: rgba(173, 184, 255, 0.22);
+      background:
+        radial-gradient(circle at 86% 8%, rgba(217, 155, 208, 0.17), transparent 32%),
+        linear-gradient(145deg, rgba(34, 38, 85, 0.9), rgba(11, 14, 39, 0.86));
+      box-shadow: 0 26px 72px rgba(2, 4, 18, 0.5);
+    }
+
+    .category-list::-webkit-scrollbar-thumb,
+    .main-scroll::-webkit-scrollbar-thumb,
+    .stock-daily-list::-webkit-scrollbar-thumb {
+      background: linear-gradient(180deg, rgba(143, 141, 232, 0.58), rgba(117, 185, 231, 0.42));
+    }
+
+    .mobile-tabbar {
+      border-color: rgba(173, 184, 255, 0.18);
+      background: rgba(13, 16, 43, 0.82);
+      box-shadow: 0 -12px 34px rgba(2, 4, 18, 0.38);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto !important;
+      }
+
+      body::after,
+      .app,
+      .settings-page,
+      .coming-page,
+      .game-page,
+      .stock-page,
+      .stock-view-panel,
+      .stock-tick-change,
+      .magic-circle svg,
+      .memory-complete,
+      .schulte-complete,
+      .toast,
+      .modal {
+        animation: none !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -4275,7 +5420,10 @@
     ];
 
     const STOCK_WATCHLIST_KEY = "glass_nav_stock_watchlist";
+    const SCHULTE_TIMER_PAINT_INTERVAL_MS = 50;
     const WHEEL_OPTIONS_KEY = "glass_nav_wheel_options";
+    const WHEEL_SPIN_MIN_MS = 2000;
+    const WHEEL_SPIN_MAX_MS = 8000;
     const DEFAULT_WHEEL_OPTIONS = ["今天吃什么", "看一部电影", "出门散步", "来杯咖啡"];
     const STOCK_WATCHLIST_GROUPS_KEY = "glass_nav_stock_watchlist_groups";
     const DEFAULT_STOCK_WATCH_GROUP_ID = "default";
@@ -4562,6 +5710,7 @@
       startTime: 0,
       elapsed: 0,
       timerId: null,
+      lastTimerPaint: 0,
       done: new Set(),
     };
 
@@ -5132,7 +6281,7 @@
             <h1>股市功能</h1>
             <p>输入通行密码后显示股市入口；趣味功能无需解锁。</p>
             <div class="unlock-panel" style="display: flex; gap: 12px; margin-top: 16px;">
-              <input type="password" id="unlockStocksPassword" placeholder="输入密码" style="flex: 1; padding: 10px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); color: #fff; outline: none;" />
+              <input type="password" id="unlockStocksPassword" placeholder="输入密码" style="flex: 1; padding: 10px 16px; border-radius: 10px; border: 1px solid rgba(196,218,197,0.18); background: rgba(19,31,23,0.44); color: #f3f6ef; outline: none;" />
               <button class="settings-action" type="button" id="unlockStocksBtn" style="margin: 0; padding: 0 24px; min-width: 100px; height: 42px; min-height: auto; display: flex; align-items: center; justify-content: center; text-align: center;">
                 <strong style="font-size: 15px;">${isStocksUnlocked ? "已解锁" : "解锁"}</strong>
               </button>
@@ -10039,8 +11188,8 @@
       const volumeY = value => volumePane.bottom - (value / maxVolume) * volumePane.height;
 
       ctx.font = "11px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-      ctx.strokeStyle = "rgba(255,255,255,0.08)";
-      ctx.fillStyle = "rgba(255,255,255,0.42)";
+      ctx.strokeStyle = "rgba(213,226,215,0.12)";
+      ctx.fillStyle = "rgba(226,235,225,0.62)";
       ctx.lineWidth = 1;
       for (let i = 0; i <= 4; i++) {
         const y = pricePane.top + pricePane.height * i / 4;
@@ -10082,12 +11231,12 @@
         ctx.lineWidth = 1;
       };
 
-      drawLine("average", "rgba(255,213,128,0.78)", 1.1);
-      drawLine("price", "rgba(104,203,255,0.95)", 1.6);
+      drawLine("average", "rgba(216,185,120,0.9)", 1.1);
+      drawLine("price", "rgba(126,167,188,0.96)", 1.6);
 
       const first = data[0];
       const last = data[data.length - 1];
-      ctx.fillStyle = "rgba(255,255,255,0.42)";
+      ctx.fillStyle = "rgba(226,235,225,0.62)";
       ctx.fillText(first.label || first.time || "", pad.left, height - 8);
       const lastLabel = last.label || last.time || "";
       const labelWidth = ctx.measureText(lastLabel).width;
@@ -10135,7 +11284,7 @@
       const candleWidth = Math.max(3, candleSpace * 0.48);
       const y = value => pad + (max - value) / range * (height - pad * 2);
 
-      ctx.strokeStyle = "rgba(255,255,255,0.1)";
+      ctx.strokeStyle = "rgba(213,226,215,0.14)";
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(pad, height / 2);
@@ -10181,7 +11330,7 @@
       canvas.height = Math.round(height * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, width, height);
-      ctx.fillStyle = "rgba(255,255,255,0.62)";
+      ctx.fillStyle = "rgba(226,235,225,0.7)";
       ctx.font = "13px Microsoft YaHei, sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -10256,8 +11405,8 @@
       const volumeY = value => volumePane.bottom - (value / maxVolume) * volumePane.height;
 
       ctx.font = "11px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-      ctx.strokeStyle = "rgba(255,255,255,0.08)";
-      ctx.fillStyle = "rgba(255,255,255,0.42)";
+      ctx.strokeStyle = "rgba(213,226,215,0.12)";
+      ctx.fillStyle = "rgba(226,235,225,0.62)";
       for (let i = 0; i <= 4; i++) {
         const y = pricePane.top + pricePane.height * i / 4;
         const price = maxPrice - priceRange * i / 4;
@@ -10298,10 +11447,10 @@
         pointMeta.push({ x, item });
       });
 
-      drawLine("price", "#69cbff", 1.5);
-      drawLine("average", "#ffd166", 1.2);
+      drawLine("price", "#7ea7bc", 1.5);
+      drawLine("average", "#c9a65f", 1.2);
 
-      ctx.fillStyle = "rgba(255,255,255,0.46)";
+      ctx.fillStyle = "rgba(226,235,225,0.66)";
       ctx.fillText(data[0].label, pad.left, height - 12);
       ctx.fillText(data[data.length - 1].label, Math.max(pad.left, width - pad.right - 96), height - 12);
 
@@ -10393,12 +11542,12 @@
       const macdY = value => macdPane.top + (macdAbsMax - value) / (macdAbsMax * 2) * macdPane.height;
       const xAt = index => pad.left + candleSpace * index + candleSpace / 2;
 
-      ctx.strokeStyle = "rgba(255,255,255,0.08)";
-      ctx.fillStyle = "rgba(255,255,255,0.42)";
+      ctx.strokeStyle = "rgba(213,226,215,0.12)";
+      ctx.fillStyle = "rgba(226,235,225,0.62)";
       ctx.lineWidth = 1;
       ctx.font = "11px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
       const drawPaneGrid = (pane, label) => {
-        ctx.strokeStyle = "rgba(255,255,255,0.08)";
+        ctx.strokeStyle = "rgba(213,226,215,0.12)";
         for (let i = 0; i <= 3; i++) {
           const y = pane.top + pane.height * i / 3;
           ctx.beginPath();
@@ -10406,7 +11555,7 @@
           ctx.lineTo(width - pad.right, y);
           ctx.stroke();
         }
-        ctx.fillStyle = "rgba(255,255,255,0.42)";
+        ctx.fillStyle = "rgba(226,235,225,0.62)";
         ctx.fillText(label, pad.left, pane.top + 12);
       };
       drawPaneGrid(candlePane, "K线");
@@ -10416,7 +11565,7 @@
       for (let i = 0; i <= 4; i++) {
         const y = candlePane.top + candlePane.height * i / 4;
         const price = maxPrice - priceRange * i / 4;
-        ctx.fillStyle = "rgba(255,255,255,0.42)";
+        ctx.fillStyle = "rgba(226,235,225,0.62)";
         ctx.fillText(price.toFixed(2), 8, y + 4);
       }
 
@@ -10488,20 +11637,20 @@
         ctx.stroke();
         ctx.lineWidth = 1;
       };
-      drawSeriesLine(movingAverages.ma5, "#ffd166", priceY, candlePane);
-      drawSeriesLine(movingAverages.ma10, "#f78cfa", priceY, candlePane);
-      drawSeriesLine(movingAverages.ma30, "#69cbff", priceY, candlePane);
-      drawSeriesLine(movingAverages.ma60, "#a7f070", priceY, candlePane);
-      drawSeriesLine(macdValues.map(item => item.dif), "#ffb86b", macdY, macdPane);
-      drawSeriesLine(macdValues.map(item => item.dea), "#8f7dff", macdY, macdPane);
+      drawSeriesLine(movingAverages.ma5, "#c9a65f", priceY, candlePane);
+      drawSeriesLine(movingAverages.ma10, "#c88f9a", priceY, candlePane);
+      drawSeriesLine(movingAverages.ma30, "#7ea7bc", priceY, candlePane);
+      drawSeriesLine(movingAverages.ma60, "#7fa58a", priceY, candlePane);
+      drawSeriesLine(macdValues.map(item => item.dif), "#c49068", macdY, macdPane);
+      drawSeriesLine(macdValues.map(item => item.dea), "#9b8bb2", macdY, macdPane);
 
-      ctx.strokeStyle = "rgba(255,255,255,0.18)";
+      ctx.strokeStyle = "rgba(213,226,215,0.22)";
       ctx.beginPath();
       ctx.moveTo(pad.left, macdY(0));
       ctx.lineTo(width - pad.right, macdY(0));
       ctx.stroke();
 
-      ctx.fillStyle = "rgba(255,255,255,0.46)";
+      ctx.fillStyle = "rgba(226,235,225,0.66)";
       const first = data[0];
       const last = data[data.length - 1];
       ctx.fillText(first.date, pad.left, height - 12);
@@ -10579,7 +11728,7 @@
       const priceLabel = formatStockPrice(price);
       const timeLabel = String(nearest.item?.date || nearest.item?.label || "");
       ctx.save();
-      ctx.strokeStyle = "rgba(255,255,255,0.42)";
+      ctx.strokeStyle = "rgba(226,235,225,0.42)";
       ctx.lineWidth = 1;
       ctx.setLineDash([4, 4]);
       ctx.beginPath();
@@ -10594,22 +11743,22 @@
       const priceLabelWidth = Math.ceil(ctx.measureText(priceLabel).width) + 12;
       const priceLabelX = Math.min(meta.width - priceLabelWidth - 4, meta.plot.right + 6);
       const priceLabelY = Math.max(4, Math.min(meta.height - 20, y - 10));
-      ctx.fillStyle = "rgba(10,12,30,0.86)";
+      ctx.fillStyle = "rgba(12,22,16,0.92)";
       ctx.fillRect(priceLabelX, priceLabelY, priceLabelWidth, 20);
-      ctx.strokeStyle = "rgba(255,255,255,0.28)";
+      ctx.strokeStyle = "rgba(196,218,197,0.3)";
       ctx.strokeRect(priceLabelX, priceLabelY, priceLabelWidth, 20);
-      ctx.fillStyle = "#fff";
+      ctx.fillStyle = "#f3f6ef";
       ctx.fillText(priceLabel, priceLabelX + 6, priceLabelY + 14);
 
       if (timeLabel) {
         const timeLabelWidth = Math.ceil(ctx.measureText(timeLabel).width) + 12;
         const timeLabelX = Math.max(meta.plot.left, Math.min(meta.plot.right - timeLabelWidth, x - timeLabelWidth / 2));
         const timeLabelY = Math.min(meta.height - 20, meta.plot.bottom + 6);
-        ctx.fillStyle = "rgba(10,12,30,0.86)";
+        ctx.fillStyle = "rgba(12,22,16,0.92)";
         ctx.fillRect(timeLabelX, timeLabelY, timeLabelWidth, 20);
-        ctx.strokeStyle = "rgba(255,255,255,0.28)";
+        ctx.strokeStyle = "rgba(196,218,197,0.3)";
         ctx.strokeRect(timeLabelX, timeLabelY, timeLabelWidth, 20);
-        ctx.fillStyle = "#fff";
+        ctx.fillStyle = "#f3f6ef";
         ctx.fillText(timeLabel, timeLabelX + 6, timeLabelY + 14);
       }
       ctx.restore();
@@ -11444,7 +12593,8 @@
             <div class="memory-grid" style="--memory-cols: ${memoryState.cols}; --memory-rows: ${memoryState.rows}">
               ${memoryState.cards.map((card, index) => `
                 <div class="memory-card ${card.flipped ? "is-flipped" : ""} ${card.matched ? "is-matched" : ""}" data-index="${index}">
-                  <div class="card-face card-back">
+                  <div class="memory-card-inner">
+                    <div class="card-face card-back">
                     <div class="magic-circle">
                       <svg viewBox="0 0 100 100">
                         <circle cx="50" cy="50" r="48" stroke-dasharray="2 2" />
@@ -11456,8 +12606,9 @@
                     <div class="angel-icon">
                       <img src="angle-card.jpg" alt="Angel" loading="eager" decoding="async" fetchpriority="high" />
                     </div>
+                    </div>
+                    <div class="card-face card-front">${card.icon}</div>
                   </div>
-                  <div class="card-face card-front">${card.icon}</div>
                 </div>
               `).join("")}
               <div id="memoryComplete" class="memory-complete is-hidden">
@@ -11473,7 +12624,7 @@
                       <span class="memory-complete-label">尝试步数</span>
                       <span class="memory-complete-value" id="memoryCompleteSteps">0</span>
                     </div>
-                    <div class="memory-complete-stat" style="grid-column: span 2; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1);">
+                    <div class="memory-complete-stat" style="grid-column: span 2; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(196,218,197,0.15);">
                       <span class="memory-complete-label">当前难度最佳记录</span>
                       <span class="memory-complete-value" id="memoryCompleteBest">--</span>
                     </div>
@@ -11545,7 +12696,7 @@
     }
 
     function renderWheelSvg(options) {
-      const colors = ["#6d5eea", "#4b9fe8", "#3cbf9b", "#81bd45", "#e4a338", "#e46f62", "#ca5cb4", "#8f6de1"];
+      const colors = ["#7fa58a", "#dfa6ae", "#9dbdce", "#d8b978", "#b7aacb", "#91b6a0", "#caa29a", "#a8bea3"];
       if (options.length === 1) {
         return `<svg viewBox="0 0 100 100" aria-label="轮盘"><circle cx="50" cy="50" r="50" fill="${colors[0]}" /><text x="50" y="50">${escapeHTML(options[0])}</text></svg>`;
       }
@@ -11562,6 +12713,10 @@
       return `<svg viewBox="0 0 100 100" role="img" aria-label="共 ${options.length} 个选项的轮盘">${segments}</svg>`;
     }
 
+    function getRandomWheelSpinDuration() {
+      return Math.floor(Math.random() * (WHEEL_SPIN_MAX_MS - WHEEL_SPIN_MIN_MS + 1)) + WHEEL_SPIN_MIN_MS;
+    }
+
     function spinWheel() {
       const options = wheelState.options;
       if (wheelState.spinning) return;
@@ -11574,13 +12729,15 @@
       const currentRotation = ((wheelState.rotation % 360) + 360) % 360;
       const desiredRotation = ((360 - (selectedIndex + 0.5) * sliceAngle) % 360 + 360) % 360;
       const rotationDelta = (desiredRotation - currentRotation + 360) % 360;
+      const spinDuration = getRandomWheelSpinDuration();
       wheelState.rotation += 1440 + rotationDelta;
-      wheelState.spinning = true;
 
       const disc = document.querySelector("[data-wheel-disc]");
       const button = document.querySelector("[data-wheel-spin]");
       if (!disc) return;
+      wheelState.spinning = true;
       if (button) button.disabled = true;
+      disc.style.setProperty("--wheel-spin-duration", `${spinDuration}ms`);
       disc.style.transform = `rotate(${wheelState.rotation}deg)`;
       window.setTimeout(() => {
         wheelState.spinning = false;
@@ -11588,7 +12745,7 @@
         const resultNode = document.querySelector("[data-wheel-result]");
         if (resultNode) resultNode.textContent = wheelState.result;
         if (button) button.disabled = false;
-      }, 4450);
+      }, spinDuration + 50);
     }
 
     function renderWheelGame() {
@@ -11599,6 +12756,7 @@
             <div class="wheel-stage" aria-label="幸运轮盘">
               <div class="wheel-pointer" aria-hidden="true"></div>
               <div class="wheel-disc" data-wheel-disc style="transform: rotate(${wheelState.rotation}deg)">${renderWheelSvg(options)}</div>
+              <div class="wheel-center-pointer" aria-hidden="true"></div>
               <div class="wheel-center" aria-hidden="true">🎡</div>
             </div>
             <section class="wheel-config">
@@ -11666,9 +12824,12 @@
       return (performance.now() - schulteState.startTime) / 1000;
     }
 
-    function updateSchulteTimer() {
-      const node = document.getElementById("schulteTime");
-      if (node) node.textContent = formatSchulteTime(getSchulteElapsed());
+    function updateSchulteTimer(timestamp = performance.now()) {
+      if (!schulteState.lastTimerPaint || timestamp - schulteState.lastTimerPaint >= SCHULTE_TIMER_PAINT_INTERVAL_MS) {
+        const node = document.getElementById("schulteTime");
+        if (node) node.textContent = formatSchulteTime(getSchulteElapsed());
+        schulteState.lastTimerPaint = timestamp;
+      }
       if (schulteState.started && !schulteState.finished) {
         schulteState.timerId = requestAnimationFrame(updateSchulteTimer);
       }
@@ -11679,11 +12840,13 @@
         cancelAnimationFrame(schulteState.timerId);
         schulteState.timerId = null;
       }
+      schulteState.lastTimerPaint = 0;
     }
 
     function startSchulteTimer() {
       if (schulteState.timerId || schulteState.finished) return;
-      updateSchulteTimer();
+      schulteState.lastTimerPaint = 0;
+      updateSchulteTimer(performance.now());
     }
 
     function startSchulteGame() {
@@ -11754,6 +12917,7 @@
       schulteState.finished = false;
       schulteState.startTime = 0;
       schulteState.elapsed = 0;
+      schulteState.lastTimerPaint = 0;
       schulteState.done = new Set();
       stopSchulteTimer();
     }
@@ -11763,33 +12927,72 @@
       renderGamePage();
     }
 
-    function handleSchulteCellClick(event) {
-      event.preventDefault();
-      event.stopPropagation();
+    function playSchulteCellFeedback(cell, type) {
+      if (!cell || typeof cell.animate !== "function") return;
+      if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
 
-      const cell = event.target.closest(".schulte-cell");
+      cell.getAnimations().forEach(animation => {
+        if (String(animation.id || "").startsWith("schulte-")) animation.cancel();
+      });
+
+      const isCorrect = type === "correct";
+      const keyframes = isCorrect
+        ? [
+            { transform: "scale(0.96)" },
+            { transform: "scale(1.035)", offset: 0.52 },
+            { transform: "scale(1)" }
+          ]
+        : [
+            { transform: "translateX(0)" },
+            { transform: "translateX(-3px)" },
+            { transform: "translateX(3px)" },
+            { transform: "translateX(-2px)" },
+            { transform: "translateX(0)" }
+          ];
+
+      cell.animate(keyframes, {
+        id: `schulte-${type}`,
+        duration: isCorrect ? 110 : 120,
+        easing: "ease-out"
+      });
+    }
+
+    function handleSchulteCellActivation(cell) {
       if (!cell || !schulteState.started || schulteState.finished) return;
 
       const value = Number(cell.dataset.number);
       if (!value || schulteState.done.has(value)) return;
 
       if (value !== schulteState.next) {
-        cell.classList.remove("wrong");
-        void cell.offsetWidth;
-        cell.classList.add("wrong");
-        setTimeout(() => cell.classList.remove("wrong"), 180);
+        playSchulteCellFeedback(cell, "wrong");
         return;
       }
 
       schulteState.done.add(value);
       schulteState.next += 1;
-      cell.classList.add("done", "correct");
+      cell.classList.add("done");
       cell.setAttribute("aria-disabled", "true");
       cell.textContent = "✓";
-      setTimeout(() => cell.classList.remove("correct"), 200);
+      playSchulteCellFeedback(cell, "correct");
       updateSchulteStats();
 
       if (schulteState.next > schulteState.size * schulteState.size) finishSchulteGame();
+    }
+
+    function handleSchulteCellPointerDown(event) {
+      if (!event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return;
+      const cell = event.target.closest(".schulte-cell");
+      if (!cell) return;
+      handleSchulteCellActivation(cell);
+    }
+
+    function handleSchulteCellClick(event) {
+      if (event.detail !== 0) return;
+      const cell = event.target.closest(".schulte-cell");
+      if (!cell) return;
+      event.preventDefault();
+      event.stopPropagation();
+      handleSchulteCellActivation(cell);
     }
 
     function renderSchulteGame() {
@@ -12500,6 +13703,10 @@
     }, { passive: false });
 
     content.addEventListener("pointerdown", event => {
+      if (activeFeature === "game" && activeGame === "schulte" && event.target.closest("[data-schulte-cell]")) {
+        handleSchulteCellPointerDown(event);
+        return;
+      }
       if (activeFeature !== "stocks") return;
       const dailyCanvas = event.target.closest("[data-stock-daily-chart]");
       if (!dailyCanvas) return;

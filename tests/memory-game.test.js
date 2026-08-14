@@ -213,3 +213,22 @@ test("memory controls above the card grid use compact spacing", () => {
   assert.match(difficultyRule[1], /margin-bottom:\s*0/);
   assert.match(statsRule[1], /margin-bottom:\s*0/);
 });
+
+test("memory cards use a dedicated 3D inner layer for the flip animation", () => {
+  const cssBlock = extractBlock(/\/\* Memory Game Styles \*\//, /\.schulte-complete/);
+  const cardRule = cssBlock.match(/\.memory-card\s*\{([\s\S]*?)\}/);
+  const innerRule = cssBlock.match(/\.memory-card-inner\s*\{([\s\S]*?)\}/);
+
+  assert.ok(cardRule, "Missing .memory-card CSS rule");
+  assert.ok(innerRule, "Missing .memory-card-inner CSS rule");
+  assert.match(cardRule[1], /perspective:\s*1000px/);
+  assert.match(innerRule[1], /transform-style:\s*preserve-3d/);
+  assert.match(innerRule[1], /transition:\s*transform 0\.62s cubic-bezier\(0\.22, 1, 0\.36, 1\)/);
+  assert.match(cssBlock, /\.memory-card\.is-flipped \.memory-card-inner\s*\{[^}]*transform:\s*rotateY\(180deg\)/s);
+  assert.match(cssBlock, /\.memory-card\.is-matched \.memory-card-inner\s*\{[^}]*transform:\s*rotateY\(180deg\) scale\(0\.95\)/s);
+  assert.match(cssBlock, /\.card-face\s*\{[^}]*-webkit-backface-visibility:\s*hidden/s);
+  assert.match(
+    html,
+    /<div class="memory-card[^>]*data-index="\$\{index\}">\s*<div class="memory-card-inner">\s*<div class="card-face card-back">/,
+  );
+});
