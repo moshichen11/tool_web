@@ -6,6 +6,7 @@
   <title>神之领域</title>
   <link rel="preload" as="image" href="angle-card.jpg" />
   <link rel="stylesheet" href="src/fun-games/fun-games.css" />
+  <link rel="stylesheet" href="src/fun-games/gomoku.css" />
   <style>
     *,
     *::before,
@@ -5346,7 +5347,10 @@
   <div class="toast-root" id="toastRoot"></div>
   <input type="file" id="configFileInput" accept="application/json,.json" style="display:none" />
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.106.2/dist/umd/supabase.min.js"></script>
+  <script src="src/supabase-config.js"></script>
   <script src="src/fun-games/fun-games.js"></script>
+  <script src="src/fun-games/gomoku.js"></script>
   <script>
     const makeId = () => Math.random().toString(36).slice(2, 9);
 
@@ -5396,6 +5400,14 @@
         desc: "记住数字位置并按顺序找出",
         render: FunGames.renderMemorySequence,
         record: () => FunGames.getSummary("memory-sequence")
+      },
+      {
+        id: "gomoku",
+        name: "联机五子棋",
+        icon: "⚫",
+        desc: "房间码邀请好友实时对弈",
+        render: GomokuGame.render,
+        record: GomokuGame.getSummary
       },
       {
         id: "wheel",
@@ -6323,7 +6335,7 @@
     function renderGamePage() {
       const game = games.find(item => item.id === activeGame && !item.disabled) || games[0];
       activeGame = game.id;
-      const isNewFunGame = ["sudoku", "minesweeper", "memory-sequence"].includes(game.id);
+      const isNewFunGame = ["sudoku", "minesweeper", "memory-sequence", "gomoku"].includes(game.id);
       content.className = game.id === "memory"
         ? "content memory-content"
         : isNewFunGame ? "content fun-games-content" : "content";
@@ -6347,6 +6359,7 @@
         updateMemoryStats();
       }
       FunGames.afterRender(game.id);
+      GomokuGame.afterRender(game.id);
     }
 
     /* Stock Module Logic */
@@ -13448,6 +13461,7 @@
         const gameButton = event.target.closest("[data-game]");
         if (!gameButton || gameButton.disabled) return;
         FunGames.leave(activeGame);
+        GomokuGame.leave(activeGame);
         activeGame = gameButton.dataset.game;
         renderAppShell();
         return;
@@ -13483,7 +13497,10 @@
 
       const button = event.target.closest(".feature-button");
       if (!button || button.dataset.feature === activeFeature) return;
-      if (activeFeature === "game") FunGames.leave(activeGame);
+      if (activeFeature === "game") {
+        FunGames.leave(activeGame);
+        GomokuGame.leave(activeGame);
+      }
       activeFeature = button.dataset.feature;
       renderAppShell();
     });
@@ -13491,7 +13508,10 @@
     mobileTabbar.addEventListener("click", event => {
       const button = event.target.closest("[data-mobile-feature]");
       if (!button || button.dataset.mobileFeature === activeFeature) return;
-      if (activeFeature === "game") FunGames.leave(activeGame);
+      if (activeFeature === "game") {
+        FunGames.leave(activeGame);
+        GomokuGame.leave(activeGame);
+      }
       activeFeature = button.dataset.mobileFeature;
       renderAppShell();
     });
@@ -13542,11 +13562,13 @@
         const gameButton = event.target.closest("[data-game]");
         if (gameButton && !gameButton.disabled) {
           FunGames.leave(activeGame);
+          GomokuGame.leave(activeGame);
           activeGame = gameButton.dataset.game;
           renderAppShell();
           return;
         }
 
+        if (activeGame === "gomoku" && GomokuGame.handleClick(event)) return;
         if (FunGames.handleClick(event, activeGame)) return;
 
         if (activeGame === "wheel") {
@@ -13977,7 +13999,18 @@
       toast: showToast,
       confirm: message => window.confirm(message)
     });
-    window.addEventListener("pagehide", () => FunGames.leave(activeGame));
+    GomokuGame.configure({
+      rerender: () => {
+        if (activeFeature !== "game" || activeGame !== "gomoku") return;
+        renderGameList();
+        renderGamePage();
+      },
+      toast: showToast
+    });
+    window.addEventListener("pagehide", () => {
+      FunGames.leave(activeGame);
+      GomokuGame.leave(activeGame);
+    });
 
     const initialConfig = loadUserConfig();
     features = initialConfig.features;

@@ -71,6 +71,26 @@ test("routine game clicks patch existing DOM instead of rebuilding the whole pag
   assert.match(memoryChoice, /patchMemorySequenceDom\(\)/);
 });
 
+test("memory challenge hover never overrides the revealed flip state", () => {
+  const css = fs.readFileSync(cssPath, "utf8");
+  const source = fs.readFileSync(modulePath, "utf8");
+  const hoverRules = [...css.matchAll(/\.memory-sequence-card[^\{]*:hover[^\{]*\{([^}]*)\}/g)];
+  assert.ok(hoverRules.length, "Missing memory challenge hover feedback");
+  for (const rule of hoverRules) assert.doesNotMatch(rule[1], /transform\s*:/);
+  assert.match(css, /\.memory-sequence-card\.is-revealed \.memory-sequence-card-inner\s*\{\s*transform:\s*rotateY\(180deg\)/);
+  assert.match(source, /disabled:\s*memoryState\.state !== "playing" \|\| memoryState\.found\.includes\(value\)/);
+});
+
+test("memory challenge retry action stays beside the difficulty controls", () => {
+  const source = fs.readFileSync(modulePath, "utf8");
+  const renderSource = source.slice(source.indexOf("function renderMemorySequence"), source.indexOf("function patchMemorySequenceDom"));
+  assert.match(renderSource, /fun-toolbar-actions[\s\S]*?data-memory-sequence-retry[\s\S]*?data-memory-sequence-reset/);
+  assert.match(renderSource, /data-memory-sequence-reset>调整难度<\/button>/);
+  const failureResult = renderSource.match(/memoryState\.state === "lost" \? `<div class="fun-result error">([\s\S]*?)<\/div>` : ""/);
+  assert.ok(failureResult, "Missing memory challenge failure result");
+  assert.doesNotMatch(failureResult[1], /data-memory-sequence-retry|data-memory-sequence-reset/);
+});
+
 test("generated sudoku puzzles are valid and uniquely solvable at every difficulty", () => {
   delete require.cache[require.resolve(modulePath)];
   const api = require(modulePath);
@@ -143,7 +163,7 @@ test("versioned storage safely recovers from missing and corrupt data", () => {
 test("production build bundles and protects the new game logic", () => {
   const build = fs.readFileSync(path.join(root, "scripts", "build-production.mjs"), "utf8");
   assert.match(build, /fun-games[\\/]fun-games\.js/);
-  assert.match(build, /funGamesScript/);
+  assert.match(build, /protectedScripts/);
   assert.match(build, /protectedSource/);
   assert.match(build, /rm\(/);
 });

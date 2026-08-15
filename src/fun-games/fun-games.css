@@ -70,6 +70,12 @@
   flex-wrap: wrap;
 }
 
+.fun-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .fun-segments {
   min-width: 0;
   max-width: 100%;
@@ -344,7 +350,6 @@
 .fun-result > div:first-child > span { grid-row: span 2; width: 36px; height: 36px; border-radius: 50%; background: rgba(137,185,154,0.22); display: grid; place-items: center; }
 .fun-result p { margin-top: 3px; color: var(--muted); }
 .fun-result.error { border-color: rgba(212,142,152,0.34); background: linear-gradient(135deg, rgba(150,65,84,0.2), rgba(37,31,64,0.48)); }
-.fun-result.error > div:last-child { display: flex; gap: 8px; }
 .fun-result button.secondary { color: var(--text); border: 1px solid var(--border); background: rgba(24,27,65,0.65); box-shadow: none; }
 
 /* 扫雷 */
@@ -470,7 +475,7 @@
   position: absolute;
   inset: 0;
   transform-style: preserve-3d;
-  transition: transform 300ms cubic-bezier(0.22,1,0.36,1), filter 180ms ease;
+  transition: transform 300ms cubic-bezier(0.22,1,0.36,1);
 }
 .memory-sequence-front,
 .memory-sequence-back {
@@ -483,6 +488,7 @@
   display: grid;
   place-items: center;
   font-style: normal;
+  transition: border-color 180ms ease;
 }
 .memory-sequence-back {
   color: rgba(222,225,255,0.72);
@@ -502,7 +508,9 @@
 .memory-sequence-card.is-revealed .memory-sequence-card-inner { transform: rotateY(180deg); }
 .memory-sequence-card.is-found .memory-sequence-front { background: linear-gradient(145deg, rgba(106,174,133,0.92), rgba(52,101,89,0.96)); }
 .memory-sequence-card.is-wrong .memory-sequence-front { background: linear-gradient(145deg, rgba(218,104,123,0.94), rgba(132,55,90,0.96)); animation: funErrorShake 220ms ease; }
-.memory-sequence-card:not(:disabled):hover .memory-sequence-card-inner { filter: brightness(1.1); transform: translateY(-2px); }
+.memory-sequence-card:disabled { cursor: default; }
+.memory-sequence-card:not(:disabled):hover .memory-sequence-front,
+.memory-sequence-card:not(:disabled):hover .memory-sequence-back { border-color: rgba(222,225,255,0.48); }
 .memory-sequence-overlay {
   position: absolute;
   inset: 76px 16px 16px;
@@ -550,6 +558,7 @@
   .fun-game-title-row h1 { font-size: 25px; }
   .fun-game-title-row p { font-size: 13px; }
   .fun-toolbar { align-items: stretch; flex-direction: column; }
+  .fun-toolbar-actions { width: 100%; flex-direction: column; }
   .fun-segments { width: 100%; overflow-x: auto; }
   .fun-segment { flex: 1 0 auto; }
   .fun-action { width: 100%; }
@@ -567,7 +576,6 @@
   .sudoku-tool-grid button { min-height: 44px; }
   .fun-result { align-items: stretch; flex-direction: column; }
   .fun-result button { width: 100%; }
-  .fun-result.error > div:last-child { flex-direction: column; }
   .mine-board-scroll { padding: 9px; }
   .mine-board { --mine-cell-size: 36px; margin: 0; }
   .mine-dashboard { padding: 10px 12px; gap: 8px; }

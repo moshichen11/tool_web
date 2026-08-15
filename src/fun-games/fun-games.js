@@ -960,7 +960,7 @@
       classes,
       content: `<span class="memory-sequence-card-inner"><i class="memory-sequence-back">✦</i><b class="memory-sequence-front">${value}</b></span>`,
       label: revealed ? `数字 ${value}` : "隐藏的数字牌",
-      disabled: memoryState.state !== "playing",
+      disabled: memoryState.state !== "playing" || memoryState.found.includes(value),
     };
   }
 
@@ -994,7 +994,13 @@
     return `
       <div class="fun-game-shell memory-sequence-page">
         ${renderGameHeader("🧠", "记忆力挑战", "记住数字位置，隐藏后按 1 到最大数字依次找出")}
-        <div class="fun-toolbar"><div class="fun-segments">${buttons}</div><button class="fun-action secondary" type="button" data-memory-sequence-reset>返回难度选择</button></div>
+        <div class="fun-toolbar">
+          <div class="fun-segments">${buttons}</div>
+          <div class="fun-toolbar-actions">
+            ${memoryState.state === "lost" ? '<button class="fun-action" type="button" data-memory-sequence-retry>重新挑战</button>' : ""}
+            <button class="fun-action secondary" type="button" data-memory-sequence-reset>调整难度</button>
+          </div>
+        </div>
         <div class="fun-stat-grid">
           <div><span>当前关卡</span><strong>第 ${memoryState.level} 关</strong></div>
           <div><span>记忆时间</span><strong>${config.duration / 1000} 秒</strong></div>
@@ -1008,7 +1014,7 @@
           ${memoryState.state === "idle" ? '<div class="memory-sequence-overlay"><button type="button" data-memory-sequence-start>开始挑战</button><p>点击后才显示数字并开始倒计时</p></div>' : ""}
         </section>
         ${memoryState.state === "won" ? `<div class="fun-result success"><div><span>✓</span><strong>挑战成功</strong><p>最高成功通过第 ${record.highestCompleted} 关</p></div><button type="button" data-memory-sequence-next>进入第 ${memoryState.level + 1} 关</button></div>` : ""}
-        ${memoryState.state === "lost" ? `<div class="fun-result error"><div><span>!</span><strong>挑战失败</strong><p>本次到达第 ${memoryState.level} 关，历史最高通过第 ${record.highestCompleted} 关</p></div><div><button type="button" data-memory-sequence-retry>重新挑战</button><button type="button" class="secondary" data-memory-sequence-reset>返回难度选择</button></div></div>` : ""}
+        ${memoryState.state === "lost" ? `<div class="fun-result error"><div><span>!</span><strong>挑战失败</strong><p>本次到达第 ${memoryState.level} 关，历史最高通过第 ${record.highestCompleted} 关</p></div></div>` : ""}
       </div>`;
   }
 

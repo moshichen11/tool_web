@@ -110,7 +110,7 @@ test("memory grid uses one unified card width for all four modes", () => {
 test("fun pages keep the desktop fun list visible", () => {
   assert.match(html, /const appShell = document\.querySelector\("\.app"\)/);
   assert.match(html, /appShell\.classList\.toggle\("game-mode", activeFeature === "game"\)/);
-  assert.match(html, /const isNewFunGame = \["sudoku", "minesweeper", "memory-sequence"\]\.includes\(game\.id\)/);
+  assert.match(html, /const isNewFunGame = \["sudoku", "minesweeper", "memory-sequence", "gomoku"\]\.includes\(game\.id\)/);
   assert.match(html, /game\.id === "memory"[\s\S]*?\? "content memory-content"[\s\S]*?: isNewFunGame \? "content fun-games-content" : "content"/);
 
   assert.doesNotMatch(html, /\.app\.game-mode\s*\{[\s\S]*?grid-template-columns:\s*72px minmax\(0,\s*1fr\)/);
