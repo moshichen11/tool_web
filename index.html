@@ -3329,8 +3329,21 @@
       aspect-ratio: var(--memory-card-aspect);
       min-width: 0;
       position: relative;
+      display: block;
+      padding: 0;
+      border: 0;
+      outline: 0;
+      color: inherit;
+      background: transparent;
       cursor: pointer;
       perspective: 1000px;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .memory-card:focus-visible {
+      border-radius: var(--memory-card-radius);
+      box-shadow: var(--focus-ring);
     }
 
     .memory-card-inner {
@@ -12516,8 +12529,7 @@
       renderAppShell();
     }
 
-    function handleMemoryCardClick(event) {
-      const cardEl = event.target.closest(".memory-card");
+    function activateMemoryCard(cardEl) {
       if (!cardEl || memoryState.locked || memoryState.finished) return;
 
       const index = parseInt(cardEl.dataset.index);
@@ -12571,6 +12583,18 @@
         }
         updateMemoryStats();
       }
+    }
+
+    function handleMemoryCardClick(event) {
+      activateMemoryCard(event.target.closest(".memory-card"));
+    }
+
+    function handleMemoryCardPointerUp(event) {
+      if (event.pointerType === "mouse" || event.isPrimary === false) return false;
+      const card = event.target.closest(".memory-card");
+      if (!card) return false;
+      activateMemoryCard(card);
+      return true;
     }
 
     function finishMemoryGame() {
@@ -12636,24 +12660,24 @@
           <div class="memory-grid-scroll">
             <div class="memory-grid" style="--memory-cols: ${memoryState.cols}; --memory-rows: ${memoryState.rows}">
               ${memoryState.cards.map((card, index) => `
-                <div class="memory-card ${card.flipped ? "is-flipped" : ""} ${card.matched ? "is-matched" : ""}" data-index="${index}">
-                  <div class="memory-card-inner">
-                    <div class="card-face card-back">
-                    <div class="magic-circle">
+                <button type="button" class="memory-card ${card.flipped ? "is-flipped" : ""} ${card.matched ? "is-matched" : ""}" data-index="${index}" aria-label="翻开第 ${index + 1} 张卡牌" ${card.matched ? "disabled" : ""}>
+                  <span class="memory-card-inner">
+                    <span class="card-face card-back">
+                    <span class="magic-circle">
                       <svg viewBox="0 0 100 100">
                         <circle cx="50" cy="50" r="48" stroke-dasharray="2 2" />
                         <circle cx="50" cy="50" r="40" />
                         <path d="M50 2 L50 98 M2 50 L98 50 M15 15 L85 85 M85 15 L15 85" opacity="0.5" />
                         <polygon points="50,5 95,50 50,95 5,50" />
                       </svg>
-                    </div>
-                    <div class="angel-icon">
+                    </span>
+                    <span class="angel-icon">
                       <img src="angle-card.jpg" alt="Angel" loading="eager" decoding="async" fetchpriority="high" />
-                    </div>
-                    </div>
-                    <div class="card-face card-front">${card.icon}</div>
-                  </div>
-                </div>
+                    </span>
+                    </span>
+                    <span class="card-face card-front">${card.icon}</span>
+                  </span>
+                </button>
               `).join("")}
               <div id="memoryComplete" class="memory-complete is-hidden">
                 <div class="memory-complete-card">
@@ -13785,6 +13809,7 @@
 
     content.addEventListener("pointerup", event => {
       if (activeFeature === "game" && FunGames.handlePointerEnd(event, activeGame)) return;
+      if (activeFeature === "game" && activeGame === "memory" && handleMemoryCardPointerUp(event)) return;
       if (activeFeature !== "stocks") return;
       handleStockDailyPointerUp(event);
     });
@@ -14002,7 +14027,6 @@
     GomokuGame.configure({
       rerender: () => {
         if (activeFeature !== "game" || activeGame !== "gomoku") return;
-        renderGameList();
         renderGamePage();
       },
       toast: showToast

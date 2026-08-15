@@ -18,9 +18,10 @@ window.SUPABASE_CONFIG = Object.freeze({
 1. 打开 Supabase Dashboard。
 2. 进入 **SQL Editor**。
 3. 新建查询。
-4. 复制并执行 `supabase/migrations/202608150001_gomoku_multiplayer.sql` 的全部内容。
+4. 首次配置时，复制并执行 `supabase/migrations/202608150001_gomoku_multiplayer.sql` 的全部内容。
+5. 再复制并执行 `supabase/migrations/202608150002_gomoku_round_timer.sql` 的全部内容。
 
-脚本会创建棋局表、私有玩家凭证表、RLS 策略、落子 RPC 和 Realtime 发布配置。重复执行是安全的。
+第二份升级脚本会增加每步计时、超时判负、双方确认再来一局、自动交换黑白方和退出关闭房间。已经运行过第一份脚本的项目只需执行第二份。
 
 ## 3. 测试双人对战
 

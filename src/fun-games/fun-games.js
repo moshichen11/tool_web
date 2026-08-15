@@ -24,6 +24,14 @@
     6: { label: "6 × 6", duration: 10000 },
   };
   const MEMORY_STATES = ["idle", "memorizing", "hiding", "playing", "won", "lost"];
+  const MEMORY_DURATION_MIN_SECONDS = 1;
+  const MEMORY_DURATION_MAX_SECONDS = 120;
+
+  function clampMemoryDurationSeconds(value, fallback) {
+    const seconds = Number(value);
+    if (!Number.isInteger(seconds)) return fallback;
+    return Math.max(MEMORY_DURATION_MIN_SECONDS, Math.min(MEMORY_DURATION_MAX_SECONDS, seconds));
+  }
 
   function createDefaultData() {
     const sudokuRecords = {};
@@ -34,15 +42,17 @@
     }
     const memoryRecords = {};
     const currentLevels = {};
+    const durations = {};
     for (const size of Object.keys(MEMORY_CONFIGS)) {
       memoryRecords[size] = { highestCompleted: 0 };
       currentLevels[size] = 1;
+      durations[size] = MEMORY_CONFIGS[size].duration / 1000;
     }
     return {
       version: STORAGE_VERSION,
       sudoku: { activeDifficulty: "easy", records: sudokuRecords, games: {} },
       minesweeper: { activeDifficulty: "easy", records: mineRecords },
-      memory: { activeSize: 3, records: memoryRecords, currentLevels },
+      memory: { activeSize: 3, records: memoryRecords, currentLevels, durations },
     };
   }
 
@@ -91,6 +101,10 @@
         parsed.memory?.currentLevels?.[sizeKey],
         data.memory.records[sizeKey].highestCompleted + 1,
       ));
+      data.memory.durations[sizeKey] = clampMemoryDurationSeconds(
+        parsed.memory?.durations?.[sizeKey],
+        MEMORY_CONFIGS[sizeKey].duration / 1000,
+      );
     }
     return data;
   }
@@ -950,6 +964,17 @@
       : Array.from({ length: cardCount }, (_, index) => index + 1);
   }
 
+  function getMemoryDurationSeconds(size = memoryState.size) {
+    return clampMemoryDurationSeconds(
+      data.memory?.durations?.[size],
+      MEMORY_CONFIGS[size].duration / 1000,
+    );
+  }
+
+  function getMemoryDurationMs(size = memoryState.size) {
+    return getMemoryDurationSeconds(size) * 1000;
+  }
+
   function getMemorySequenceCardView(value, index) {
     const revealed = memoryState.state === "memorizing" || memoryState.state === "won" || memoryState.state === "lost" || memoryState.found.includes(value);
     const classes = [
@@ -978,7 +1003,9 @@
   }
 
   function renderMemorySequence() {
-    const config = MEMORY_CONFIGS[memoryState.size];
+    const durationSeconds = getMemoryDurationSeconds();
+    const durationMs = durationSeconds * 1000;
+    const durationLocked = ["memorizing", "hiding", "playing"].includes(memoryState.state);
     const record = data.memory.records[memoryState.size];
     const buttons = Object.keys(MEMORY_CONFIGS).map(size => `
       <button class="fun-segment ${Number(size) === memoryState.size ? "active" : ""}" type="button" data-memory-sequence-size="${size}">${MEMORY_CONFIGS[size].label}</button>`).join("");
@@ -997,19 +1024,20 @@
         <div class="fun-toolbar">
           <div class="fun-segments">${buttons}</div>
           <div class="fun-toolbar-actions">
+            <div class="memory-sequence-duration"><span>记忆时间</span><input type="number" min="${MEMORY_DURATION_MIN_SECONDS}" max="${MEMORY_DURATION_MAX_SECONDS}" step="1" inputmode="numeric" value="${durationSeconds}" data-memory-sequence-duration aria-label="自定义记忆时间（秒）" ${durationLocked ? "disabled" : ""}><em>秒</em><button class="fun-action secondary" type="button" data-memory-sequence-duration-save ${durationLocked ? "disabled" : ""}>应用</button></div>
             ${memoryState.state === "lost" ? '<button class="fun-action" type="button" data-memory-sequence-retry>重新挑战</button>' : ""}
             <button class="fun-action secondary" type="button" data-memory-sequence-reset>调整难度</button>
           </div>
         </div>
         <div class="fun-stat-grid">
           <div><span>当前关卡</span><strong>第 ${memoryState.level} 关</strong></div>
-          <div><span>记忆时间</span><strong>${config.duration / 1000} 秒</strong></div>
+          <div><span>记忆时间</span><strong data-memory-sequence-duration-copy>${durationSeconds} 秒</strong></div>
           <div><span>历史最高</span><strong>${record.highestCompleted ? `第 ${record.highestCompleted} 关` : "暂无记录"}</strong></div>
           <div><span>当前目标</span><strong data-memory-sequence-target>${memoryState.state === "playing" ? expected : "--"}</strong></div>
         </div>
         <section class="memory-sequence-stage glass">
           <div class="memory-sequence-prompt"><strong data-memory-sequence-prompt>${prompt}</strong><span data-memory-sequence-countdown>${memoryState.state === "memorizing" ? `${(remaining / 1000).toFixed(1)} 秒` : ""}</span></div>
-          <div class="memory-sequence-progress"><i data-memory-sequence-progress style="--memory-progress:${memoryState.state === "memorizing" ? remaining / config.duration : 0}"></i></div>
+          <div class="memory-sequence-progress"><i data-memory-sequence-progress style="--memory-progress:${memoryState.state === "memorizing" ? remaining / durationMs : 0}"></i></div>
           <div class="memory-sequence-grid" style="--memory-sequence-size:${memoryState.size}" aria-label="${memoryState.size}乘${memoryState.size}记忆力棋盘">${cards}</div>
           ${memoryState.state === "idle" ? '<div class="memory-sequence-overlay"><button type="button" data-memory-sequence-start>开始挑战</button><p>点击后才显示数字并开始倒计时</p></div>' : ""}
         </section>
@@ -1035,11 +1063,19 @@
 
     const expected = memoryState.found.length + 1;
     const remaining = memoryState.state === "memorizing" ? Math.max(0, memoryState.deadline - Date.now()) : 0;
+    const durationSeconds = getMemoryDurationSeconds();
+    const durationLocked = ["memorizing", "hiding", "playing"].includes(memoryState.state);
     setTextIfChanged(documentRef.querySelector("[data-memory-sequence-prompt]"), getMemorySequencePrompt());
     setTextIfChanged(documentRef.querySelector("[data-memory-sequence-target]"), memoryState.state === "playing" ? expected : "--");
     setTextIfChanged(documentRef.querySelector("[data-memory-sequence-countdown]"), memoryState.state === "memorizing" ? `${(remaining / 1000).toFixed(1)} 秒` : "");
     const progress = documentRef.querySelector("[data-memory-sequence-progress]");
-    if (progress) progress.style.setProperty("--memory-progress", memoryState.state === "memorizing" ? remaining / MEMORY_CONFIGS[memoryState.size].duration : 0);
+    if (progress) progress.style.setProperty("--memory-progress", memoryState.state === "memorizing" ? remaining / getMemoryDurationMs() : 0);
+    setTextIfChanged(documentRef.querySelector("[data-memory-sequence-duration-copy]"), `${durationSeconds} 秒`);
+    const durationInput = documentRef.querySelector("[data-memory-sequence-duration]");
+    const durationButton = documentRef.querySelector("[data-memory-sequence-duration-save]");
+    if (durationInput && documentRef.activeElement !== durationInput) durationInput.value = String(durationSeconds);
+    if (durationInput) durationInput.disabled = durationLocked;
+    if (durationButton) durationButton.disabled = durationLocked;
     if (memoryState.state !== "idle") documentRef.querySelector(".memory-sequence-overlay")?.remove();
     if (memoryState.state !== "won" && memoryState.state !== "lost") documentRef.querySelector(".memory-sequence-page > .fun-result")?.remove();
     return true;
@@ -1068,7 +1104,7 @@
     memoryState.found = [];
     memoryState.wrongIndex = -1;
     memoryState.state = "memorizing";
-    memoryState.deadline = Date.now() + MEMORY_CONFIGS[memoryState.size].duration;
+    memoryState.deadline = Date.now() + getMemoryDurationMs();
     data.memory.activeSize = memoryState.size;
     data.memory.currentLevels[memoryState.size] = memoryState.level;
     persist();
@@ -1128,6 +1164,23 @@
     data.memory.activeSize = memoryState.size;
     persist();
     renderCurrentGame();
+  }
+
+  function saveMemoryDuration() {
+    if (["memorizing", "hiding", "playing"].includes(memoryState.state)) {
+      callbacks.toast("挑战进行中不能修改记忆时间", "error");
+      return;
+    }
+    const input = root.document?.querySelector("[data-memory-sequence-duration]");
+    const value = Number(input?.value);
+    if (!Number.isInteger(value) || value < MEMORY_DURATION_MIN_SECONDS || value > MEMORY_DURATION_MAX_SECONDS) {
+      callbacks.toast(`记忆时间需要设置为 ${MEMORY_DURATION_MIN_SECONDS} 到 ${MEMORY_DURATION_MAX_SECONDS} 秒`, "error");
+      return;
+    }
+    data.memory.durations[memoryState.size] = value;
+    persist();
+    patchMemorySequenceDom();
+    callbacks.toast(`记忆时间已设置为 ${value} 秒`, "success");
   }
 
   function handleSudokuClick(event) {
@@ -1190,6 +1243,7 @@
     const size = event.target.closest("[data-memory-sequence-size]");
     if (size) { resetMemoryToIdle(Number(size.dataset.memorySequenceSize)); return true; }
     if (event.target.closest("[data-memory-sequence-start]")) { startMemoryChallenge(); return true; }
+    if (event.target.closest("[data-memory-sequence-duration-save]")) { saveMemoryDuration(); return true; }
     if (event.target.closest("[data-memory-sequence-retry]")) { startMemoryChallenge(); return true; }
     if (event.target.closest("[data-memory-sequence-next]")) {
       resetMemoryToIdle(memoryState.size, memoryState.level + 1);
@@ -1290,7 +1344,7 @@
           const countNode = root.document?.querySelector("[data-memory-sequence-countdown]");
           const progressNode = root.document?.querySelector("[data-memory-sequence-progress]");
           if (countNode) countNode.textContent = `${(remaining / 1000).toFixed(1)} 秒`;
-          if (progressNode) progressNode.style.setProperty("--memory-progress", remaining / MEMORY_CONFIGS[memoryState.size].duration);
+          if (progressNode) progressNode.style.setProperty("--memory-progress", remaining / getMemoryDurationMs());
         }
       }, 100);
     }
@@ -1325,6 +1379,9 @@
       MINE_CONFIGS,
       MEMORY_CONFIGS,
       MEMORY_STATES,
+      MEMORY_DURATION_MIN_SECONDS,
+      MEMORY_DURATION_MAX_SECONDS,
+      clampMemoryDurationSeconds,
       createSeededRandom,
       generateSudoku,
       countSudokuSolutions,

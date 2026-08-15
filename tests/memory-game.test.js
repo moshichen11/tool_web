@@ -230,6 +230,17 @@ test("memory cards use a dedicated 3D inner layer for the flip animation", () =>
   assert.match(cssBlock, /\.card-face\s*\{[^}]*-webkit-backface-visibility:\s*hidden/s);
   assert.match(
     html,
-    /<div class="memory-card[^>]*data-index="\$\{index\}">\s*<div class="memory-card-inner">\s*<div class="card-face card-back">/,
+    /<button type="button" class="memory-card[^>]*data-index="\$\{index\}"[^>]*>\s*<span class="memory-card-inner">\s*<span class="card-face card-back">/,
   );
+});
+
+test("memory flip cards use immediate touch-safe activation on mobile", () => {
+  const cssBlock = extractBlock(/\/\* Memory Game Styles \*\//, /\.schulte-complete/);
+  assert.match(cssBlock, /\.memory-card\s*\{[\s\S]*?touch-action:\s*manipulation/);
+  assert.match(cssBlock, /-webkit-tap-highlight-color:\s*transparent/);
+  assert.match(html, /function activateMemoryCard\(cardEl\)/);
+  assert.match(html, /function handleMemoryCardPointerUp\(event\)/);
+  assert.match(html, /event\.pointerType === "mouse"/);
+  assert.match(html, /activeGame === "memory" && handleMemoryCardPointerUp\(event\)/);
+  assert.match(html, /aria-label="翻开第 \$\{index \+ 1\} 张卡牌"/);
 });

@@ -91,6 +91,22 @@ test("memory challenge retry action stays beside the difficulty controls", () =>
   assert.doesNotMatch(failureResult[1], /data-memory-sequence-retry|data-memory-sequence-reset/);
 });
 
+test("memory challenge supports a persisted custom memorizing duration per board size", () => {
+  delete require.cache[require.resolve(modulePath)];
+  const api = require(modulePath);
+  const source = fs.readFileSync(modulePath, "utf8");
+  const defaults = api.__test.createDefaultData();
+
+  assert.deepEqual(defaults.memory.durations, { 3: 3, 4: 5, 5: 7, 6: 10 });
+  assert.equal(api.__test.clampMemoryDurationSeconds(0, 3), 1);
+  assert.equal(api.__test.clampMemoryDurationSeconds(121, 3), 120);
+  assert.equal(api.__test.clampMemoryDurationSeconds("8", 3), 8);
+  assert.match(source, /data-memory-sequence-duration/);
+  assert.match(source, /data-memory-sequence-duration-save/);
+  assert.match(source, /memoryState\.deadline = Date\.now\(\) \+ getMemoryDurationMs\(\)/);
+  assert.match(source, /data\.memory\.durations\[memoryState\.size\] = value/);
+});
+
 test("generated sudoku puzzles are valid and uniquely solvable at every difficulty", () => {
   delete require.cache[require.resolve(modulePath)];
   const api = require(modulePath);
