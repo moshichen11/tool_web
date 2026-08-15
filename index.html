@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>神之领域</title>
   <link rel="preload" as="image" href="angle-card.jpg" />
+  <link rel="stylesheet" href="src/fun-games/fun-games.css" />
   <style>
     *,
     *::before,
@@ -5345,6 +5346,7 @@
   <div class="toast-root" id="toastRoot"></div>
   <input type="file" id="configFileInput" accept="application/json,.json" style="display:none" />
 
+  <script src="src/fun-games/fun-games.js"></script>
   <script>
     const makeId = () => Math.random().toString(36).slice(2, 9);
 
@@ -5371,6 +5373,30 @@
     ];
 
     const games = [
+      {
+        id: "sudoku",
+        name: "数独",
+        icon: "🧩",
+        desc: "唯一解题目与无限逻辑关卡",
+        render: FunGames.renderSudoku,
+        record: () => FunGames.getSummary("sudoku")
+      },
+      {
+        id: "minesweeper",
+        name: "扫雷",
+        icon: "💣",
+        desc: "经典规则与首次点击安全",
+        render: FunGames.renderMinesweeper,
+        record: () => FunGames.getSummary("minesweeper")
+      },
+      {
+        id: "memory-sequence",
+        name: "记忆力挑战",
+        icon: "🧠",
+        desc: "记住数字位置并按顺序找出",
+        render: FunGames.renderMemorySequence,
+        record: () => FunGames.getSummary("memory-sequence")
+      },
       {
         id: "wheel",
         name: "幸运轮盘",
@@ -5692,7 +5718,7 @@
     const mobileAddCategoryBtn = document.getElementById("mobileAddCategoryBtn");
 
     let activeFeature = "navigation";
-    let activeGame = "schulte";
+    let activeGame = "sudoku";
     let activeCategory = "";
     let activeEngine = engines[0].id;
     let selectedEmoji = "";
@@ -6128,6 +6154,7 @@
             <span class="game-list-meta">
               <span class="game-list-name">${escapeHTML(game.name)}</span>
               <span class="game-list-desc">${escapeHTML(game.desc)}</span>
+              ${game.record ? `<span class="game-list-record">${escapeHTML(game.record())}</span>` : ""}
             </span>
           </button>
         </li>
@@ -6296,7 +6323,10 @@
     function renderGamePage() {
       const game = games.find(item => item.id === activeGame && !item.disabled) || games[0];
       activeGame = game.id;
-      content.className = game.id === "memory" ? "content memory-content" : "content";
+      const isNewFunGame = ["sudoku", "minesweeper", "memory-sequence"].includes(game.id);
+      content.className = game.id === "memory"
+        ? "content memory-content"
+        : isNewFunGame ? "content fun-games-content" : "content";
       content.innerHTML = `
         <section class="game-page">
           <div class="game-picker-mobile">
@@ -6316,6 +6346,7 @@
       if (game.id === "memory") {
         updateMemoryStats();
       }
+      FunGames.afterRender(game.id);
     }
 
     /* Stock Module Logic */
@@ -13416,6 +13447,7 @@
       if (activeFeature === "game") {
         const gameButton = event.target.closest("[data-game]");
         if (!gameButton || gameButton.disabled) return;
+        FunGames.leave(activeGame);
         activeGame = gameButton.dataset.game;
         renderAppShell();
         return;
@@ -13451,6 +13483,7 @@
 
       const button = event.target.closest(".feature-button");
       if (!button || button.dataset.feature === activeFeature) return;
+      if (activeFeature === "game") FunGames.leave(activeGame);
       activeFeature = button.dataset.feature;
       renderAppShell();
     });
@@ -13458,6 +13491,7 @@
     mobileTabbar.addEventListener("click", event => {
       const button = event.target.closest("[data-mobile-feature]");
       if (!button || button.dataset.mobileFeature === activeFeature) return;
+      if (activeFeature === "game") FunGames.leave(activeGame);
       activeFeature = button.dataset.mobileFeature;
       renderAppShell();
     });
@@ -13507,10 +13541,13 @@
       if (activeFeature === "game") {
         const gameButton = event.target.closest("[data-game]");
         if (gameButton && !gameButton.disabled) {
+          FunGames.leave(activeGame);
           activeGame = gameButton.dataset.game;
           renderAppShell();
           return;
         }
+
+        if (FunGames.handleClick(event, activeGame)) return;
 
         if (activeGame === "wheel") {
           if (event.target.closest("[data-wheel-save]")) {
@@ -13702,7 +13739,12 @@
       handleStockDailyWheel(event, dailyCanvas);
     }, { passive: false });
 
+    content.addEventListener("contextmenu", event => {
+      if (activeFeature === "game") FunGames.handleContextMenu(event, activeGame);
+    });
+
     content.addEventListener("pointerdown", event => {
+      if (activeFeature === "game" && FunGames.handlePointerDown(event, activeGame)) return;
       if (activeFeature === "game" && activeGame === "schulte" && event.target.closest("[data-schulte-cell]")) {
         handleSchulteCellPointerDown(event);
         return;
@@ -13714,21 +13756,25 @@
     });
 
     content.addEventListener("pointermove", event => {
+      if (activeFeature === "game" && FunGames.handlePointerMove(event, activeGame)) return;
       if (activeFeature !== "stocks") return;
       handleStockDailyPointerMove(event);
     });
 
     content.addEventListener("pointerup", event => {
+      if (activeFeature === "game" && FunGames.handlePointerEnd(event, activeGame)) return;
       if (activeFeature !== "stocks") return;
       handleStockDailyPointerUp(event);
     });
 
     content.addEventListener("pointercancel", event => {
+      if (activeFeature === "game" && FunGames.handlePointerEnd(event, activeGame)) return;
       if (activeFeature !== "stocks") return;
       handleStockDailyPointerUp(event);
     });
 
     content.addEventListener("keydown", event => {
+      if (activeFeature === "game" && FunGames.handleKeyDown(event, activeGame)) return;
       if (activeFeature === "stocks") {
         const result = event.target.closest(".stock-result");
         if (result && ["Enter", " "].includes(event.key)) {
@@ -13921,6 +13967,17 @@
       const engine = engines.find(item => item.id === activeEngine) || engines[0];
       window.open(engine.url + encodeURIComponent(keyword), "_blank", "noopener,noreferrer");
     });
+
+    FunGames.configure({
+      rerender: () => {
+        if (activeFeature !== "game") return;
+        renderGameList();
+        renderGamePage();
+      },
+      toast: showToast,
+      confirm: message => window.confirm(message)
+    });
+    window.addEventListener("pagehide", () => FunGames.leave(activeGame));
 
     const initialConfig = loadUserConfig();
     features = initialConfig.features;

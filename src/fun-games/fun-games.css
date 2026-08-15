@@ -1,0 +1,588 @@
+/* 趣味游戏共享布局：继承主站星空色、玻璃层级与 Semi 语义状态。 */
+.fun-games-content .game-page {
+  width: min(100%, 1480px);
+  max-width: none;
+}
+
+.game-list-record {
+  overflow: hidden;
+  color: rgba(177,190,255,0.68);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+}
+
+.fun-game-shell {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  display: grid;
+  gap: 18px;
+}
+
+.fun-game-header {
+  display: grid;
+  gap: 16px;
+}
+
+.fun-game-title-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.fun-game-title-icon {
+  width: 58px;
+  height: 58px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(190, 197, 255, 0.22);
+  border-radius: 17px;
+  background: linear-gradient(145deg, rgba(143, 141, 232, 0.28), rgba(117, 185, 231, 0.12));
+  box-shadow: inset 0 1px rgba(255,255,255,0.12), 0 12px 30px rgba(2,4,18,0.24);
+  display: grid;
+  place-items: center;
+  font-size: 28px;
+}
+
+.fun-game-title-row h1 {
+  color: var(--text);
+  font-size: clamp(26px, 3vw, 40px);
+  line-height: 1.15;
+}
+
+.fun-game-title-row p,
+.fun-help,
+.mine-footer p {
+  margin-top: 5px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.fun-toolbar {
+  min-width: 0;
+  max-width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.fun-segments {
+  min-width: 0;
+  max-width: 100%;
+  padding: 4px;
+  border: 1px solid rgba(173,184,255,0.16);
+  border-radius: 13px;
+  background: rgba(14,17,43,0.54);
+  display: flex;
+  gap: 4px;
+}
+
+.fun-segment,
+.fun-action,
+.sudoku-tool-grid button,
+.fun-result button {
+  min-height: 40px;
+  padding: 0 16px;
+  color: var(--muted);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+  transition: color 220ms ease, border-color 220ms ease, background 220ms ease, transform 220ms ease, box-shadow 220ms ease;
+}
+
+.fun-segment:hover,
+.fun-segment.active,
+.fun-action:hover,
+.sudoku-tool-grid button:hover:not(:disabled),
+.sudoku-tool-grid button.active {
+  color: var(--text);
+  border-color: rgba(173,184,255,0.22);
+  background: linear-gradient(135deg, rgba(143,141,232,0.28), rgba(117,185,231,0.1));
+}
+
+.fun-action.secondary {
+  border-color: var(--border);
+  background: rgba(24,27,65,0.5);
+}
+
+.fun-segment:focus-visible,
+.fun-action:focus-visible,
+.sudoku-cell:focus-visible,
+.sudoku-keypad button:focus-visible,
+.sudoku-tool-grid button:focus-visible,
+.mine-cell:focus-visible,
+.mine-face:focus-visible,
+.memory-sequence-card:focus-visible,
+.memory-sequence-overlay button:focus-visible {
+  outline: 0;
+  box-shadow: var(--focus-ring);
+}
+
+.fun-action:disabled,
+.sudoku-keypad button:disabled,
+.sudoku-tool-grid button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.fun-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.fun-stat-grid > div {
+  min-height: 76px;
+  padding: 13px 15px;
+  border: 1px solid rgba(173,184,255,0.16);
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(35,39,84,0.55), rgba(15,18,46,0.44));
+  box-shadow: inset 0 1px rgba(255,255,255,0.07);
+  display: grid;
+  align-content: center;
+  gap: 5px;
+}
+
+.fun-stat-grid span,
+.mine-dashboard span,
+.mine-footer span,
+.sudoku-status-copy span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.fun-stat-grid strong,
+.mine-dashboard strong {
+  color: var(--text);
+  font-size: 18px;
+}
+
+.fun-result button,
+.memory-sequence-overlay button {
+  color: #fff;
+  background: linear-gradient(135deg, var(--starlight), #696ed8);
+  box-shadow: 0 10px 24px rgba(80,83,190,0.28);
+}
+
+.fun-result button:hover,
+.memory-sequence-overlay button:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.08);
+}
+
+/* 数独 */
+.fun-loading {
+  min-height: 360px;
+  border: 1px solid var(--border);
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.fun-loading p { color: var(--muted); }
+.fun-loading-orbit {
+  width: 42px;
+  height: 42px;
+  border: 3px solid rgba(173,184,255,0.18);
+  border-top-color: var(--starlight-bright);
+  border-radius: 50%;
+  animation: funSpin 850ms linear infinite;
+}
+
+@keyframes funSpin { to { transform: rotate(360deg); } }
+
+.sudoku-layout {
+  display: grid;
+  grid-template-columns: minmax(300px, 620px) minmax(250px, 340px);
+  justify-content: center;
+  align-items: start;
+  gap: clamp(14px, 3vw, 28px);
+}
+
+.sudoku-board-wrap {
+  position: relative;
+  padding: clamp(8px, 1.4vw, 14px);
+  border: 1px solid rgba(173,184,255,0.22);
+}
+
+.sudoku-board {
+  width: min(100%, 600px);
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 2px solid rgba(222,225,255,0.58);
+  border-radius: 12px;
+  background: rgba(10,12,31,0.72);
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+}
+
+.sudoku-cell {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  color: #dfe4ff;
+  border-right: 1px solid rgba(173,184,255,0.14);
+  border-bottom: 1px solid rgba(173,184,255,0.14);
+  background: rgba(30,34,74,0.48);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  font-size: clamp(17px, 3.2vw, 28px);
+  font-weight: 650;
+  transition: background 140ms ease, color 140ms ease, box-shadow 140ms ease, transform 100ms ease;
+}
+
+.sudoku-cell:nth-child(9n) { border-right: 0; }
+.sudoku-cell:nth-child(9n + 3),
+.sudoku-cell:nth-child(9n + 6) { border-right: 2px solid rgba(222,225,255,0.45); }
+.sudoku-cell:nth-child(n + 19):nth-child(-n + 27),
+.sudoku-cell:nth-child(n + 46):nth-child(-n + 54) { border-bottom: 2px solid rgba(222,225,255,0.45); }
+.sudoku-cell:nth-child(n + 73) { border-bottom: 0; }
+.sudoku-cell:hover { background: rgba(84,91,160,0.36); }
+.sudoku-cell:active { transform: scale(0.96); }
+.sudoku-cell.is-related { background: rgba(85,94,166,0.2); }
+.sudoku-cell.is-same { background: rgba(117,185,231,0.2); }
+.sudoku-cell.is-selected {
+  z-index: 1;
+  background: rgba(143,141,232,0.38);
+  box-shadow: inset 0 0 0 2px var(--starlight-bright);
+}
+.sudoku-cell.is-given { color: #fff; font-weight: 800; }
+.sudoku-cell.is-hint { color: #d8b978; }
+.sudoku-cell.is-wrong {
+  color: #ff9da9;
+  background: rgba(212,78,98,0.2);
+  box-shadow: inset 0 0 0 1px rgba(255,132,150,0.58);
+  animation: funErrorShake 220ms ease;
+}
+
+@keyframes funErrorShake {
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+
+.sudoku-notes {
+  position: absolute;
+  inset: 3px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+}
+
+.sudoku-notes i {
+  color: rgba(211,216,255,0.72);
+  display: grid;
+  place-items: center;
+  font-size: clamp(6px, 1.15vw, 10px);
+  font-style: normal;
+  font-weight: 600;
+}
+
+.sudoku-board.is-paused { filter: blur(10px); pointer-events: none; }
+.sudoku-pause-mask {
+  position: absolute;
+  z-index: 3;
+  inset: 14px;
+  border-radius: 12px;
+  background: rgba(12,14,37,0.62);
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 6px;
+  text-align: center;
+}
+.sudoku-pause-mask span { font-size: 38px; }
+.sudoku-pause-mask p { color: var(--muted); }
+
+.sudoku-controls {
+  padding: 18px;
+  border: 1px solid var(--border);
+  display: grid;
+  gap: 15px;
+}
+
+.sudoku-status-copy { display: grid; gap: 5px; }
+.sudoku-status-copy strong { color: var(--text); font-size: 18px; }
+.sudoku-keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.sudoku-keypad button {
+  aspect-ratio: 1.35;
+  color: var(--text);
+  border: 1px solid rgba(173,184,255,0.18);
+  border-radius: 11px;
+  background: rgba(40,45,94,0.56);
+  cursor: pointer;
+  font-size: 20px;
+  font-weight: 700;
+  transition: background 150ms ease, transform 100ms ease, border-color 150ms ease;
+}
+.sudoku-keypad button:hover:not(:disabled) { border-color: var(--border-bright); background: rgba(70,77,144,0.62); }
+.sudoku-keypad button:active:not(:disabled) { transform: scale(0.94); }
+.sudoku-tool-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+.sudoku-tool-grid button { min-width: 0; padding: 0 7px; border-color: var(--border); background: rgba(24,27,65,0.46); }
+.fun-help { font-size: 12px; }
+
+.fun-result {
+  padding: 18px;
+  border: 1px solid rgba(137,185,154,0.34);
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(84,145,108,0.2), rgba(30,48,79,0.45));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.fun-result > div:first-child { display: grid; grid-template-columns: auto 1fr; column-gap: 10px; }
+.fun-result > div:first-child > span { grid-row: span 2; width: 36px; height: 36px; border-radius: 50%; background: rgba(137,185,154,0.22); display: grid; place-items: center; }
+.fun-result p { margin-top: 3px; color: var(--muted); }
+.fun-result.error { border-color: rgba(212,142,152,0.34); background: linear-gradient(135deg, rgba(150,65,84,0.2), rgba(37,31,64,0.48)); }
+.fun-result.error > div:last-child { display: flex; gap: 8px; }
+.fun-result button.secondary { color: var(--text); border: 1px solid var(--border); background: rgba(24,27,65,0.65); box-shadow: none; }
+
+/* 扫雷 */
+.mine-page { max-width: 1180px; margin: 0 auto; }
+.mine-dashboard {
+  width: min(100%, 480px);
+  margin: 0 auto;
+  padding: 12px 18px;
+  border: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+}
+.mine-dashboard > div { display: grid; justify-items: center; gap: 4px; }
+.mine-face {
+  width: 52px;
+  height: 52px;
+  border: 1px solid rgba(173,184,255,0.24);
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(68,75,143,0.7), rgba(29,33,75,0.72));
+  box-shadow: inset 0 1px rgba(255,255,255,0.12), 0 8px 18px rgba(2,4,18,0.28);
+  cursor: pointer;
+  font-size: 25px;
+  transition: transform 130ms ease, filter 180ms ease;
+}
+.mine-face:hover { filter: brightness(1.12); }
+.mine-face:active { transform: scale(0.93); }
+.mine-board-scroll {
+  max-width: 100%;
+  padding: 14px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--border);
+  scrollbar-color: rgba(143,141,232,0.5) rgba(10,12,31,0.28);
+}
+.mine-board {
+  width: max-content;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(var(--mine-cols), clamp(28px, 2.45vw, 38px));
+  grid-template-rows: repeat(var(--mine-rows), clamp(28px, 2.45vw, 38px));
+  gap: 2px;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.mine-cell {
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  color: var(--text);
+  border: 1px solid rgba(187,195,255,0.2);
+  border-radius: 6px;
+  background: linear-gradient(145deg, rgba(70,77,145,0.88), rgba(38,43,91,0.9));
+  box-shadow: inset 1px 1px rgba(255,255,255,0.12), inset -1px -1px rgba(4,6,22,0.3);
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  font-size: clamp(12px, 1.5vw, 17px);
+  font-weight: 800;
+  transition: transform 80ms ease, background 130ms ease, border-color 130ms ease;
+}
+.mine-cell:hover:not(:disabled) { border-color: rgba(222,225,255,0.5); filter: brightness(1.12); }
+.mine-cell:active:not(:disabled) { transform: scale(0.9); }
+.mine-cell.is-revealed { border-color: rgba(173,184,255,0.1); background: rgba(17,20,49,0.72); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.025); cursor: default; }
+.mine-cell.is-exploded { background: rgba(194,69,88,0.62); animation: funErrorShake 220ms ease; }
+.mine-cell.is-wrong-flag { color: #ff9da9; background: rgba(155,59,81,0.28); }
+.mine-number-1 { color: #79c7ff; }
+.mine-number-2 { color: #8fd39e; }
+.mine-number-3 { color: #ff9da9; }
+.mine-number-4 { color: #b9a8ff; }
+.mine-number-5 { color: #e7a48f; }
+.mine-number-6 { color: #7edfdc; }
+.mine-number-7 { color: #e6e8ff; }
+.mine-number-8 { color: #a5abc9; }
+.mine-footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.mine-footer > div { display: flex; gap: 18px; }
+.mine-footer strong { margin-left: 4px; color: var(--text); }
+
+/* 数字位置记忆挑战 */
+.memory-sequence-page { max-width: 980px; margin: 0 auto; }
+.memory-sequence-stage {
+  position: relative;
+  min-width: 0;
+  max-width: 100%;
+  padding: clamp(16px, 3vw, 28px);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  display: grid;
+  gap: 12px;
+}
+.memory-sequence-prompt { min-height: 28px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.memory-sequence-prompt strong { color: var(--text); font-size: 17px; }
+.memory-sequence-prompt span { color: var(--starlight-bright); font-variant-numeric: tabular-nums; }
+.memory-sequence-progress { height: 4px; overflow: hidden; border-radius: 999px; background: rgba(173,184,255,0.12); }
+.memory-sequence-progress i { display: block; width: calc(var(--memory-progress, 0) * 100%); height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--sky-blue), var(--starlight), var(--nebula-pink)); transition: width 100ms linear; }
+.memory-sequence-grid {
+  width: min(100%, 650px);
+  min-width: 0;
+  max-width: 100%;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(var(--memory-sequence-size), 1fr);
+  gap: clamp(5px, 1.2vw, 10px);
+}
+.memory-sequence-card {
+  position: relative;
+  min-width: 0;
+  padding: 0;
+  aspect-ratio: 1;
+  border: 0;
+  border-radius: clamp(8px, 1.5vw, 14px);
+  background: transparent;
+  perspective: 900px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.memory-sequence-card-inner {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transition: transform 300ms cubic-bezier(0.22,1,0.36,1), filter 180ms ease;
+}
+.memory-sequence-front,
+.memory-sequence-back {
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(173,184,255,0.2);
+  border-radius: inherit;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  display: grid;
+  place-items: center;
+  font-style: normal;
+}
+.memory-sequence-back {
+  color: rgba(222,225,255,0.72);
+  background:
+    radial-gradient(circle at 34% 28%, rgba(255,255,255,0.12), transparent 28%),
+    linear-gradient(145deg, rgba(72,78,148,0.94), rgba(31,35,81,0.96));
+  box-shadow: inset 0 1px rgba(255,255,255,0.12), 0 9px 20px rgba(2,4,18,0.26);
+  font-size: clamp(16px, 3vw, 27px);
+}
+.memory-sequence-front {
+  color: #fff;
+  background: linear-gradient(145deg, rgba(143,141,232,0.9), rgba(72,84,173,0.94));
+  transform: rotateY(180deg);
+  font-size: clamp(15px, 4vw, 30px);
+  font-weight: 800;
+}
+.memory-sequence-card.is-revealed .memory-sequence-card-inner { transform: rotateY(180deg); }
+.memory-sequence-card.is-found .memory-sequence-front { background: linear-gradient(145deg, rgba(106,174,133,0.92), rgba(52,101,89,0.96)); }
+.memory-sequence-card.is-wrong .memory-sequence-front { background: linear-gradient(145deg, rgba(218,104,123,0.94), rgba(132,55,90,0.96)); animation: funErrorShake 220ms ease; }
+.memory-sequence-card:not(:disabled):hover .memory-sequence-card-inner { filter: brightness(1.1); transform: translateY(-2px); }
+.memory-sequence-overlay {
+  position: absolute;
+  inset: 76px 16px 16px;
+  border-radius: 14px;
+  background: rgba(10,12,31,0.62);
+  backdrop-filter: blur(6px);
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  text-align: center;
+}
+.memory-sequence-overlay button { min-height: 48px; padding: 0 24px; border: 0; border-radius: 12px; cursor: pointer; font-weight: 700; }
+.memory-sequence-overlay p { color: var(--muted); }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 920px) {
+  .sudoku-layout { grid-template-columns: 1fr; }
+  .sudoku-controls { width: min(100%, 620px); margin: 0 auto; }
+  .sudoku-keypad { grid-template-columns: repeat(9, 1fr); }
+  .sudoku-keypad button { aspect-ratio: 1; }
+}
+
+@media (max-width: 680px) {
+  .fun-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mine-footer { align-items: flex-start; flex-direction: column; }
+  .sudoku-keypad { grid-template-columns: repeat(5, 1fr); }
+}
+
+@media (max-width: 560px) {
+  .fun-games-content { padding-inline: 8px; }
+  .fun-game-shell { gap: 13px; }
+  .fun-game-title-icon { width: 48px; height: 48px; border-radius: 14px; font-size: 24px; }
+  .fun-game-title-row h1 { font-size: 25px; }
+  .fun-game-title-row p { font-size: 13px; }
+  .fun-toolbar { align-items: stretch; flex-direction: column; }
+  .fun-segments { width: 100%; overflow-x: auto; }
+  .fun-segment { flex: 1 0 auto; }
+  .fun-action { width: 100%; }
+  .fun-stat-grid > div { min-height: 66px; padding: 10px 12px; }
+  .fun-stat-grid strong { font-size: 15px; }
+  .sudoku-board-wrap { padding: 6px; border-radius: 14px; }
+  .sudoku-board { border-radius: 8px; }
+  .sudoku-cell { font-size: clamp(15px, 6vw, 23px); }
+  .sudoku-notes { inset: 1px; }
+  .sudoku-notes i { font-size: clamp(5px, 2.1vw, 8px); }
+  .sudoku-controls { padding: 13px; }
+  .sudoku-keypad { grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  .sudoku-keypad button { aspect-ratio: 1.15; font-size: 18px; }
+  .sudoku-tool-grid { grid-template-columns: 1fr; }
+  .sudoku-tool-grid button { min-height: 44px; }
+  .fun-result { align-items: stretch; flex-direction: column; }
+  .fun-result button { width: 100%; }
+  .fun-result.error > div:last-child { flex-direction: column; }
+  .mine-board-scroll { padding: 9px; }
+  .mine-board { margin: 0; grid-template-columns: repeat(var(--mine-cols), 30px); grid-template-rows: repeat(var(--mine-rows), 30px); }
+  .mine-dashboard { padding: 10px 12px; gap: 8px; }
+  .mine-face { width: 46px; height: 46px; }
+  .mine-footer > div { width: 100%; justify-content: space-between; }
+  .memory-sequence-stage { padding: 12px; }
+  .memory-sequence-grid { gap: 5px; }
+  .memory-sequence-card { border-radius: 8px; }
+  .memory-sequence-overlay { inset: 68px 12px 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sudoku-cell,
+  .mine-cell {
+    transition-duration: 0.01ms !important;
+  }
+
+  .fun-loading-orbit { animation-duration: 1.6s; }
+  .memory-sequence-card-inner { transition-duration: 180ms; }
+}
