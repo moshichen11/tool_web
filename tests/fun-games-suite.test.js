@@ -25,7 +25,7 @@ test("fun game module and responsive styles exist", () => {
   assert.ok(fs.existsSync(modulePath), "Missing fun-games.js");
   assert.ok(fs.existsSync(cssPath), "Missing fun-games.css");
   const css = fs.readFileSync(cssPath, "utf8");
-  assert.match(css, /\.sudoku-board[\s\S]*?grid-template-columns:\s*repeat\(9,\s*1fr\)/);
+  assert.match(css, /\.sudoku-board[\s\S]*?grid-template-columns:\s*repeat\(9,\s*minmax\(0,\s*1fr\)\)/);
   assert.match(css, /\.mine-board-scroll[\s\S]*?overflow:\s*auto/);
   assert.match(css, /\.memory-sequence-grid[\s\S]*?repeat\(var\(--memory-sequence-size\),\s*1fr\)/);
   assert.match(css, /touch-action:\s*manipulation/);
@@ -35,6 +35,22 @@ test("fun game module and responsive styles exist", () => {
 
   const source = fs.readFileSync(modulePath, "utf8");
   assert.doesNotMatch(source, /function renderHome|返回趣味功能|renderHome,/);
+});
+
+test("minesweeper cells are comfortably sized on desktop and mobile", () => {
+  const css = fs.readFileSync(cssPath, "utf8");
+  assert.match(css, /--mine-cell-size:\s*clamp\(34px,\s*2\.85vw,\s*46px\)/);
+  assert.match(css, /grid-template-columns:\s*repeat\(var\(--mine-cols\),\s*var\(--mine-cell-size\)\)/);
+  assert.match(css, /@media\s*\(max-width:\s*560px\)[\s\S]*?\.mine-board\s*\{[\s\S]*?--mine-cell-size:\s*36px/);
+});
+
+test("sudoku board defines equal rows and columns so every cell stays square", () => {
+  const css = fs.readFileSync(cssPath, "utf8");
+  const boardRule = css.match(/\.sudoku-board\s*\{([\s\S]*?)\}/);
+  assert.ok(boardRule, "Missing sudoku board styles");
+  assert.match(boardRule[1], /aspect-ratio:\s*1/);
+  assert.match(boardRule[1], /grid-template-columns:\s*repeat\(9,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(boardRule[1], /grid-template-rows:\s*repeat\(9,\s*minmax\(0,\s*1fr\)\)/);
 });
 
 test("generated sudoku puzzles are valid and uniquely solvable at every difficulty", () => {
