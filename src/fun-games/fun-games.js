@@ -426,6 +426,26 @@
     }[character]));
   }
 
+  function setTextIfChanged(node, value) {
+    if (!node) return;
+    const nextValue = String(value);
+    if (node.textContent !== nextValue) node.textContent = nextValue;
+  }
+
+  function setHtmlIfChanged(node, value) {
+    if (node && node.innerHTML !== value) node.innerHTML = value;
+  }
+
+  function setClassIfChanged(node, value) {
+    if (node && node.className !== value) node.className = value;
+  }
+
+  function setAttributeIfChanged(node, name, value) {
+    if (!node) return;
+    const nextValue = String(value);
+    if (node.getAttribute(name) !== nextValue) node.setAttribute(name, nextValue);
+  }
+
   function renderGameHeader(icon, title, description) {
     return `
       <header class="fun-game-header">
@@ -477,6 +497,44 @@
     return game.elapsedMs;
   }
 
+  function getSudokuSelection(game) {
+    const selected = sudokuUi.selected;
+    const row = selected >= 0 ? Math.floor(selected / 9) : -1;
+    const col = selected >= 0 ? selected % 9 : -1;
+    return {
+      selected,
+      row,
+      col,
+      box: selected >= 0 ? Math.floor(row / 3) * 3 + Math.floor(col / 3) : -1,
+      value: selected >= 0 ? game.values[selected] : 0,
+    };
+  }
+
+  function getSudokuCellView(game, index, selection) {
+    const value = game.values[index];
+    const row = Math.floor(index / 9);
+    const col = index % 9;
+    const box = Math.floor(row / 3) * 3 + Math.floor(col / 3);
+    const given = Boolean(game.puzzle[index]);
+    const wrong = Boolean(value && value !== game.solution[index]);
+    const related = selection.selected >= 0 && (row === selection.row || col === selection.col || box === selection.box);
+    const same = Boolean(selection.value && value === selection.value);
+    const classes = [
+      "sudoku-cell", given ? "is-given" : "", index === selection.selected ? "is-selected" : "",
+      related ? "is-related" : "", same ? "is-same" : "", wrong ? "is-wrong" : "",
+      game.hintCells.includes(index) ? "is-hint" : "",
+    ].filter(Boolean).join(" ");
+    const notes = game.notes[index] || [];
+    const content = value
+      ? `<span class="sudoku-value">${value}</span>${wrong ? '<span class="sr-only">填写错误</span>' : ""}`
+      : `<span class="sudoku-notes">${Array.from({ length: 9 }, (_, noteIndex) => `<i>${notes.includes(noteIndex + 1) ? noteIndex + 1 : ""}</i>`).join("")}</span>`;
+    return {
+      classes,
+      content,
+      label: `第 ${row + 1} 行第 ${col + 1} 列${value ? `，数字 ${value}` : "，空格"}`,
+    };
+  }
+
   function renderSudoku() {
     const difficulty = data.sudoku.activeDifficulty;
     const game = getSudokuGame();
@@ -489,31 +547,12 @@
         <div class="fun-loading glass"><span class="fun-loading-orbit"></span><strong>正在生成第 1 关</strong><p>校验唯一解，请稍候…</p></div></div>`;
     }
 
-    const selected = sudokuUi.selected;
-    const selectedRow = selected >= 0 ? Math.floor(selected / 9) : -1;
-    const selectedCol = selected >= 0 ? selected % 9 : -1;
-    const selectedBox = selected >= 0 ? Math.floor(selectedRow / 3) * 3 + Math.floor(selectedCol / 3) : -1;
-    const selectedValue = selected >= 0 ? game.values[selected] : 0;
+    const selection = getSudokuSelection(game);
     const paused = game.status === "paused";
     const record = data.sudoku.records[difficulty];
     const cells = game.values.map((value, index) => {
-      const row = Math.floor(index / 9);
-      const col = index % 9;
-      const box = Math.floor(row / 3) * 3 + Math.floor(col / 3);
-      const given = Boolean(game.puzzle[index]);
-      const wrong = Boolean(value && value !== game.solution[index]);
-      const related = selected >= 0 && (row === selectedRow || col === selectedCol || box === selectedBox);
-      const same = selectedValue && value === selectedValue;
-      const classes = [
-        "sudoku-cell", given ? "is-given" : "", index === selected ? "is-selected" : "",
-        related ? "is-related" : "", same ? "is-same" : "", wrong ? "is-wrong" : "",
-        game.hintCells.includes(index) ? "is-hint" : "",
-      ].filter(Boolean).join(" ");
-      const notes = game.notes[index] || [];
-      const content = value
-        ? `<span class="sudoku-value">${value}</span>${wrong ? '<span class="sr-only">填写错误</span>' : ""}`
-        : `<span class="sudoku-notes">${Array.from({ length: 9 }, (_, noteIndex) => `<i>${notes.includes(noteIndex + 1) ? noteIndex + 1 : ""}</i>`).join("")}</span>`;
-      return `<button type="button" class="${classes}" data-sudoku-cell="${index}" aria-label="第 ${row + 1} 行第 ${col + 1} 列${value ? `，数字 ${value}` : "，空格"}">${content}</button>`;
+      const view = getSudokuCellView(game, index, selection);
+      return `<button type="button" class="${view.classes}" data-sudoku-cell="${index}" aria-label="${view.label}">${view.content}</button>`;
     }).join("");
 
     return `
@@ -528,7 +567,7 @@
           <div><span>当前关卡</span><strong>第 ${game.level} 关</strong></div>
           <div><span>本关用时</span><strong data-sudoku-time>${formatClock(getSudokuElapsed(game), true)}</strong></div>
           <div><span>最高完成</span><strong>${record.highestCompleted ? `第 ${record.highestCompleted} 关` : "暂无记录"}</strong></div>
-          <div><span>剩余提示</span><strong>${Math.max(0, 3 - game.hintsUsed)} 次</strong></div>
+          <div><span>剩余提示</span><strong data-sudoku-hints-remaining>${Math.max(0, 3 - game.hintsUsed)} 次</strong></div>
         </div>
         <div class="sudoku-layout">
           <div class="sudoku-board-wrap glass">
@@ -538,7 +577,7 @@
           <aside class="sudoku-controls glass">
             <div class="sudoku-status-copy">
               <span>${SUDOKU_DIFFICULTIES[difficulty].label} · 第 ${game.level} 关</span>
-              <strong>${game.status === "completed" ? "恭喜完成" : sudokuUi.noteMode ? "候选数字模式" : "请选择一个空格"}</strong>
+              <strong data-sudoku-status>${game.status === "completed" ? "恭喜完成" : sudokuUi.noteMode ? "候选数字模式" : "请选择一个空格"}</strong>
             </div>
             <div class="sudoku-keypad">${Array.from({ length: 9 }, (_, index) => `<button type="button" data-sudoku-number="${index + 1}" ${paused || game.status === "completed" ? "disabled" : ""}>${index + 1}</button>`).join("")}</div>
             <div class="sudoku-tool-grid">
@@ -551,6 +590,36 @@
         </div>
         ${game.status === "completed" ? `<div class="fun-result success"><div><span>✓</span><strong>第 ${game.level} 关完成</strong><p>用时 ${formatClock(game.elapsedMs, true)}，已保存本关成绩。</p></div><button type="button" data-sudoku-next>进入下一关</button></div>` : ""}
       </div>`;
+  }
+
+  function patchSudokuDom() {
+    const documentRef = root.document;
+    const game = getSudokuGame();
+    const board = documentRef?.querySelector(".sudoku-board");
+    const nodes = board?.querySelectorAll("[data-sudoku-cell]");
+    if (!game || !nodes || nodes.length !== 81) return false;
+
+    const selection = getSudokuSelection(game);
+    nodes.forEach((node, index) => {
+      const view = getSudokuCellView(game, index, selection);
+      setClassIfChanged(node, view.classes);
+      setHtmlIfChanged(node, view.content);
+      setAttributeIfChanged(node, "aria-label", view.label);
+    });
+
+    const noteButton = documentRef.querySelector("[data-sudoku-note]");
+    if (noteButton) {
+      noteButton.classList.toggle("active", sudokuUi.noteMode);
+      setAttributeIfChanged(noteButton, "aria-pressed", sudokuUi.noteMode);
+    }
+    const hintButton = documentRef.querySelector("[data-sudoku-hint]");
+    if (hintButton) {
+      setTextIfChanged(hintButton, `✦ 提示 ${Math.max(0, 3 - game.hintsUsed)}`);
+      hintButton.disabled = game.hintsUsed >= 3;
+    }
+    setTextIfChanged(documentRef.querySelector("[data-sudoku-hints-remaining]"), `${Math.max(0, 3 - game.hintsUsed)} 次`);
+    setTextIfChanged(documentRef.querySelector("[data-sudoku-status]"), sudokuUi.noteMode ? "候选数字模式" : "请选择一个空格");
+    return true;
   }
 
   function getSudokuPeers(index) {
@@ -586,10 +655,13 @@
           game.notes[peer] = game.notes[peer].filter(value => value !== number);
         }
       }
-      checkSudokuCompletion(game);
+      const completed = checkSudokuCompletion(game);
+      persist();
+      if (completed || !patchSudokuDom()) renderCurrentGame();
+      return;
     }
     persist();
-    callbacks.rerender();
+    if (!patchSudokuDom()) renderCurrentGame();
   }
 
   function deleteSudokuValue() {
@@ -599,7 +671,7 @@
     game.values[index] = 0;
     game.notes[index] = [];
     persist();
-    callbacks.rerender();
+    if (!patchSudokuDom()) renderCurrentGame();
   }
 
   function checkSudokuCompletion(game) {
@@ -626,9 +698,9 @@
     game.hintCells.push(index);
     game.hintsUsed += 1;
     sudokuUi.selected = index;
-    checkSudokuCompletion(game);
+    const completed = checkSudokuCompletion(game);
     persist();
-    callbacks.rerender();
+    if (completed || !patchSudokuDom()) renderCurrentGame();
   }
 
   function toggleSudokuPause() {
@@ -700,6 +772,41 @@
     return "🙂";
   }
 
+  function getMineStatusText() {
+    if (mineState.status === "ready") return "点击任意格开始，首次点击和周围区域安全";
+    if (mineState.status === "playing") return "谨慎判断数字，右键或长按插旗";
+    if (mineState.status === "won") return "本局胜利，所有安全区域均已打开";
+    return "踩到地雷了，再试一次吧";
+  }
+
+  function getMineCellView(cell) {
+    let content = "";
+    let label = "未翻开的格子";
+    const classes = ["mine-cell"];
+    if (cell.revealed || mineState.status === "lost" && cell.mine) {
+      classes.push("is-revealed");
+      if (cell.mine) {
+        content = "💣";
+        label = "地雷";
+        classes.push(cell.exploded ? "is-exploded" : "is-mine");
+      } else if (cell.adjacent) {
+        content = String(cell.adjacent);
+        label = `周围 ${cell.adjacent} 个地雷`;
+        classes.push(`mine-number-${cell.adjacent}`);
+      } else label = "安全空格";
+    } else if (cell.flagged) {
+      content = "🚩";
+      label = "已插旗";
+      classes.push("is-flagged");
+    }
+    if (mineState.status === "lost" && cell.flagged && !cell.mine) {
+      content = "✕";
+      label = "错误旗帜";
+      classes.push("is-wrong-flag");
+    }
+    return { content, label, classes: classes.join(" ") };
+  }
+
   function renderMinesweeper() {
     const config = MINE_CONFIGS[mineState.difficulty];
     const record = data.minesweeper.records[mineState.difficulty];
@@ -707,36 +814,10 @@
     const buttons = Object.entries(MINE_CONFIGS).map(([key, value]) => `
       <button class="fun-segment ${key === mineState.difficulty ? "active" : ""}" type="button" data-mine-difficulty="${key}">${value.label}</button>`).join("");
     const cells = mineState.board.map((cell, index) => {
-      let content = "";
-      let label = "未翻开的格子";
-      const classes = ["mine-cell"];
-      if (cell.revealed || mineState.status === "lost" && cell.mine) {
-        classes.push("is-revealed");
-        if (cell.mine) {
-          content = "💣";
-          label = "地雷";
-          classes.push(cell.exploded ? "is-exploded" : "is-mine");
-        } else if (cell.adjacent) {
-          content = String(cell.adjacent);
-          label = `周围 ${cell.adjacent} 个地雷`;
-          classes.push(`mine-number-${cell.adjacent}`);
-        } else label = "安全空格";
-      } else if (cell.flagged) {
-        content = "🚩";
-        label = "已插旗";
-        classes.push("is-flagged");
-      }
-      if (mineState.status === "lost" && cell.flagged && !cell.mine) {
-        content = "✕";
-        label = "错误旗帜";
-        classes.push("is-wrong-flag");
-      }
-      return `<button class="${classes.join(" ")}" type="button" data-mine-cell="${index}" aria-label="${label}" ${["won", "lost"].includes(mineState.status) ? "disabled" : ""}>${content}</button>`;
+      const view = getMineCellView(cell);
+      return `<button class="${view.classes}" type="button" data-mine-cell="${index}" aria-label="${view.label}" ${["won", "lost"].includes(mineState.status) ? "disabled" : ""}>${view.content}</button>`;
     }).join("");
-    const statusText = mineState.status === "ready" ? "点击任意格开始，首次点击和周围区域安全"
-      : mineState.status === "playing" ? "谨慎判断数字，右键或长按插旗"
-      : mineState.status === "won" ? "本局胜利，所有安全区域均已打开"
-      : "踩到地雷了，再试一次吧";
+    const statusText = getMineStatusText();
 
     return `
       <div class="fun-game-shell mine-page">
@@ -751,10 +832,37 @@
           <div class="mine-board" style="--mine-cols:${config.cols}; --mine-rows:${config.rows}" role="grid">${cells}</div>
         </div>
         <div class="mine-footer">
-          <p>${statusText}</p>
-          <div><span>最佳时间 <strong>${record.bestTime == null ? "--" : `${record.bestTime} 秒`}</strong></span><span>胜利次数 <strong>${record.wins}</strong></span></div>
+          <p data-mine-status>${statusText}</p>
+          <div><span>最佳时间 <strong data-mine-best>${record.bestTime == null ? "--" : `${record.bestTime} 秒`}</strong></span><span>胜利次数 <strong data-mine-wins>${record.wins}</strong></span></div>
         </div>
       </div>`;
+  }
+
+  function patchMineDom() {
+    const documentRef = root.document;
+    const board = documentRef?.querySelector(".mine-board");
+    const nodes = board?.querySelectorAll("[data-mine-cell]");
+    if (!nodes || nodes.length !== mineState.board.length) return false;
+
+    const finished = mineState.status === "won" || mineState.status === "lost";
+    nodes.forEach((node, index) => {
+      const view = getMineCellView(mineState.board[index]);
+      setClassIfChanged(node, view.classes);
+      setTextIfChanged(node, view.content);
+      setAttributeIfChanged(node, "aria-label", view.label);
+      if (node.disabled !== finished) node.disabled = finished;
+    });
+
+    const config = MINE_CONFIGS[mineState.difficulty];
+    const record = data.minesweeper.records[mineState.difficulty];
+    const flags = mineState.board.filter(cell => cell.flagged).length;
+    setTextIfChanged(documentRef.querySelector("[data-mine-remaining]"), config.mines - flags);
+    setTextIfChanged(documentRef.querySelector("[data-mine-time]"), String(Math.floor(getMineElapsed() / 1000)).padStart(3, "0"));
+    setTextIfChanged(documentRef.querySelector(".mine-face"), getMineFace());
+    setTextIfChanged(documentRef.querySelector("[data-mine-status]"), getMineStatusText());
+    setTextIfChanged(documentRef.querySelector("[data-mine-best]"), record.bestTime == null ? "--" : `${record.bestTime} 秒`);
+    setTextIfChanged(documentRef.querySelector("[data-mine-wins]"), record.wins);
+    return true;
   }
 
   function revealMineArea(startIndex) {
@@ -814,7 +922,7 @@
       revealMineArea(index);
       checkMineWin();
     }
-    callbacks.rerender();
+    if (!patchMineDom()) renderCurrentGame();
   }
 
   function toggleMineFlag(index) {
@@ -822,7 +930,38 @@
     const cell = mineState.board[index];
     if (!cell || cell.revealed) return;
     cell.flagged = !cell.flagged;
-    callbacks.rerender();
+    if (!patchMineDom()) renderCurrentGame();
+  }
+
+  function getMemorySequencePrompt() {
+    const expected = memoryState.found.length + 1;
+    if (memoryState.state === "idle") return "准备好后开始挑战";
+    if (memoryState.state === "memorizing") return "请记住数字的位置";
+    if (memoryState.state === "hiding") return "数字正在隐藏…";
+    if (memoryState.state === "playing") return `请找到：${expected}`;
+    if (memoryState.state === "won") return `第 ${memoryState.level} 关挑战成功`;
+    return `第 ${memoryState.level} 关挑战失败`;
+  }
+
+  function getMemorySequenceCards() {
+    const cardCount = memoryState.size * memoryState.size;
+    return memoryState.cards.length
+      ? memoryState.cards
+      : Array.from({ length: cardCount }, (_, index) => index + 1);
+  }
+
+  function getMemorySequenceCardView(value, index) {
+    const revealed = memoryState.state === "memorizing" || memoryState.state === "won" || memoryState.state === "lost" || memoryState.found.includes(value);
+    const classes = [
+      "memory-sequence-card", revealed ? "is-revealed" : "", memoryState.found.includes(value) ? "is-found" : "",
+      memoryState.wrongIndex === index ? "is-wrong" : "", memoryState.state === "hiding" ? "is-hiding" : "",
+    ].filter(Boolean).join(" ");
+    return {
+      classes,
+      content: `<span class="memory-sequence-card-inner"><i class="memory-sequence-back">✦</i><b class="memory-sequence-front">${value}</b></span>`,
+      label: revealed ? `数字 ${value}` : "隐藏的数字牌",
+      disabled: memoryState.state !== "playing",
+    };
   }
 
   function createMemoryState(size) {
@@ -843,23 +982,13 @@
     const record = data.memory.records[memoryState.size];
     const buttons = Object.keys(MEMORY_CONFIGS).map(size => `
       <button class="fun-segment ${Number(size) === memoryState.size ? "active" : ""}" type="button" data-memory-sequence-size="${size}">${MEMORY_CONFIGS[size].label}</button>`).join("");
-    const cardCount = memoryState.size * memoryState.size;
-    const cards = (memoryState.cards.length ? memoryState.cards : Array.from({ length: cardCount }, (_, index) => index + 1))
+    const cards = getMemorySequenceCards()
       .map((value, index) => {
-        const revealed = memoryState.state === "memorizing" || memoryState.state === "won" || memoryState.state === "lost" || memoryState.found.includes(value);
-        const classes = [
-          "memory-sequence-card", revealed ? "is-revealed" : "", memoryState.found.includes(value) ? "is-found" : "",
-          memoryState.wrongIndex === index ? "is-wrong" : "", memoryState.state === "hiding" ? "is-hiding" : "",
-        ].filter(Boolean).join(" ");
-        return `<button type="button" class="${classes}" data-memory-sequence-card="${index}" ${memoryState.state !== "playing" ? "disabled" : ""} aria-label="${revealed ? `数字 ${value}` : "隐藏的数字牌"}"><span class="memory-sequence-card-inner"><i class="memory-sequence-back">✦</i><b class="memory-sequence-front">${value}</b></span></button>`;
+        const view = getMemorySequenceCardView(value, index);
+        return `<button type="button" class="${view.classes}" data-memory-sequence-card="${index}" ${view.disabled ? "disabled" : ""} aria-label="${view.label}">${view.content}</button>`;
       }).join("");
     const expected = memoryState.found.length + 1;
-    const prompt = memoryState.state === "idle" ? "准备好后开始挑战"
-      : memoryState.state === "memorizing" ? "请记住数字的位置"
-      : memoryState.state === "hiding" ? "数字正在隐藏…"
-      : memoryState.state === "playing" ? `请找到：${expected}`
-      : memoryState.state === "won" ? `第 ${memoryState.level} 关挑战成功`
-      : `第 ${memoryState.level} 关挑战失败`;
+    const prompt = getMemorySequencePrompt();
     const remaining = memoryState.state === "memorizing" ? Math.max(0, memoryState.deadline - Date.now()) : 0;
 
     return `
@@ -870,10 +999,10 @@
           <div><span>当前关卡</span><strong>第 ${memoryState.level} 关</strong></div>
           <div><span>记忆时间</span><strong>${config.duration / 1000} 秒</strong></div>
           <div><span>历史最高</span><strong>${record.highestCompleted ? `第 ${record.highestCompleted} 关` : "暂无记录"}</strong></div>
-          <div><span>当前目标</span><strong>${memoryState.state === "playing" ? expected : "--"}</strong></div>
+          <div><span>当前目标</span><strong data-memory-sequence-target>${memoryState.state === "playing" ? expected : "--"}</strong></div>
         </div>
         <section class="memory-sequence-stage glass">
-          <div class="memory-sequence-prompt"><strong>${prompt}</strong><span data-memory-sequence-countdown>${memoryState.state === "memorizing" ? `${(remaining / 1000).toFixed(1)} 秒` : ""}</span></div>
+          <div class="memory-sequence-prompt"><strong data-memory-sequence-prompt>${prompt}</strong><span data-memory-sequence-countdown>${memoryState.state === "memorizing" ? `${(remaining / 1000).toFixed(1)} 秒` : ""}</span></div>
           <div class="memory-sequence-progress"><i data-memory-sequence-progress style="--memory-progress:${memoryState.state === "memorizing" ? remaining / config.duration : 0}"></i></div>
           <div class="memory-sequence-grid" style="--memory-sequence-size:${memoryState.size}" aria-label="${memoryState.size}乘${memoryState.size}记忆力棋盘">${cards}</div>
           ${memoryState.state === "idle" ? '<div class="memory-sequence-overlay"><button type="button" data-memory-sequence-start>开始挑战</button><p>点击后才显示数字并开始倒计时</p></div>' : ""}
@@ -881,6 +1010,33 @@
         ${memoryState.state === "won" ? `<div class="fun-result success"><div><span>✓</span><strong>挑战成功</strong><p>最高成功通过第 ${record.highestCompleted} 关</p></div><button type="button" data-memory-sequence-next>进入第 ${memoryState.level + 1} 关</button></div>` : ""}
         ${memoryState.state === "lost" ? `<div class="fun-result error"><div><span>!</span><strong>挑战失败</strong><p>本次到达第 ${memoryState.level} 关，历史最高通过第 ${record.highestCompleted} 关</p></div><div><button type="button" data-memory-sequence-retry>重新挑战</button><button type="button" class="secondary" data-memory-sequence-reset>返回难度选择</button></div></div>` : ""}
       </div>`;
+  }
+
+  function patchMemorySequenceDom() {
+    const documentRef = root.document;
+    const board = documentRef?.querySelector(".memory-sequence-grid");
+    const nodes = board?.querySelectorAll("[data-memory-sequence-card]");
+    const cards = getMemorySequenceCards();
+    if (!nodes || nodes.length !== cards.length) return false;
+
+    nodes.forEach((node, index) => {
+      const view = getMemorySequenceCardView(cards[index], index);
+      setHtmlIfChanged(node, view.content);
+      setClassIfChanged(node, view.classes);
+      setAttributeIfChanged(node, "aria-label", view.label);
+      if (node.disabled !== view.disabled) node.disabled = view.disabled;
+    });
+
+    const expected = memoryState.found.length + 1;
+    const remaining = memoryState.state === "memorizing" ? Math.max(0, memoryState.deadline - Date.now()) : 0;
+    setTextIfChanged(documentRef.querySelector("[data-memory-sequence-prompt]"), getMemorySequencePrompt());
+    setTextIfChanged(documentRef.querySelector("[data-memory-sequence-target]"), memoryState.state === "playing" ? expected : "--");
+    setTextIfChanged(documentRef.querySelector("[data-memory-sequence-countdown]"), memoryState.state === "memorizing" ? `${(remaining / 1000).toFixed(1)} 秒` : "");
+    const progress = documentRef.querySelector("[data-memory-sequence-progress]");
+    if (progress) progress.style.setProperty("--memory-progress", memoryState.state === "memorizing" ? remaining / MEMORY_CONFIGS[memoryState.size].duration : 0);
+    if (memoryState.state !== "idle") documentRef.querySelector(".memory-sequence-overlay")?.remove();
+    if (memoryState.state !== "won" && memoryState.state !== "lost") documentRef.querySelector(".memory-sequence-page > .fun-result")?.remove();
+    return true;
   }
 
   function clearRuntimeTimers() {
@@ -910,7 +1066,8 @@
     data.memory.activeSize = memoryState.size;
     data.memory.currentLevels[memoryState.size] = memoryState.level;
     persist();
-    renderCurrentGame();
+    if (!patchMemorySequenceDom()) renderCurrentGame();
+    else afterRender("memory-sequence");
   }
 
   function scheduleMemoryPhases() {
@@ -920,12 +1077,12 @@
       runtime.timeoutIds.delete(hideId);
       if (memoryState.state !== "memorizing") return;
       memoryState.state = "hiding";
-      renderCurrentGame();
+      if (!patchMemorySequenceDom()) renderCurrentGame();
       const playId = root.setTimeout(() => {
         runtime.timeoutIds.delete(playId);
         if (memoryState.state !== "hiding") return;
         memoryState.state = "playing";
-        renderCurrentGame();
+        if (!patchMemorySequenceDom()) renderCurrentGame();
       }, 320);
       runtime.timeoutIds.add(playId);
     }, remaining);
@@ -952,8 +1109,10 @@
       data.memory.currentLevels[memoryState.size] = memoryState.level + 1;
       persist();
       callbacks.toast(`第 ${memoryState.level} 关挑战成功`, "success");
+      renderCurrentGame();
+      return;
     }
-    renderCurrentGame();
+    if (!patchMemorySequenceDom()) renderCurrentGame();
   }
 
   function resetMemoryToIdle(size = memoryState.size, level) {
@@ -979,7 +1138,7 @@
     if (cell) {
       const game = getSudokuGame();
       if (game?.status !== "paused") sudokuUi.selected = Number(cell.dataset.sudokuCell);
-      renderCurrentGame();
+      if (!patchSudokuDom()) renderCurrentGame();
       return true;
     }
     const number = event.target.closest("[data-sudoku-number]");
@@ -987,7 +1146,7 @@
     if (event.target.closest("[data-sudoku-delete]")) { deleteSudokuValue(); return true; }
     if (event.target.closest("[data-sudoku-note]")) {
       sudokuUi.noteMode = !sudokuUi.noteMode;
-      renderCurrentGame();
+      if (!patchSudokuDom()) renderCurrentGame();
       return true;
     }
     if (event.target.closest("[data-sudoku-hint]")) { useSudokuHint(); return true; }

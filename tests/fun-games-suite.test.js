@@ -53,6 +53,24 @@ test("sudoku board defines equal rows and columns so every cell stays square", (
   assert.match(boardRule[1], /grid-template-rows:\s*repeat\(9,\s*minmax\(0,\s*1fr\)\)/);
 });
 
+test("routine game clicks patch existing DOM instead of rebuilding the whole page", () => {
+  const source = fs.readFileSync(modulePath, "utf8");
+  assert.match(source, /function patchSudokuDom\(\)/);
+  assert.match(source, /function patchMineDom\(\)/);
+  assert.match(source, /function patchMemorySequenceDom\(\)/);
+
+  const sudokuInput = source.slice(source.indexOf("function inputSudokuNumber"), source.indexOf("function deleteSudokuValue"));
+  assert.match(sudokuInput, /patchSudokuDom\(\)/);
+  assert.doesNotMatch(sudokuInput, /callbacks\.rerender\(\)/);
+
+  const mineReveal = source.slice(source.indexOf("function revealMineCell"), source.indexOf("function toggleMineFlag"));
+  assert.match(mineReveal, /patchMineDom\(\)/);
+  assert.doesNotMatch(mineReveal, /callbacks\.rerender\(\)/);
+
+  const memoryChoice = source.slice(source.indexOf("function chooseMemoryCard"), source.indexOf("function resetMemoryToIdle"));
+  assert.match(memoryChoice, /patchMemorySequenceDom\(\)/);
+});
+
 test("generated sudoku puzzles are valid and uniquely solvable at every difficulty", () => {
   delete require.cache[require.resolve(modulePath)];
   const api = require(modulePath);
