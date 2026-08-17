@@ -131,6 +131,7 @@
     if (!storage || typeof storage.setItem !== "function") return false;
     try {
       storage.setItem(STORAGE_KEY, JSON.stringify(value));
+      root.AccountSystem?.queueSync?.();
       return true;
     } catch (error) {
       return false;

@@ -14,7 +14,7 @@
   const LEGACY_IDENTITY_KEY = "glass_nav_gomoku_identity_v1";
   const ROOM_CODE_PATTERN = /^[A-Z2-9]{6}$/;
   const FINISHED_STATES = new Set(["black_won", "white_won", "draw"]);
-  const callbacks = { rerender: () => {}, toast: () => {} };
+  const callbacks = { rerender: () => {}, toast: () => {}, getPlayerName: () => "", getClient: () => null };
   const runtime = {
     active: false,
     client: null,
@@ -105,6 +105,12 @@
   function configure(options = {}) {
     if (typeof options.rerender === "function") callbacks.rerender = options.rerender;
     if (typeof options.toast === "function") callbacks.toast = options.toast;
+    if (typeof options.getPlayerName === "function") callbacks.getPlayerName = options.getPlayerName;
+    if (typeof options.getClient === "function") callbacks.getClient = options.getClient;
+  }
+
+  function getAccountName() {
+    try { return String(callbacks.getPlayerName() || "").trim().slice(0, 20); } catch (error) { return ""; }
   }
 
   function getConfig() {
@@ -120,6 +126,11 @@
 
   function ensureClient() {
     if (runtime.client) return runtime.client;
+    const sharedClient = callbacks.getClient();
+    if (sharedClient) {
+      runtime.client = sharedClient;
+      return runtime.client;
+    }
     if (!isConfigured()) throw new Error("联机服务尚未配置 Publishable key");
     if (typeof root.supabase?.createClient !== "function") throw new Error("Supabase 客户端加载失败，请检查网络后刷新");
     const config = getConfig();
@@ -298,7 +309,7 @@
   async function createRoom() {
     if (state.busy) return;
     try {
-      const name = validateName(getInputValue("[data-gomoku-name]"));
+      const name = validateName(getAccountName() || getInputValue("[data-gomoku-name]"));
       const turnSeconds = validateTurnSeconds(getInputValue("[data-gomoku-turn-seconds]"));
       identity.name = name;
       identity.turnSeconds = turnSeconds;
@@ -319,7 +330,7 @@
   async function joinRoom() {
     if (state.busy) return;
     try {
-      const name = validateName(getInputValue("[data-gomoku-name]"));
+      const name = validateName(getAccountName() || getInputValue("[data-gomoku-name]"));
       const roomCode = getInputValue("[data-gomoku-code]").toUpperCase();
       if (!ROOM_CODE_PATTERN.test(roomCode)) throw new Error("请输入正确的 6 位房间码");
       identity.name = name;
@@ -672,7 +683,9 @@
   }
 
   function renderLobby() {
-    return `<div class="fun-game-shell gomoku-page">${renderHeader()}<section class="gomoku-lobby glass"><div class="gomoku-lobby-copy"><span class="gomoku-kicker">双人实时对弈</span><h2>创建房间，邀请朋友落子</h2><p>房主首局执黑。第一颗棋子落下后开始逐步计时，每局结束双方确认再战并自动换边。</p></div><div class="gomoku-lobby-form"><label>玩家昵称<input type="text" maxlength="20" autocomplete="nickname" data-gomoku-name value="${escapeHTML(identity.name)}" placeholder="输入你的昵称" /></label><label>每步时间（秒）<input type="number" min="${MIN_TURN_SECONDS}" max="${MAX_TURN_SECONDS}" step="1" inputmode="numeric" data-gomoku-turn-seconds value="${identity.turnSeconds}" /></label><p class="gomoku-form-hint">默认 60 秒，可设置 10～600 秒；创建后由房间统一使用。</p><button type="button" class="fun-action gomoku-primary" data-gomoku-create>创建新房间</button><div class="gomoku-divider"><span>或者加入朋友的房间</span></div><label>房间码<input type="text" maxlength="6" autocapitalize="characters" data-gomoku-code value="${escapeHTML(state.prefillCode)}" placeholder="例如 A7KM2P" /></label><button type="button" class="fun-action secondary" data-gomoku-join>加入房间</button><p class="gomoku-error" data-gomoku-error role="alert">${escapeHTML(state.error)}</p></div></section><p class="fun-help">棋局有效期为 24 小时。请使用无痕窗口或另一台设备模拟第二位玩家。</p></div>`;
+    const accountName = getAccountName();
+    const playerName = accountName || identity.name;
+    return `<div class="fun-game-shell gomoku-page">${renderHeader()}<section class="gomoku-lobby glass"><div class="gomoku-lobby-copy"><span class="gomoku-kicker">双人实时对弈</span><h2>创建房间，邀请朋友落子</h2><p>房主首局执黑。第一颗棋子落下后开始逐步计时，每局结束双方确认再战并自动换边。</p></div><div class="gomoku-lobby-form"><label>玩家昵称<input type="text" maxlength="20" autocomplete="nickname" data-gomoku-name value="${escapeHTML(playerName)}" placeholder="输入你的昵称" ${accountName ? "readonly aria-readonly=\"true\"" : ""} /></label>${accountName ? '<p class="gomoku-form-hint">已使用账号昵称，需要修改时请前往“设置 → 账号设置”。</p>' : ""}<label>每步时间（秒）<input type="number" min="${MIN_TURN_SECONDS}" max="${MAX_TURN_SECONDS}" step="1" inputmode="numeric" data-gomoku-turn-seconds value="${identity.turnSeconds}" /></label><p class="gomoku-form-hint">默认 60 秒，可设置 10～600 秒；创建后由房间统一使用。</p><button type="button" class="fun-action gomoku-primary" data-gomoku-create>创建新房间</button><div class="gomoku-divider"><span>或者加入朋友的房间</span></div><label>房间码<input type="text" maxlength="6" autocapitalize="characters" data-gomoku-code value="${escapeHTML(state.prefillCode)}" placeholder="例如 A7KM2P" /></label><button type="button" class="fun-action secondary" data-gomoku-join>加入房间</button><p class="gomoku-error" data-gomoku-error role="alert">${escapeHTML(state.error)}</p></div></section><p class="fun-help">棋局有效期为 24 小时。请使用无痕窗口或另一台设备模拟第二位玩家。</p></div>`;
   }
 
   function renderPlayer(color, name, game) {

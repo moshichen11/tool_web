@@ -10,6 +10,7 @@ const outputHtmlPath = path.join(outputDirectory, "index.html");
 const outputScriptPath = path.join(outputDirectory, "app.min.js");
 const protectedSourceRelativePaths = [
   "src/supabase-config.js",
+  "src/account-system.js",
   "src/fun-games/fun-games.js",
   "src/fun-games/gomoku.js",
 ];
