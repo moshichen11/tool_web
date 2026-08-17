@@ -49,6 +49,14 @@ test("settings uses separate account navigation and silent local status updates"
   assert.match(html, /updateAccountStatusView\(accountState\)/);
 });
 
+test("account initialization ignores duplicate auth events and prevents reload loops", () => {
+  assert.match(accountSource, /event === "INITIAL_SESSION"\) return/);
+  assert.match(accountSource, /event === "SIGNED_IN" && nextSession\?\.user\?\.id === activeUserId/);
+  assert.match(accountSource, /keys\.sort\(\)\.forEach/);
+  assert.match(html, /glass_nav_last_data_reload/);
+  assert.match(html, /now - Number\(previous\.time \|\| 0\) < 5000/);
+});
+
 test("personal app state is isolated by authenticated RLS policies", () => {
   assert.match(migration, /alter table public\.profiles enable row level security/);
   assert.match(migration, /alter table public\.user_app_state enable row level security/);

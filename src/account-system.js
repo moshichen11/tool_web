@@ -90,12 +90,15 @@
     const storage = getStorage();
     const snapshot = {};
     if (!storage) return snapshot;
+    const keys = [];
     for (let index = 0; index < storage.length; index += 1) {
       const key = storage.key(index);
-      if (!key || !isManagedKey(key)) continue;
+      if (key && isManagedKey(key)) keys.push(key);
+    }
+    keys.sort().forEach(key => {
       const value = storage.getItem(key);
       if (value !== null) snapshot[key] = value;
-    }
+    });
     return snapshot;
   }
 
@@ -217,7 +220,7 @@
       state.syncStatus = "synced";
       state.ready = true;
       notify();
-      if (changed && options.notifyDataApplied !== false) callbacks.onDataApplied();
+      if (changed && options.notifyDataApplied !== false) callbacks.onDataApplied({ reason: "cloud", userId });
       return changed;
     } catch (error) {
       activeUserId = userId;
@@ -238,9 +241,15 @@
       if (error) throw error;
       await handleSession(data.session, { notifyDataApplied: false });
       const listener = supabaseClient.auth.onAuthStateChange((event, nextSession) => {
+        if (event === "INITIAL_SESSION") return;
         if (event === "TOKEN_REFRESHED") {
           state.session = nextSession;
           state.user = nextSession?.user || state.user;
+          return;
+        }
+        if (event === "SIGNED_IN" && nextSession?.user?.id === activeUserId) {
+          state.session = nextSession;
+          state.user = nextSession.user;
           return;
         }
         root.setTimeout(() => handleSession(nextSession), 0);
@@ -273,6 +282,7 @@
   }
 
   async function signOut() {
+    const signingOutUserId = activeUserId;
     if (activeUserId) {
       try { await syncNow(); } catch (error) { /* 退出仍应继续。 */ }
     }
@@ -282,7 +292,7 @@
     getStorage()?.removeItem(OWNER_KEY);
     activeUserId = "";
     await handleSession(null, { notifyDataApplied: false });
-    callbacks.onDataApplied();
+    callbacks.onDataApplied({ reason: "signedOut", userId: signingOutUserId });
   }
 
   async function updateProfile({ nickname, avatarFile } = {}) {

@@ -14410,7 +14410,15 @@
         }
         updateAccountStatusView(accountState);
       },
-      onDataApplied: () => window.location.reload(),
+      onDataApplied: details => {
+        const signature = `${details?.reason || "data"}:${details?.userId || "anonymous"}`;
+        const now = Date.now();
+        let previous = null;
+        try { previous = JSON.parse(sessionStorage.getItem("glass_nav_last_data_reload") || "null"); } catch (error) { /* 忽略损坏的保护记录。 */ }
+        if (previous?.signature === signature && now - Number(previous.time || 0) < 5000) return;
+        sessionStorage.setItem("glass_nav_last_data_reload", JSON.stringify({ signature, time: now }));
+        window.location.reload();
+      },
       toast: showToast
     });
     FunGames.configure({
