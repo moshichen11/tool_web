@@ -1005,8 +1005,8 @@
       box-shadow: inset 0 1px rgba(255,255,255,0.18), 0 16px 30px rgba(11, 13, 38, 0.2);
     }
 
+    .account-avatar-preview { position: absolute; inset: 0; display: grid; place-items: center; font-size: 30px; }
     .account-avatar-picker img { width: 100%; height: 100%; object-fit: cover; }
-    .account-avatar-picker span { font-size: 30px; }
 
     .account-avatar-picker small {
       position: absolute;
@@ -1016,6 +1016,7 @@
       background: rgba(10, 12, 36, 0.66);
       text-align: center;
       font-size: 10px;
+      z-index: 1;
     }
 
     .account-form,
@@ -1050,6 +1051,32 @@
     }
 
     .account-field input[readonly] { color: rgba(225, 229, 247, 0.58); cursor: default; }
+
+    .account-password-control {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .account-password-control input { padding-right: 58px; }
+
+    .account-password-toggle {
+      position: absolute;
+      right: 7px;
+      min-width: 42px;
+      height: 30px;
+      padding: 0 7px;
+      border: 0;
+      border-radius: 8px;
+      color: rgba(235, 238, 255, 0.78);
+      background: rgba(255,255,255,0.08);
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .account-password-toggle:hover,
+    .account-password-toggle:focus-visible { color: #fff; background: rgba(255,255,255,0.15); outline: none; }
+    .account-subtitle { margin-bottom: 12px; color: rgba(246, 247, 255, 0.92); font-size: 18px; }
 
     .account-inline-button {
       min-height: 44px;
@@ -5856,6 +5883,8 @@
 
     let activeFeature = "navigation";
     let activeGame = "sudoku";
+    let activeSettingsView = "account";
+    let accountAvatarPreviewUrl = "";
     let activeCategory = "";
     let activeEngine = engines[0].id;
     let selectedEmoji = "";
@@ -6227,16 +6256,15 @@
       setTimeout(() => toast.remove(), 2600);
     }
 
-    async function runAccountAction(button, task, successMessage) {
+    async function runAccountAction(button, task, successMessage, afterSuccess) {
       if (button?.disabled) return;
       if (button) button.disabled = true;
       try {
-        await task();
+        const result = await task();
+        if (typeof afterSuccess === "function") afterSuccess(result);
         if (successMessage) showToast(successMessage, "success");
-        if (activeFeature === "settings") renderSettingsPage();
       } catch (error) {
         showToast(error?.message || "操作失败，请稍后重试", "error");
-        if (activeFeature === "settings") renderSettingsPage();
       } finally {
         if (button?.isConnected) button.disabled = false;
       }
@@ -6246,6 +6274,32 @@
       const email = document.getElementById("accountEmail")?.value;
       const password = document.getElementById("accountPassword")?.value;
       runAccountAction(button, () => AccountSystem.signIn(email, password), "登录成功");
+    }
+
+    function clearAccountAvatarPreview() {
+      if (accountAvatarPreviewUrl) URL.revokeObjectURL(accountAvatarPreviewUrl);
+      accountAvatarPreviewUrl = "";
+    }
+
+    function updateAccountStatusView(accountState = AccountSystem.getState()) {
+      const badge = document.querySelector("[data-account-sync-status]");
+      if (!badge) return;
+      badge.textContent = getAccountSyncLabel(accountState);
+      badge.classList.toggle("is-error", accountState.syncStatus === "error");
+    }
+
+    function updateSavedAccountProfileView() {
+      const accountState = AccountSystem.getState();
+      const preview = document.querySelector("[data-account-avatar-preview]");
+      if (preview) {
+        preview.innerHTML = accountState.avatarUrl
+          ? `<img src="${escapeHTML(accountState.avatarUrl)}" alt="当前头像" />`
+          : `<span aria-hidden="true">${escapeHTML((accountState.profile?.nickname || "用").slice(0, 1))}</span>`;
+      }
+      const selectionStatus = document.querySelector("[data-account-avatar-selection]");
+      if (selectionStatus) selectionStatus.textContent = "头像与昵称已保存";
+      clearAccountAvatarPreview();
+      updateAccountStatusView(accountState);
     }
 
     function findCategory(categoryId) {
@@ -6332,7 +6386,7 @@
       categoryList.className = "category-list game-list";
       categoryList.innerHTML = `
         <li>
-          <button class="game-list-item" type="button" data-settings-section="accountSettingsCard">
+          <button class="game-list-item ${activeSettingsView === "account" ? "active" : ""}" type="button" data-settings-view="account" aria-pressed="${activeSettingsView === "account"}">
             <span class="game-list-icon" aria-hidden="true">👤</span>
             <span class="game-list-meta">
               <span class="game-list-name">账号设置</span>
@@ -6341,29 +6395,20 @@
           </button>
         </li>
         <li>
-          <button class="game-list-item" type="button" data-config-action="import">
-            <span class="game-list-icon" aria-hidden="true">📥</span>
+          <button class="game-list-item ${activeSettingsView === "navigation" ? "active" : ""}" type="button" data-settings-view="navigation" aria-pressed="${activeSettingsView === "navigation"}">
+            <span class="game-list-icon" aria-hidden="true">🧭</span>
             <span class="game-list-meta">
-              <span class="game-list-name">导入配置</span>
-              <span class="game-list-desc">从 JSON 恢复导航</span>
+              <span class="game-list-name">导航配置</span>
+              <span class="game-list-desc">导入、导出与恢复</span>
             </span>
           </button>
         </li>
         <li>
-          <button class="game-list-item" type="button" data-config-action="export">
-            <span class="game-list-icon" aria-hidden="true">📤</span>
+          <button class="game-list-item ${activeSettingsView === "unlock" ? "active" : ""}" type="button" data-settings-view="unlock" aria-pressed="${activeSettingsView === "unlock"}">
+            <span class="game-list-icon" aria-hidden="true">🔐</span>
             <span class="game-list-meta">
-              <span class="game-list-name">导出配置</span>
-              <span class="game-list-desc">保存当前分类网站</span>
-            </span>
-          </button>
-        </li>
-        <li>
-          <button class="game-list-item" type="button" data-config-action="reset">
-            <span class="game-list-icon" aria-hidden="true">↺</span>
-            <span class="game-list-meta">
-              <span class="game-list-name">恢复默认</span>
-              <span class="game-list-desc">清空本地配置</span>
+              <span class="game-list-name">解锁功能</span>
+              <span class="game-list-desc">管理受保护入口</span>
             </span>
           </button>
         </li>
@@ -6371,10 +6416,10 @@
     }
 
     function getAccountSyncLabel(accountState) {
-      if (accountState.syncStatus === "syncing") return "正在同步";
-      if (accountState.syncStatus === "pending") return "等待同步";
-      if (accountState.syncStatus === "error") return "同步异常";
-      if (accountState.syncStatus === "synced") return "已同步";
+      if (accountState.syncStatus === "syncing") return "自动保存中";
+      if (accountState.syncStatus === "pending") return "等待自动保存";
+      if (accountState.syncStatus === "error") return "自动保存失败";
+      if (accountState.syncStatus === "synced") return "云端已保存";
       return "仅本机使用";
     }
 
@@ -6382,14 +6427,14 @@
       const accountState = AccountSystem.getState();
       if (accountState.status === "loading") {
         return `
-          <div class="settings-card glass" id="accountSettingsCard">
+          <div class="settings-card glass" id="accountSettingsCard" data-account-view="loading">
             <div class="account-card-head"><h1>账号设置</h1><span class="account-sync-badge">正在连接</span></div>
             <p>正在读取账号与个人数据，请稍候。</p>
           </div>`;
       }
       if (accountState.status === "unavailable") {
         return `
-          <div class="settings-card glass" id="accountSettingsCard">
+          <div class="settings-card glass" id="accountSettingsCard" data-account-view="unavailable">
             <div class="account-card-head"><h1>账号设置</h1><span class="account-sync-badge is-error">暂不可用</span></div>
             <p>账号服务没有正确连接。请检查 Supabase 配置和网络，其他本地功能仍可继续使用。</p>
             <p class="account-error">${escapeHTML(accountState.error)}</p>
@@ -6397,13 +6442,13 @@
       }
       if (!accountState.user) {
         return `
-          <div class="settings-card glass" id="accountSettingsCard">
+          <div class="settings-card glass" id="accountSettingsCard" data-account-view="signed-out">
             <div class="account-card-head"><h1>账号设置</h1><span class="account-sync-badge">未登录</span></div>
             <p>使用管理员邀请的邮箱账号登录。本站不提供公开注册入口，首次收到邀请后请通过邮件链接进入并设置密码。</p>
             <form class="account-form" data-account-login-form>
               <div class="account-form-grid">
                 <label class="account-field">邮箱<input id="accountEmail" type="email" autocomplete="username" placeholder="name@example.com" required /></label>
-                <label class="account-field">密码<input id="accountPassword" type="password" autocomplete="current-password" placeholder="输入账号密码" required /></label>
+                <label class="account-field">密码<span class="account-password-control"><input id="accountPassword" type="password" autocomplete="current-password" placeholder="输入账号密码" required /><button class="account-password-toggle" type="button" data-toggle-password="accountPassword" aria-label="显示登录密码" aria-pressed="false">显示</button></span></label>
                 <button class="account-inline-button" type="submit" data-account-login>登录</button>
               </div>
             </form>
@@ -6417,15 +6462,15 @@
         ? `<img src="${escapeHTML(accountState.avatarUrl)}" alt="当前头像" />`
         : `<span aria-hidden="true">${escapeHTML((profile.nickname || "用").slice(0, 1))}</span>`;
       return `
-        <div class="settings-card glass" id="accountSettingsCard">
+        <div class="settings-card glass" id="accountSettingsCard" data-account-view="signed-in">
           <div class="account-card-head">
             <h1>账号设置</h1>
-            <span class="account-sync-badge ${accountState.syncStatus === "error" ? "is-error" : ""}">${getAccountSyncLabel(accountState)}</span>
+            <span class="account-sync-badge ${accountState.syncStatus === "error" ? "is-error" : ""}" data-account-sync-status>${getAccountSyncLabel(accountState)}</span>
           </div>
           <p>当前账号的导航、自选股、策略配置和趣味成绩会同步到云端，并与其他账号隔离。</p>
           <div class="account-profile-row">
             <label class="account-avatar-picker" title="选择新头像">
-              ${avatar}<small>更换头像</small>
+              <span class="account-avatar-preview" data-account-avatar-preview>${avatar}</span><small>更换头像</small>
               <input id="accountAvatar" type="file" accept="image/jpeg,image/png,image/webp" hidden />
             </label>
             <div class="account-profile-fields">
@@ -6433,17 +6478,19 @@
                 <label class="account-field">昵称<input id="accountNickname" type="text" maxlength="20" autocomplete="nickname" value="${escapeHTML(profile.nickname || AccountSystem.getDisplayName())}" /></label>
                 <label class="account-field">登录邮箱<input type="email" value="${escapeHTML(accountState.user.email || "")}" readonly /></label>
               </div>
+              <p class="account-note" data-account-avatar-selection>选择图片后会先预览，点击下方按钮后才会上传保存。</p>
               <div class="account-actions-row">
-                <button class="account-inline-button" type="button" data-account-save-profile>保存资料</button>
-                <button class="account-inline-button secondary" type="button" data-account-sync>立即同步</button>
+                <button class="account-inline-button" type="button" data-account-save-profile>保存头像和昵称</button>
               </div>
             </div>
           </div>
           <div class="account-divider"></div>
+          <h2 class="account-subtitle">密码管理</h2>
+          <p class="account-note">出于安全原因无法查看当前密码；你可以查看本次输入内容，并将账号密码重置为新密码。</p>
           <div class="account-form-grid">
-            <label class="account-field">新密码<input id="accountNewPassword" type="password" minlength="8" autocomplete="new-password" placeholder="至少 8 位" /></label>
-            <label class="account-field">确认新密码<input id="accountConfirmPassword" type="password" minlength="8" autocomplete="new-password" placeholder="再次输入新密码" /></label>
-            <button class="account-inline-button secondary" type="button" data-account-update-password>修改密码</button>
+            <label class="account-field">新密码<span class="account-password-control"><input id="accountNewPassword" type="password" minlength="8" autocomplete="new-password" placeholder="至少 8 位" /><button class="account-password-toggle" type="button" data-toggle-password="accountNewPassword" aria-label="显示新密码" aria-pressed="false">显示</button></span></label>
+            <label class="account-field">确认新密码<span class="account-password-control"><input id="accountConfirmPassword" type="password" minlength="8" autocomplete="new-password" placeholder="再次输入新密码" /><button class="account-password-toggle" type="button" data-toggle-password="accountConfirmPassword" aria-label="显示确认密码" aria-pressed="false">显示</button></span></label>
+            <button class="account-inline-button secondary" type="button" data-account-update-password>重置密码</button>
           </div>
           <div class="account-divider"></div>
           <button class="account-inline-button danger" type="button" data-account-sign-out>退出当前账号</button>
@@ -6532,13 +6579,13 @@
     }
 
     function renderSettingsPage() {
+      clearAccountAvatarPreview();
       content.className = "content feature-content";
-      content.innerHTML = `
-        <section class="settings-page">
-          ${renderAccountSettings()}
-
-          <div class="settings-card glass" style="margin-top: 24px;">
-            <h1>神之领域设置</h1>
+      let settingsContent = renderAccountSettings();
+      if (activeSettingsView === "navigation") {
+        settingsContent = `
+          <div class="settings-card glass">
+            <h1>导航配置</h1>
             <p>管理当前账号的导航配置。登录后修改会自动同步；导入会覆盖当前功能排序、分类和网站。</p>
             <div class="settings-actions">
               <button class="settings-action" type="button" data-config-action="import">
@@ -6551,23 +6598,27 @@
               </button>
               <button class="settings-action danger" type="button" data-config-action="reset">
                 <strong>↺ 恢复默认</strong>
-                <span>清除本地配置并回到默认数据。</span>
+                <span>清除当前配置并回到默认数据。</span>
               </button>
             </div>
-          </div>
-
-          <div class="settings-card glass" style="margin-top: 24px;">
+          </div>`;
+      } else if (activeSettingsView === "unlock") {
+        settingsContent = `
+          <div class="settings-card glass">
             <h1>解锁功能</h1>
-            <p>输入通行密码后显示股市入口；趣味功能无需解锁。</p>
+            <p>输入通行密码后显示受保护入口；趣味功能无需解锁。此状态只保存在当前设备，不会随账号同步。</p>
             <div class="unlock-panel" style="display: flex; gap: 12px; margin-top: 16px;">
               <input type="password" id="unlockStocksPassword" placeholder="输入密码" style="flex: 1; padding: 10px 16px; border-radius: 10px; border: 1px solid rgba(196,218,197,0.18); background: rgba(19,31,23,0.44); color: #f3f6ef; outline: none;" />
               <button class="settings-action" type="button" id="unlockStocksBtn" style="margin: 0; padding: 0 24px; min-width: 100px; height: 42px; min-height: auto; display: flex; align-items: center; justify-content: center; text-align: center;">
                 <strong style="font-size: 15px;">${isStocksUnlocked ? "已解锁" : "解锁"}</strong>
               </button>
             </div>
-            ${isStocksUnlocked ? '<p style="margin-top: 12px; color: #4caf50; font-size: 14px;">股市功能已解锁</p>' : ""}
-          </div>
-
+            ${isStocksUnlocked ? '<p style="margin-top: 12px; color: #77d79a; font-size: 14px;">功能已解锁</p>' : ""}
+          </div>`;
+      }
+      content.innerHTML = `
+        <section class="settings-page">
+          ${settingsContent}
         </section>
       `;
     }
@@ -13704,7 +13755,11 @@
       }
 
       if (activeFeature === "settings") {
-        handleConfigAction(event);
+        const viewButton = event.target.closest("[data-settings-view]");
+        if (!viewButton || viewButton.dataset.settingsView === activeSettingsView) return;
+        activeSettingsView = viewButton.dataset.settingsView;
+        renderSettingsList();
+        renderSettingsPage();
         return;
       }
 
@@ -13788,9 +13843,16 @@
         return;
       }
       if (activeFeature === "settings") {
-        const settingsSection = event.target.closest("[data-settings-section]");
-        if (settingsSection) {
-          document.getElementById(settingsSection.dataset.settingsSection)?.scrollIntoView({ behavior: "smooth", block: "start" });
+        const passwordToggle = event.target.closest("[data-toggle-password]");
+        if (passwordToggle) {
+          const passwordInput = document.getElementById(passwordToggle.dataset.togglePassword);
+          if (!passwordInput) return;
+          const willShow = passwordInput.type === "password";
+          passwordInput.type = willShow ? "text" : "password";
+          passwordToggle.textContent = willShow ? "隐藏" : "显示";
+          passwordToggle.setAttribute("aria-pressed", String(willShow));
+          passwordToggle.setAttribute("aria-label", `${willShow ? "隐藏" : "显示"}${passwordInput.id === "accountPassword" ? "登录密码" : "密码"}`);
+          passwordInput.focus({ preventScroll: true });
           return;
         }
         const loginButton = event.target.closest("[data-account-login]");
@@ -13803,12 +13865,12 @@
         if (saveProfileButton) {
           const nickname = document.getElementById("accountNickname")?.value;
           const avatarFile = document.getElementById("accountAvatar")?.files?.[0] || null;
-          runAccountAction(saveProfileButton, () => AccountSystem.updateProfile({ nickname, avatarFile }), "账号资料已保存");
-          return;
-        }
-        const syncAccountButton = event.target.closest("[data-account-sync]");
-        if (syncAccountButton) {
-          runAccountAction(syncAccountButton, () => AccountSystem.syncNow(), "个人数据已同步");
+          runAccountAction(
+            saveProfileButton,
+            () => AccountSystem.updateProfile({ nickname, avatarFile }),
+            "头像和昵称已保存",
+            updateSavedAccountProfileView
+          );
           return;
         }
         const passwordButton = event.target.closest("[data-account-update-password]");
@@ -13819,7 +13881,12 @@
             showToast("两次输入的新密码不一致", "error");
             return;
           }
-          runAccountAction(passwordButton, () => AccountSystem.updatePassword(password), "密码修改成功");
+          runAccountAction(passwordButton, () => AccountSystem.updatePassword(password), "密码重置成功", () => {
+            const passwordInput = document.getElementById("accountNewPassword");
+            const confirmationInput = document.getElementById("accountConfirmPassword");
+            if (passwordInput) passwordInput.value = "";
+            if (confirmationInput) confirmationInput.value = "";
+          });
           return;
         }
         const signOutButton = event.target.closest("[data-account-sign-out]");
@@ -13830,14 +13897,14 @@
         const unlockStocksBtn = event.target.closest("#unlockStocksBtn");
         if (unlockStocksBtn) {
           if (isStocksUnlocked) {
-            showToast("股市功能已解锁，无需重复输入");
+            showToast("功能已解锁，无需重复输入");
             return;
           }
           const password = document.getElementById("unlockStocksPassword")?.value;
           if (password === "1412") {
             isStocksUnlocked = true;
             localStorage.setItem(STOCKS_UNLOCKED_KEY, "true");
-            showToast("股市功能已解锁", "success");
+            showToast("功能已解锁", "success");
             renderFeatureList();
             renderMobileTabbar();
             renderSettingsPage();
@@ -14276,6 +14343,34 @@
       }
     });
 
+    content.addEventListener("change", event => {
+      const avatarInput = event.target.closest("#accountAvatar");
+      if (!avatarInput) return;
+      const file = avatarInput.files?.[0];
+      if (!file) return;
+      if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+        avatarInput.value = "";
+        showToast("头像仅支持 JPG、PNG 或 WebP", "error");
+        return;
+      }
+      if (file.size > 2 * 1024 * 1024) {
+        avatarInput.value = "";
+        showToast("头像不能超过 2 MB", "error");
+        return;
+      }
+      clearAccountAvatarPreview();
+      accountAvatarPreviewUrl = URL.createObjectURL(file);
+      const preview = document.querySelector("[data-account-avatar-preview]");
+      if (preview) {
+        const image = document.createElement("img");
+        image.src = accountAvatarPreviewUrl;
+        image.alt = "待保存的新头像预览";
+        preview.replaceChildren(image);
+      }
+      const selectionStatus = document.querySelector("[data-account-avatar-selection]");
+      if (selectionStatus) selectionStatus.textContent = `已选择 ${file.name}，点击“保存头像和昵称”后上传。`;
+    });
+
     content.addEventListener("submit", event => {
       const loginForm = event.target.closest("[data-account-login-form]");
       if (!loginForm) return;
@@ -14297,10 +14392,23 @@
 
     let applicationStarted = false;
     AccountSystem.configure({
-      onChange: () => {
+      onChange: accountState => {
         if (!applicationStarted) return;
-        if (activeFeature === "settings") renderSettingsPage();
-        if (activeFeature === "game" && activeGame === "gomoku") renderGamePage();
+        if (activeFeature !== "settings" || activeSettingsView !== "account") return;
+        const accountView = document.querySelector("[data-account-view]");
+        const expectedView = accountState.status === "loading"
+          ? "loading"
+          : accountState.status === "unavailable"
+            ? "unavailable"
+            : accountState.user ? "signed-in" : "signed-out";
+        if (accountView?.dataset.accountView === "signed-out" && expectedView === "loading") {
+          return;
+        }
+        if (!accountView || accountView.dataset.accountView !== expectedView) {
+          renderSettingsPage();
+          return;
+        }
+        updateAccountStatusView(accountState);
       },
       onDataApplied: () => window.location.reload(),
       toast: showToast

@@ -149,7 +149,10 @@
     state.avatarUrl = "";
     if (profile.avatar_path) {
       const signed = await supabaseClient.storage.from("avatars").createSignedUrl(profile.avatar_path, 3600);
-      if (!signed.error) state.avatarUrl = signed.data?.signedUrl || "";
+      if (!signed.error && signed.data?.signedUrl) {
+        const separator = signed.data.signedUrl.includes("?") ? "&" : "?";
+        state.avatarUrl = `${signed.data.signedUrl}${separator}v=${Date.now()}`;
+      }
     }
   }
 
